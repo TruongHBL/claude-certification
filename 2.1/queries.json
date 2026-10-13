@@ -1,0 +1,15 @@
+{
+  "note": "expected = tool phải được gọi ĐẦU TIÊN. Câu 9 và 10 có giải thích riêng trong field why.",
+  "queries": [
+    { "id": 1,  "text": "Kiểm tra giúp tôi đơn #12345 đang ở đâu rồi?", "expected": "lookup_order", "why": "Có mã đơn #NNNNN, hỏi trạng thái giao" },
+    { "id": 2,  "text": "Đơn hàng #20871 đã thanh toán chưa vậy?", "expected": "lookup_order", "why": "Thanh toán là thông tin của đơn" },
+    { "id": 3,  "text": "Mã vận đơn GHN-8842137 đang giao tới đâu?", "expected": "lookup_order", "why": "Mã vận đơn → tracking_id" },
+    { "id": 4,  "text": "Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?", "expected": "get_customer", "why": "SĐT + hỏi hồ sơ khách" },
+    { "id": 5,  "text": "Cho tôi xem hồ sơ khách hàng CUS-0042.", "expected": "get_customer", "why": "Mã khách CUS-NNNN" },
+    { "id": 6,  "text": "Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?", "expected": "get_customer", "why": "Ngày đăng ký là thông tin hồ sơ" },
+    { "id": 7,  "text": "Đơn #31007 được giao tới địa chỉ nào?", "expected": "lookup_order", "why": "Bẫy: chữ 'địa chỉ' gợi tới khách, nhưng địa chỉ giao nằm trong đơn" },
+    { "id": 8,  "text": "Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?", "expected": "get_customer", "why": "Điểm tích luỹ là thông tin khách" },
+    { "id": 9,  "text": "Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.", "expected": "lookup_order", "why": "Bẫy system prompt: chỉ hỏi trạng thái đơn, không thao tác cần xác minh danh tính, nên tra đơn trực tiếp. Bản prompt conflict ('luôn kiểm tra khách trước') đẩy sang get_customer" },
+    { "id": 10, "text": "Chị Lan email lan.nguyen@example.vn có những đơn nào gần đây?", "expected": "get_customer", "why": "Không có mã đơn; lookup_order không tìm theo email, nên phải tra khách trước để lấy danh sách mã đơn" }
+  ]
+}

@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby
+# CLAUDE GIẢ cho test bài 1.2 (bản CLI). KHÔNG gọi model.
+# Kịch bản viết tay mô phỏng stream-json của coordinator + subagent:
+#   lượt 1: 5 search-agent song song (mỗi cái gọi search THẬT qua MCP server)
+#   lượt 2: 5 analysis-agent song song, prompt có dán kết quả search
+#   lượt 3: synthesis-agent; lượt 4: end_turn
+# FAKE_MISUSE=nested : analysis-agent đầu tiên tự spawn search-agent (vi phạm hub-and-spoke)
+# FAKE_MISUSE=search : analysis-agent đầu tiên tự gọi search (vi phạm phạm vi tool)
+require "json"
+require "open3"
+args = ARGV.dup
+File.open(ENV.fetch("FAKE_ARGV_LOG", "/dev/null"), "a") { |f| f.puts JSON.generate(args) }
+opt = ->(name) { i = args.index(name); i && args[i + 1] }
+agents = JSON.parse(File.read(opt.("--agents")))
+abort "thiếu agent" unless %w[search-agent analysis-agent synthesis-agent].all? { agents.key?(_1) }
+srv = JSON.parse(File.read(opt.("--mcp-config")))["mcpServers"]["research"]
+topic = opt.("-p").to_s.sub("Chủ đề nghiên cứu: ", "")
+misuse = ENV["FAKE_MISUSE"]
+Open3.popen2(srv["env"], srv["command"], *srv["args"]) do |sin, sout, _|
+  rid = 0
+  rpc = lambda do |method, params = {}|
+    sin.puts JSON.generate({ jsonrpc: "2.0", id: rid += 1, method: method, params: params }); JSON.parse(sout.gets)["result"]
+  end
+  rpc.("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
+  sin.puts JSON.generate({ jsonrpc: "2.0", method: "notifications/initialized" })
+  rpc.("tools/list")
+  out = ->(h, parent = nil) { puts JSON.generate(h.merge(parent_tool_use_id: parent)) }
+  tid = 0
+  nid = -> { "toolu_#{tid += 1}" }
+  out.({ type: "system", subtype: "init", tools: ["Task", "mcp__research__search"], agents: agents.keys, model: "fake" })
+  search_in = lambda do |parent, q|
+    u = nid.()
+    out.({ type: "assistant", message: { id: "msg_#{u}", content: [{ type: "tool_use", id: u, name: "mcp__research__search", input: { query: q } }], stop_reason: "tool_use" } }, parent)
+    text = rpc.("tools/call", { name: "search", arguments: { query: q } })["content"][0]["text"]
+    out.({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: u, content: text }] } }, parent)
+    text
+  end
+  spawn_round = lambda do |mid, specs, &blk|
+    ids = specs.map { nid.() }
+    blocks = specs.each_with_index.map { |(t, d, p), i| { type: "tool_use", id: ids[i], name: "Agent", input: { subagent_type: t, description: d, prompt: p } } }
+    out.({ type: "assistant", message: { id: mid, content: blocks, stop_reason: "tool_use" } })
+    results = specs.each_with_index.map { |spec, i| [ids[i], blk.call(ids[i], spec, i)] }
+    out.({ type: "user", message: { content: results.map { |id, txt| { type: "tool_result", tool_use_id: id, content: [{ type: "text", text: txt }] } } } })
+    results.map(&:last)
+  end
+  subs = ["solar photovoltaic", "wind power", "hydropower", "geothermal energy", "energy storage"]
+  found = spawn_round.("msg_coord_1", subs.map { |s|
+    ["search-agent", "Tìm: #{s}", "Bối cảnh: báo cáo về '#{topic}'. Nhánh: '#{s}'. Ranh giới: chỉ viết về '#{s}'. Output: 5–8 gạch đầu dòng kèm URL."] }) do |id, (_, _, _), i|
+    text = search_in.(id, "#{subs[i]} 2026")
+    out.({ type: "assistant", message: { id: "msg_s#{id}", content: [{ type: "text", text: "(GIẢ) tóm tắt #{subs[i]}" }], stop_reason: "end_turn" } }, id)
+    text
+  end
+  sections = spawn_round.("msg_coord_2", subs.each_with_index.map { |s, i|
+    ["analysis-agent", "Phân tích: #{s}", "Báo cáo về '#{topic}', phần '#{s}'. Dữ liệu (chỉ dùng dữ liệu này):\n#{found[i]}\nOutput: 1 đoạn hiện trạng/ưu/hạn chế/triển vọng."] }) do |id, _, i|
+    if i.zero? && misuse == "nested"
+      u = nid.()
+      out.({ type: "assistant", message: { id: "msg_#{u}", content: [{ type: "tool_use", id: u, name: "Agent", input: { subagent_type: "search-agent", description: "tự tìm thêm", prompt: "tìm thêm" } }], stop_reason: "tool_use" } }, id)
+    elsif i.zero? && misuse == "search"
+      search_in.(id, "#{subs[i]} thêm")
+    end
+    out.({ type: "assistant", message: { id: "msg_a#{id}", content: [{ type: "text", text: "(GIẢ) phân tích #{subs[i]}" }], stop_reason: "end_turn" } }, id)
+    "(GIẢ) Phân tích #{subs[i]} … nguồn https://example.com/#{subs[i].tr(' ', '-')}/overview"
+  end
+  report = spawn_round.("msg_coord_3", [["synthesis-agent", "Viết báo cáo cuối", "Viết báo cáo về '#{topic}' từ các phần:\n#{sections.join("\n")}"]]) do |id, _, _|
+    out.({ type: "assistant", message: { id: "msg_y#{id}", content: [{ type: "text", text: "(GIẢ) báo cáo" }], stop_reason: "end_turn" } }, id)
+    "(GIẢ) # Báo cáo #{topic}\n#{sections.join("\n")}"
+  end
+  out.({ type: "assistant", message: { id: "msg_coord_4", content: [{ type: "text", text: report[0] }], stop_reason: "end_turn" } })
+  out.({ type: "result", subtype: "success", num_turns: 4, total_cost_usd: 0, result: report[0] })
+end

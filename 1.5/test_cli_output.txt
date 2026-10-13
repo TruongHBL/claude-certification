@@ -1,0 +1,39 @@
+== Hook (THẬT, bơm JSON stdin)
+PASS  refund 750 → deny (exit 0 + JSON)  → {"hookSpecificOutput"=>{"hookEventName"=>"PreToolUse", "permissionDecision"=>"deny", "perm
+PASS  refund 500 (đúng hạn mức) → không chặn
+PASS  refund số tiền không hợp lệ → deny
+PASS  mỗi lần deny refund ghi 1 escalation  → 2 dòng
+PASS  transfer khi chưa AML → deny
+PASS  AML pass rồi → transfer được
+PASS  AML pass ở phiên khác KHÔNG có hiệu lực (khoá theo session_id)
+PASS  AML pass của khách khác KHÔNG có hiệu lực
+PASS  AML fail → vẫn chặn
+PASS  normalize get_order, tool_response dạng mảng content block, giữ nguyên hình dạng
+PASS  normalize get_order, tool_response dạng {content: [...]}, giữ nguyên hình dạng
+PASS  normalize get_order, tool_response dạng chuỗi, giữ nguyên hình dạng
+PASS  normalize get_shipment: +09:00 → UTC, IN_TRANSIT → in transit
+PASS  normalize get_payment: DD/MM/YYYY → ISO, P → paid
+PASS  normalize bỏ qua tool không phải get_*
+
+== MCP server (THẬT, bơm JSON-RPC)
+PASS  server trả 4 phản hồi (notification không có phản hồi)
+PASS  tools/list có đủ 6 tool
+PASS  tool tiền tệ ghi LEDGER khi thực sự chạy
+PASS  tool lạ → JSON-RPC error (lỗi giao thức)
+
+== Đầu-cuối run_cli_hooks.sh với claude GIẢ (hook + server THẬT, chọn tool GIẢ)
+PASS  run_cli_hooks.sh chạy xong
+PASS  LEDGER chỉ có 1 giao dịch hợp lệ (refund 750 không chạy)  → "transfer CUS-42 $200\n"
+PASS  output ra model đã chuẩn hoá (date ISO, status chữ)
+PASS  mỗi prompt một lệnh claude -p riêng
+PASS  cờ đúng: --settings, --strict-mcp-config, --tools "", --permission-mode dontAsk
+
+== Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake nói giao thức stream-json)
+PASS  run_cli.sh chạy xong qua SDK
+PASS  SDK spawn đúng binary trỏ bởi CLAUDE_BIN
+PASS  tiến trình con KHÔNG có ANTHROPIC_API_KEY
+PASS  SDK đăng ký 4 hook callback + SDK MCP server ops
+PASS  refund 750 bị hook TS chặn, không thực thi
+PASS  LEDGER trong tiến trình Node chỉ có transfer hợp lệ  → LEDGER: [ 'transfer CUS-42 $200' ]
+
+30 PASS, 0 FAIL

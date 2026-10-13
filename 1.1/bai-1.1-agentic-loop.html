@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 1.1 – Agent Loop</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+</head><body><main>
+<h1>Bài tập 1.1 — Multi-Tool Agent Loop</h1>
+<div class="meta">Domain 1 · Agentic Architecture &amp; Orchestration · Mục 1.1 Agentic Loops<br>Người thực hiện: TruongNQ · Ngày nộp: 08/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Tự viết một vòng lặp agent bằng Messages API (không dùng Agent SDK) với 2 tool: <code>web_search</code> (giả lập) và <code>calculator</code>. Vòng lặp <b>chỉ dựa vào <code>stop_reason</code></b> để quyết định chạy tiếp hay dừng. Câu hỏi thử cần tìm số liệu trước rồi mới tính, nên bắt buộc phải có nhiều vòng gọi tool liên tiếp.</p>
+
+<h2>2. Sơ đồ vòng lặp</h2>
+<div class="card"><svg viewBox="0 0 760 290" role="img" aria-label="Sơ đồ vòng lặp">
+<rect class="b" x="20" y="20" width="200" height="56" rx="8"/><text x="120" y="44" text-anchor="middle" font-weight="600">messages</text><text x="120" y="63" text-anchor="middle" class="m">câu hỏi + toàn bộ history</text>
+<path class="l" d="M220 48 H290"/><polygon points="290,43 300,48 290,53" fill="var(--accent)"/>
+<rect class="c" x="300" y="14" width="190" height="68" rx="10"/><text x="395" y="42" text-anchor="middle" font-weight="600">messages.create</text><text x="395" y="63" text-anchor="middle" class="m">→ đọc stop_reason</text>
+<path class="l" d="M490 48 H560"/><polygon points="560,43 570,48 560,53" fill="var(--accent)"/><text x="527" y="40" text-anchor="middle" class="m">end_turn</text>
+<rect class="b" x="570" y="20" width="170" height="56" rx="8"/><text x="655" y="44" text-anchor="middle" font-weight="600">Trả lời cuối</text><text x="655" y="63" text-anchor="middle" class="m">return text</text>
+<path class="l" d="M395 82 V118"/><polygon points="390,118 395,128 400,118" fill="var(--accent)"/><text x="405" y="105" class="m">tool_use</text>
+<rect class="b" x="270" y="130" width="250" height="50" rx="8"/><text x="395" y="152" text-anchor="middle" font-weight="600">run_tool cho từng block tool_use</text><text x="395" y="170" text-anchor="middle" class="m">web_search · calculator (lỗi → is_error)</text>
+<path class="l" d="M395 180 V206"/><polygon points="390,206 395,216 400,206" fill="var(--accent)"/>
+<rect class="b" x="220" y="218" width="350" height="50" rx="8"/><text x="395" y="240" text-anchor="middle" font-weight="600">Nối assistant + 1 message user</text><text x="395" y="258" text-anchor="middle" class="m">chứa mọi tool_result (khớp tool_use_id)</text>
+<path class="l" d="M220 243 H120 V76"/><polygon points="115,86 120,76 125,86" fill="var(--accent)"/>
+<text x="585" y="150" class="m">stop_reason khác</text><text x="585" y="166" class="m">(max_tokens, refusal…)</text><text x="585" y="182" class="m">→ raise, không coi là xong</text>
+<text x="585" y="230" class="m">MAX_ITERATIONS = 20</text><text x="585" y="246" class="m">→ chỉ là lưới an toàn,</text><text x="585" y="262" class="m">chạm thì log cảnh báo</text>
+</svg></div>
+
+<h2>3. Sáu yêu cầu ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>Client + 2 tool để Claude tự chọn tool</td><td>Hằng <code>TOOLS</code>: <code>web_search</code> và <code>calculator</code>, có JSON Schema và description nói rõ khi nào dùng tool nào</td></tr>
+<tr><td>2</td><td>Vòng lặp kiểm tra <code>stop_reason</code> sau mỗi response</td><td><code>case r.stop_reason.to_s</code> trong hàm <code>agent</code></td></tr>
+<tr><td>3</td><td>Xử lý <code>tool_use</code>: chạy tool, tạo tool_result, nối vào history</td><td>Nối message assistant, rồi <b>một</b> message user chứa mọi <code>tool_result</code> (khớp <code>tool_use_id</code>). Tool lỗi thì trả <code>is_error: true</code> kèm thông báo để Claude tự sửa input</td></tr>
+<tr><td>4</td><td>Xử lý <code>end_turn</code>: lấy câu trả lời cuối</td><td>Ghép các block text rồi return</td></tr>
+<tr><td>5</td><td>Câu hỏi nhiều bước (search rồi tính)</td><td>“Tổng dân số Hà Nội và TP.HCM… TP.HCM đông hơn bao nhiêu %?”</td></tr>
+<tr><td>6</td><td>Giới hạn an toàn 20 vòng, có log cảnh báo</td><td><code>MAX_ITERATIONS = 20</code> → <code>warn</code>. Các <code>stop_reason</code> khác (<code>max_tokens</code>, <code>refusal</code>…) thì raise, không coi là xong</td></tr>
+</table></div>
+
+<h2>4. Mã nguồn</h2>
+<p>File đi kèm: <code>bai_1_1_agentic_loop.rb</code> (Ruby 3.2, gem <code>anthropic</code>). Chạy: <code>gem install anthropic &amp;&amp; ruby bai_1_1_agentic_loop.rb</code></p>
+<pre><code># frozen_string_literal: true
+
+# Bài 1.1 – Build Exercise: Multi-Tool Agent Loop.
+#
+# Vòng lặp agent tự viết bằng Messages API với 2 tool (calculator, web_search giả lập).
+# Điều khiển vòng lặp CHỈ bằng stop_reason: &quot;tool_use&quot; → chạy tool, nối kết quả, lặp tiếp;
+# &quot;end_turn&quot; → trả kết quả. MAX_ITERATIONS chỉ là lưới an toàn.
+#
+# Chạy:  gem install anthropic &amp;&amp; export ANTHROPIC_API_KEY=...
+#        ruby bai_1_1_agentic_loop.rb [&quot;câu hỏi&quot;]
+
+require &quot;json&quot;
+require &quot;anthropic&quot;
+
+CLIENT = Anthropic::Client.new
+MODEL = &quot;claude-sonnet-5-5&quot;
+MAX_ITERATIONS = 20 # lưới an toàn, KHÔNG phải điều kiện dừng chính
+
+TOOLS = [
+  {
+    name: &quot;web_search&quot;,
+    description: &quot;Tìm số liệu thực tế (dân số, diện tích...) về một chủ đề. &quot; \
+                 &quot;Dùng khi cần dữ kiện chưa có trong hội thoại. Trả về một đoạn văn ngắn có số liệu.&quot;,
+    input_schema: {
+      type: &quot;object&quot;,
+      properties: { query: { type: &quot;string&quot;, description: &quot;Câu truy vấn, ví dụ &#x27;dân số Hà Nội 2024&#x27;&quot; } },
+      required: [&quot;query&quot;]
+    }
+  },
+  {
+    name: &quot;calculator&quot;,
+    description: &quot;Tính biểu thức số học gồm + - * / và dấu ngoặc. Dùng cho MỌI phép tính thay vì tự tính nhẩm.&quot;,
+    input_schema: {
+      type: &quot;object&quot;,
+      properties: { expression: { type: &quot;string&quot;, description: &quot;Biểu thức, ví dụ &#x27;(9.5 - 8.7) / 8.7 * 100&#x27;&quot; } },
+      required: [&quot;expression&quot;]
+    }
+  }
+].freeze
+
+# ---------- Tool implementations ----------
+# Dữ liệu GIẢ LẬP cho bài tập (không phải số liệu chính thức).
+MOCK_FACTS = {
+  &quot;hà nội&quot; =&gt; &quot;Dân số Hà Nội năm 2024 khoảng 8,7 triệu người (số liệu giả lập).&quot;,
+  &quot;hồ chí minh&quot; =&gt; &quot;Dân số TP. Hồ Chí Minh năm 2024 khoảng 9,5 triệu người (số liệu giả lập).&quot;,
+  &quot;hcm&quot; =&gt; &quot;Dân số TP. Hồ Chí Minh năm 2024 khoảng 9,5 triệu người (số liệu giả lập).&quot;
+}.freeze
+
+def web_search(query)
+  q = query.downcase
+  hit = MOCK_FACTS.find { |k, _| q.include?(k) }
+  hit ? hit[1] : &quot;Không tìm thấy kết quả cho &#x27;#{query}&#x27;.&quot;
+end
+
+# Parser đệ quy nhỏ cho + - * / ( ) — không dùng eval.
+class Calc
+  def self.evaluate(str) = new(str).parse
+
+  def initialize(str)
+    @tokens = str.scan(%r{\d+(?:[.,]\d+)?|[-+*/()]}).map { |t| t.tr(&quot;,&quot;, &quot;.&quot;) }
+    rest = str.gsub(%r{\d+(?:[.,]\d+)?|[-+*/()]|\s}, &quot;&quot;)
+    raise ArgumentError, &quot;ký tự không hợp lệ: #{rest}&quot; unless rest.empty?
+  end
+
+  def parse
+    v = expr
+    raise ArgumentError, &quot;thừa token: #{@tokens.join}&quot; unless @tokens.empty?
+    v
+  end
+
+  private
+
+  def expr
+    v = term
+    while %w[+ -].include?(@tokens.first)
+      @tokens.shift == &quot;+&quot; ? v += term : v -= term
+    end
+    v
+  end
+
+  def term
+    v = factor
+    while %w[* /].include?(@tokens.first)
+      if @tokens.shift == &quot;*&quot;
+        v *= factor
+      else
+        d = factor
+        raise ZeroDivisionError, &quot;chia cho 0&quot; if d.zero?
+        v /= d
+      end
+    end
+    v
+  end
+
+  def factor
+    t = @tokens.shift or raise ArgumentError, &quot;biểu thức chưa đầy đủ&quot;
+    case t
+    when &quot;(&quot; then v = expr; @tokens.shift == &quot;)&quot; ? v : raise(ArgumentError, &quot;thiếu &#x27;)&#x27;&quot;)
+    when &quot;-&quot; then -factor
+    when &quot;+&quot; then factor
+    else Float(t)
+    end
+  end
+end
+
+def run_tool(name, input)
+  arg = -&gt;(k) { (input[k.to_sym] || input[k.to_s]).to_s }
+  case name.to_s
+  when &quot;web_search&quot; then [web_search(arg.(&quot;query&quot;)), false]
+  when &quot;calculator&quot; then [Calc.evaluate(arg.(&quot;expression&quot;)).round(4).to_s, false]
+  else [&quot;Tool không tồn tại: #{name}&quot;, true]
+  end
+rescue ArgumentError, ZeroDivisionError =&gt; e
+  [&quot;Lỗi: #{e.message}&quot;, true] # trả lỗi có cấu trúc để Claude tự sửa input
+end
+
+# ---------- Agentic loop ----------
+def agent(question)
+  messages = [{ role: &quot;user&quot;, content: question }]
+  MAX_ITERATIONS.times do |i|
+    r = CLIENT.messages.create(model: MODEL, max_tokens: 2000, tools: TOOLS, messages: messages)
+    messages &lt;&lt; { role: &quot;assistant&quot;, content: r.content } # luôn nối lượt của Claude vào history
+
+    case r.stop_reason.to_s
+    when &quot;end_turn&quot;
+      return r.content.select { |b| b.type.to_s == &quot;text&quot; }.map(&amp;:text).join
+    when &quot;tool_use&quot;
+      results = r.content.select { |b| b.type.to_s == &quot;tool_use&quot; }.map do |b|
+        out, err = run_tool(b.name, b.input)
+        puts &quot;[iter #{i}] #{b.name}(#{b.input.to_h.to_json}) → #{out}&quot;
+        { type: &quot;tool_result&quot;, tool_use_id: b.id, content: out, is_error: err }
+      end
+      messages &lt;&lt; { role: &quot;user&quot;, content: results } # mọi kết quả trong MỘT message user
+    else # max_tokens, refusal, pause_turn... → không coi là xong, báo ra để xử lý
+      raise &quot;Dừng bất thường: stop_reason=#{r.stop_reason}&quot;
+    end
+  end
+  warn &quot;CẢNH BÁO: chạm MAX_ITERATIONS=#{MAX_ITERATIONS} — vòng lặp có thể đang bị kẹt&quot;
+  nil
+end
+
+if $PROGRAM_NAME == __FILE__
+  q = ARGV[0] || &quot;Tổng dân số Hà Nội và TP. Hồ Chí Minh năm 2024 là bao nhiêu? &quot; \
+                 &quot;TP. Hồ Chí Minh đông hơn Hà Nội bao nhiêu phần trăm?&quot;
+  puts agent(q)
+end
+</code></pre>
+
+<h2>5. Kiểm thử</h2>
+<div class="card ok"><b>Đã chạy: kiểm thử với API giả lập.</b> Stub đóng vai Claude, và <b>ở mỗi lượt tự kiểm tra</b> message cuối có phải tool_result khớp <code>tool_use_id</code> của lượt trước không. Kịch bản:
+<ol>
+<li>Lượt 0: Claude trả về <b>text kèm 2 tool_use song song</b> (“Để tôi tra số liệu.” + 2 lần search). Đây là trường hợp mà cách check <code>content[0].type == "text"</code> sẽ dừng sai.</li>
+<li>Lượt 1: Claude gọi calculator với input sai (“8,7 triệu + 9,5 triệu”). Tool trả lỗi <code>is_error</code>.</li>
+<li>Lượt 2: Claude sửa input, gọi 2 phép tính.</li>
+<li>Lượt 3: <code>end_turn</code>, trả lời cuối.</li>
+</ol>
+<pre><code>[iter 0] web_search({&quot;query&quot;:&quot;dân số Hà Nội 2024&quot;}) → Dân số Hà Nội năm 2024 khoảng 8,7 triệu người (số liệu giả lập).
+[iter 0] web_search({&quot;query&quot;:&quot;dân số TP. Hồ Chí Minh 2024&quot;}) → Dân số TP. Hồ Chí Minh năm 2024 khoảng 9,5 triệu người (số liệu giả lập).
+[iter 1] calculator({&quot;expression&quot;:&quot;8,7 triệu + 9,5 triệu&quot;}) → Lỗi: ký tự không hợp lệ: triệutriệu
+[iter 2] calculator({&quot;expression&quot;:&quot;8,7 + 9,5&quot;}) → 18.2
+[iter 2] calculator({&quot;expression&quot;:&quot;(9.5 - 8.7) / 8.7 * 100&quot;}) → 9.1954
+Tổng ~18,2 triệu; TP.HCM đông hơn ~9,2%.</code></pre>
+Các trường hợp biên đều xử lý đúng:
+<ul class="chk" style="margin:6px 0 0">
+<li>Claude cứ gọi tool mãi: dừng sau 20 vòng và in “CẢNH BÁO: chạm MAX_ITERATIONS=20”.</li>
+<li><code>stop_reason = max_tokens</code>: raise “Dừng bất thường”, không trả về kết quả dở.</li>
+<li>Calculator không dùng <code>eval</code>: chặn ký tự lạ, báo chia cho 0, báo biểu thức thiếu.</li>
+</ul></div>
+<div class="card warn"><b>Chưa chạy: với API thật.</b> Chưa có key Claude API hợp lệ, nên mới kiểm thử logic với API giả lập.</div>
+
+<h2>6. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>2 tool có JSON Schema đúng chuẩn</li>
+<li>Vòng lặp gọi <code>messages.create</code> và kiểm tra <code>stop_reason</code></li>
+<li>Chạy tool và nối tool_result vào hội thoại</li>
+<li>Thoát vòng lặp khi <code>end_turn</code> và lấy được text cuối</li>
+<li>Có ít nhất 2 lượt gọi tool liên tiếp trước khi xong (kịch bản test có 3)</li>
+<li><code>MAX_ITERATIONS</code> có cảnh báo, chỉ kích hoạt khi bất thường</li>
+</ul>
+
+<h2>7. Bài học rút ra</h2>
+<ul>
+<li><b><code>stop_reason</code> là tín hiệu duy nhất đáng tin để dừng vòng lặp.</b> Lượt 0 vừa có text vừa có tool_use: check theo loại content sẽ dừng sai ngay ở đây.</li>
+<li><b>Quên nối tool_result thì lượt sau Claude không biết kết quả.</b> Nhiều tool call trong một lượt thì gửi mọi kết quả trong một message user.</li>
+<li><b>Lỗi tool nên trả về cho Claude</b> (<code>is_error</code> + thông báo rõ), không nên nuốt lỗi. Claude đã tự sửa input ở lượt 2.</li>
+<li><b>Giới hạn số vòng chỉ là lưới an toàn.</b> Đừng dùng nó làm cách kết thúc chính, và đừng ép <code>tool_choice: any</code> để chống trả text, vì sẽ gây vòng lặp vô hạn.</li>
+</ul>
+
+<h2>8. Bản chạy bằng CLI (không cần API key)</h2>
+<p>Bản API ở trên cần <code>ANTHROPIC_API_KEY</code>. Bản này dùng <b>Claude Code CLI</b> với phiên đăng nhập claude.ai sẵn có (tính vào quota gói). Vì CLI <b>tự chạy vòng lặp agent</b>, bài tập chuyển từ "tự viết vòng lặp" sang <b>"quan sát vòng lặp"</b>: cùng 2 tool, cùng dữ liệu giả lập, cùng câu hỏi, rồi đọc stream-json để thấy từng lượt <code>stop_reason</code>, <code>tool_use</code>, <code>tool_result</code>.</p>
+<div class="tw"><table><tr><th>File mới</th><th>Vai trò</th></tr>
+<tr><td><code>loop_mcp_server.rb</code></td><td>MCP server stdio (Ruby thuần) chứa đúng 2 tool của bản API: <code>web_search</code> (dữ liệu giả lập) và <code>calculator</code> (parser không dùng eval). Lỗi tính toán trả <code>isError: true</code>. <code>LOOP_LOG</code> ghi mỗi lần gọi tool</td></tr>
+<tr><td><code>run_cli.sh</code></td><td>Chạy <code>claude -p</code> với 2 tool MCP, tắt tool built-in, lưu <code>loop.jsonl</code> vào <code>cli_runs/&lt;thời điểm&gt;/</code> rồi gọi parser</td></tr>
+<tr><td><code>parse_loop.rb</code></td><td>Gom stream-json theo <code>message.id</code> (một response có thể bị tách nhiều dòng), in từng lượt, ghép <code>tool_result</code> theo <code>tool_use_id</code>, đối chiếu số lần gọi với log của server, kiểm 4 điều kiện của vòng lặp đúng</td></tr>
+<tr><td><code>test/bin/claude</code>, <code>test/run_tests.rb</code></td><td><code>claude</code> GIẢ (kịch bản viết tay, tool chạy thật qua server) và bộ test</td></tr></table></div>
+<h3>Lệnh chạy</h3>
+<pre><code>cd ~/Downloads/claude-cert/1.1
+./run_cli.sh                       # câu hỏi mặc định (giống bản API)
+./run_cli.sh "câu hỏi khác"
+./run_cli.sh --parse cli_runs/&lt;thời điểm&gt;   # phân tích lại lần chạy cũ
+ruby test/run_tests.rb              # test bằng claude giả</code></pre>
+<p>Cờ dùng: <code>-p --model haiku --system-prompt … --mcp-config … --strict-mcp-config --tools "" --allowedTools mcp__loop__web_search mcp__loop__calculator --permission-mode dontAsk --max-budget-usd 0.3 --no-session-persistence --output-format stream-json --verbose</code>. Không dùng <code>--bare</code> (bắt buộc API key) và <code>--safe-mode</code> (tắt MCP).</p>
+<h3>Khác biệt so với bản API</h3>
+<div class="tw"><table><tr><th></th><th>Bản API (<code>bai_1_1_agentic_loop.rb</code>)</th><th>Bản CLI</th></tr>
+<tr><td>Ai chạy vòng lặp</td><td>Code của mình: <code>messages.create</code> → đọc <code>stop_reason</code> → chạy tool → nối <code>tool_result</code></td><td>Claude Code. Mình chỉ cung cấp tool qua MCP</td></tr>
+<tr><td>Điều kiện dừng</td><td>Tự viết: dừng ở <code>end_turn</code>, báo lỗi với stop_reason lạ, <code>MAX_ITERATIONS</code> làm lưới an toàn</td><td><b>Không tự đặt được</b>, chỉ quan sát. Trần chi phí bằng <code>--max-budget-usd</code></td></tr>
+<tr><td>Chạy tool</td><td><code>run_tool</code> trong cùng process</td><td>MCP server riêng, CLI gọi qua stdio</td></tr>
+<tr><td>Xác thực</td><td><code>ANTHROPIC_API_KEY</code></td><td>Phiên đăng nhập <code>claude</code> (claude.ai)</td></tr>
+<tr><td>Context</td><td>Chỉ có system prompt của mình</td><td>Có thêm system prompt nền của CLI, CLAUDE.md và hook của user (nên chạy trong thư mục riêng)</td></tr></table></div>
+<h3>Kiểm thử</h3>
+<div class="card ok"><b>Đã chạy: 21/21 PASS với <code>claude</code> GIẢ.</b> 8 test cho MCP server (bơm JSON-RPC qua stdin: tools/list, web_search, calculator 9.1954, chia 0 và ký tự lạ → <code>isError</code>, method lạ → -32601, ghi log). 13 test đầu-cuối: cờ của lệnh <code>claude</code>, gom 2 dòng cùng <code>message.id</code> thành 1 lượt, ghép 4/4 <code>tool_result</code>, khớp log server, suy ra <code>stop_reason</code> khi CLI không ghi, và parser báo FAIL khi thiếu <code>tool_result</code>.</div>
+<p>Output của một lần chạy với <code>claude</code> GIẢ. Việc chọn tool ở đây là <b>kịch bản viết tay</b>, chỉ kết quả tool là thật (chạy qua MCP server):</p>
+<pre><code>== Câu hỏi: Tổng dân số Hà Nội và TP. Hồ Chí Minh năm 2024 là bao nhiêu? TP. Hồ Chí Minh đông hơn Hà Nội bao nhiêu phần trăm?
+== Lưu tại: …/1.1/cli_runs/20261013-183208
+Tool khả dụng (system:init): mcp__loop__web_search, mcp__loop__calculator
+
+Lượt 1 · msg_fake_1 · stop_reason=tool_use
+  text     : Mình tra dân số hai thành phố.
+  tool_use : toolu_a1 mcp__loop__web_search {&quot;query&quot;:&quot;dân số Hà Nội 2024&quot;}
+    ↳ tool_result (toolu_a1): Dân số Hà Nội năm 2024 khoảng 8,7 triệu người (số liệu giả lập).
+  tool_use : toolu_a2 mcp__loop__web_search {&quot;query&quot;:&quot;dân số TP. Hồ Chí Minh 2024&quot;}
+    ↳ tool_result (toolu_a2): Dân số TP. Hồ Chí Minh năm 2024 khoảng 9,5 triệu người (số liệu giả lập).
+
+Lượt 2 · msg_fake_2 · stop_reason=tool_use
+  tool_use : toolu_b1 mcp__loop__calculator {&quot;expression&quot;:&quot;8.7 + 9.5&quot;}
+    ↳ tool_result (toolu_b1): 18.2
+  tool_use : toolu_b2 mcp__loop__calculator {&quot;expression&quot;:&quot;(9.5 - 8.7) / 8.7 * 100&quot;}
+    ↳ tool_result (toolu_b2): 9.1954
+
+Lượt 3 · msg_fake_3 · stop_reason=end_turn
+  text     : (GIẢ) Tổng 18,2 triệu; HCM đông hơn khoảng 9,2%.
+
+== Tóm tắt
+Số lượt API (gom theo message.id): 3
+Số tool_use: 4  ·  tool_result ghép được: 4/4
+MCP server ghi nhận: 4 lần tools/call (khớp số tool_use)
+stop_reason lượt cuối: end_turn
+result: subtype=success · num_turns=3 · total_cost_usd=0
+Câu trả lời: (GIẢ) Tổng 18,2 triệu; HCM đông hơn khoảng 9,2%.
+
+PASS  Mọi lượt trước lượt cuối đều dừng vì tool_use
+PASS  Lượt cuối dừng vì end_turn
+PASS  Mọi tool_use đều có tool_result ghép theo tool_use_id
+PASS  Có dùng tool (không tự trả lời ngay)
+
+== Đối chiếu với vòng lặp tự viết (bai_1_1_agentic_loop.rb)
+- Bản API: code của mình gọi messages.create, đọc stop_reason, chạy tool, nối tool_result, quyết định dừng.
+- Bản CLI: Claude Code làm toàn bộ việc đó. Mỗi &quot;Lượt&quot; ở trên tương ứng một vòng `MAX_ITERATIONS.times`
+  của bản API; mỗi dòng ↳ tương ứng một phần tử `results` trong message user.
+- KHÔNG làm được bằng CLI: tự đặt điều kiện dừng, tự xử lý stop_reason lạ (max_tokens, refusal),
+  tự quyết MAX_ITERATIONS. Ở đây chỉ QUAN SÁT được vòng lặp của Claude Code.</code></pre>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> Chưa xác nhận: (1) stream-json thật có điền <code>stop_reason</code> ở mỗi lượt không (parser đã có đường suy ra); (2) <code>--tools ""</code> chỉ tắt tool built-in mà vẫn giữ tool MCP; (3) haiku có gọi 2 <code>web_search</code> trong cùng một lượt như kịch bản giả không. <b>Chi phí ước tính:</b> 1 lần chạy với haiku, 3–6 lượt API ≈ 0,03–0,10 USD, chặn trần 0,3 USD.</div>
+
+<h2>9. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/1-agentic-architecture/1-1-agentic-loops">Lesson 1.1 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview">Tool use with Claude – Claude docs</a></li>
+<li><a href="https://code.claude.com/docs/en/headless">Run Claude Code programmatically (claude -p, stream-json) – Claude Code docs</a></li>
+<li><a href="https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons">Handling stop reasons – Claude docs</a></li>
+</ul>
+</main></body></html>

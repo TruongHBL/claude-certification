@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chạy thử Hub-and-Spoke</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--warn:#8a5a00;--warn-soft:#fbf0d9;--err:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--warn:#f0c46a;--warn-soft:#33291a;--err:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--warn:#f0c46a;--warn-soft:#33291a;--err:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:920px;margin:0 auto;padding:28px 16px 64px}h1{font-size:24px;margin:0 0 4px;color:var(--accent)}
+.meta{color:var(--muted);font-size:14px;margin-bottom:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+.warn{background:var(--warn-soft);border-color:transparent;font-size:14px}.warn b{color:var(--warn)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}@media(max-width:640px){.grid{grid-template-columns:minmax(0,1fr)}}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.row{display:flex;gap:8px;align-items:end}.row>div{flex:1;min-width:0}
+button{padding:9px 16px;border:0;border-radius:6px;background:var(--accent);color:var(--card);font:inherit;font-weight:600;cursor:pointer}
+button.sec{background:var(--accent-soft);color:var(--accent)}button:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:12px;white-space:pre-wrap;word-break:break-word;font-size:12.5px;max-height:420px;overflow:auto;margin:0}
+h2{font-size:17px;margin:22px 0 8px}.err{color:var(--err)}.status{font-size:13px;color:var(--muted);margin-left:auto;align-self:center}
+</style></head><body><main>
+<h1>Chạy thử: Hub-and-Spoke Research Coordinator</h1>
+<div class="meta">Bài 1.2 · bản chạy trên trình duyệt qua proxy OpenAI-compatible (<code>/chat/completions</code>)</div>
+
+<div class="card warn"><b>Lưu ý:</b>
+<ul style="margin:6px 0 0;padding-left:20px">
+<li>Key chỉ nằm trong bộ nhớ của tab này: không lưu, không gửi đi đâu ngoài endpoint bạn nhập. Đóng tab là mất.</li>
+<li>Tool <code>search</code> là <b>giả lập</b> (kết quả gắn nhãn <code>[MOCK]</code>). Vòng lặp dùng <code>finish_reason</code> của OpenAI, không phải <code>stop_reason</code> của Claude API.</li>
+<li>Nếu proxy không cho gọi từ trình duyệt (lỗi CORS), hãy chạy bản Ruby <code>bai_1_2_hub_and_spoke_proxy.rb</code>.</li>
+</ul></div>
+
+<div class="card">
+<div class="grid">
+<div><label for="base">Base URL</label><input id="base" value="https://api.xah.io/v1"></div>
+<div><label for="key">API key</label><input id="key" type="password" autocomplete="off" placeholder="dán key vào đây"></div>
+<div class="row"><div><label for="model">Model</label><input id="model" list="models" placeholder="tên model"><datalist id="models"></datalist></div>
+<button class="sec" id="loadModels" type="button">Tải danh sách</button></div>
+<div><label for="rounds">Số vòng tối đa (lưới an toàn)</label><input id="rounds" type="number" min="1" max="5" value="3"></div>
+</div>
+<div style="margin-top:12px"><label for="topic">Chủ đề</label><input id="topic" value="Renewable energy technologies"></div>
+<div class="actions">
+<button id="run" type="button">▶ Chạy</button><button class="sec" id="narrow" type="button">▶ Chạy thử lỗi phân rã hẹp</button>
+<button class="sec" id="stop" type="button" disabled>■ Dừng</button><span class="status" id="status"></span>
+</div>
+</div>
+
+<h2>Log</h2><pre id="log">(chưa chạy)</pre>
+<h2>Báo cáo cuối</h2><pre id="report">(chưa có)</pre>
+
+<script>
+// ===== CORE (logic giống bản Ruby) =====
+const cfg = { base: "", key: "", model: "", signal: null };
+let log = (s) => console.log(s);
+const MAX_TOOL_TURNS = 10; // lưới an toàn cho vòng lặp tool
+
+const SEARCH_TOOL = { type: "function", function: {
+  name: "search", description: "Tìm thông tin về một chủ đề. Trả về danh sách kết quả ngắn kèm nguồn.",
+  parameters: { type: "object", properties: { query: { type: "string", description: "Câu truy vấn tìm kiếm" } }, required: ["query"] } } };
+
+function fakeSearch(q) {
+  return `[MOCK] 3 kết quả cho '${q}':\n- Tổng quan về ${q} (nguồn: example.com/a)\n` +
+         `- Số liệu gần đây về ${q} (nguồn: example.com/b)\n- Thách thức và triển vọng của ${q} (nguồn: example.com/c)`;
+}
+
+async function chat(messages, tools) {
+  const body = { model: cfg.model, max_tokens: 4000, messages };
+  if (tools) body.tools = tools;
+  const res = await fetch(cfg.base.replace(/\/$/, "") + "/chat/completions", {
+    method: "POST", signal: cfg.signal,
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.key },
+    body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 500)}`);
+  return (await res.json()).choices[0];
+}
+
+// Mỗi lần gọi = context MỚI. Subagent chỉ biết những gì nằm trong `task`.
+async function runAgent(system, task, tools) {
+  const messages = [{ role: "system", content: system }, { role: "user", content: task }];
+  for (let i = 0; i < MAX_TOOL_TURNS; i++) {
+    const choice = await chat(messages, tools);
+    const msg = choice.message;
+    if (choice.finish_reason === "tool_calls") {        // ≈ stop_reason "tool_use"
+      messages.push(msg);
+      for (const tc of msg.tool_calls) {
+        const args = JSON.parse(tc.function.arguments || "{}");
+        log(`    ↳ tool search("${args.query}")`);
+        messages.push({ role: "tool", tool_call_id: tc.id, content: fakeSearch(String(args.query ?? "")) });
+      }
+    } else {
+      if (choice.finish_reason !== "stop") log(`  ⚠ finish_reason=${choice.finish_reason}`); // ≠ "end_turn"
+      return msg.content ?? "";
+    }
+  }
+  log("  ⚠ chạm MAX_TOOL_TURNS");
+  return "";
+}
+
+async function askJson(system, task) {
+  const t = await runAgent(system, task + "\nChỉ trả về một JSON array các chuỗi, không giải thích.");
+  const a = t.indexOf("["), b = t.lastIndexOf("]");
+  if (a < 0 || b < a) throw new Error("Model không trả JSON array: " + t.slice(0, 300));
+  return JSON.parse(t.slice(a, b + 1));
+}
+
+// ---------- Subagents (spoke) ----------
+const searchSubagent = (topic, sub) => runAgent(
+  "Bạn là subagent tìm kiếm thông tin. Hãy dùng tool search trước khi trả lời.",
+  `Bối cảnh: team đang viết báo cáo về '${topic}'.\nNhiệm vụ: tìm thông tin về '${sub}'.\n` +
+  `Ranh giới: CHỈ viết về '${sub}', không lấn sang nhánh khác.\nOutput: 5–8 gạch đầu dòng, mỗi dòng kèm nguồn.`,
+  [SEARCH_TOOL]);
+
+const analysisSubagent = (topic, sub, findings) => runAgent(
+  "Bạn là subagent phân tích tài liệu.",
+  `Báo cáo về '${topic}', phần '${sub}'.\nDữ liệu (do coordinator chuyển, chỉ được dùng dữ liệu này):\n${findings}\n` +
+  `Output: 1 đoạn gồm hiện trạng, ưu điểm, hạn chế, triển vọng.`);
+
+// ---------- Coordinator (hub) ----------
+const decompose = (topic) => askJson("Bạn là coordinator của hệ thống research.",
+  `Chia chủ đề '${topic}' thành các nhánh con bao phủ TOÀN BỘ phạm vi (tối thiểu 5), không trùng lặp nhau.`);
+
+const findGaps = (topic, covered) => askJson("Bạn là coordinator, đang kiểm tra độ phủ của báo cáo.",
+  `Chủ đề: '${topic}'. Các nhánh đã có: ${JSON.stringify(covered)}.\nLiệt kê các nhánh QUAN TRỌNG còn thiếu. Trả [] nếu đã đủ.`);
+
+async function coordinator(topic, maxRounds, forceNarrow) {
+  const sections = {};
+  let todo = forceNarrow ? ["solar", "wind"] : await decompose(topic);
+  log(`Phân rã: ${JSON.stringify(todo)}${forceNarrow ? "   (cố tình phân rã hẹp)" : ""}`);
+  let rnd = 0;
+  for (; rnd < maxRounds; rnd++) {                       // lưới an toàn, không phải điều kiện dừng chính
+    for (const sub of todo) {
+      const findings = await searchSubagent(topic, sub);                 // spoke 1
+      sections[sub] = await analysisSubagent(topic, sub, findings);      // coordinator chuyển dữ liệu sang spoke 2
+      log(`[round ${rnd}] xong nhánh: ${sub}`);
+    }
+    todo = (await findGaps(topic, Object.keys(sections))).filter((g) => !(g in sections));
+    if (todo.length === 0) break;                        // đủ phạm vi → dừng
+    log(`[round ${rnd}] còn thiếu: ${JSON.stringify(todo)}`);
+  }
+  if (todo.length) log(`⚠ hết số vòng mà vẫn còn nhánh thiếu: ${JSON.stringify(todo)}`);
+  const body = Object.entries(sections).map(([k, v]) => `## ${k}\n${v}`).join("\n\n");
+  return runAgent("Bạn là người viết báo cáo.",
+    `Viết báo cáo tổng hợp về '${topic}' từ các phần sau, giữ nguyên nguồn:\n${body}`);
+}
+// ===== END CORE =====
+
+// ===== UI =====
+const $ = (id) => document.getElementById(id);
+let ctrl = null;
+function readCfg() {
+  cfg.base = $("base").value.trim(); cfg.key = $("key").value.trim(); cfg.model = $("model").value.trim();
+  if (!cfg.key) throw new Error("Chưa nhập API key.");
+}
+function explain(e) {
+  if (e.name === "AbortError") return "Đã dừng.";
+  if (e instanceof TypeError) return e.message + "\n→ Có thể proxy chặn gọi từ trình duyệt (CORS) hoặc sai Base URL. Hãy chạy bản Ruby.";
+  return e.message;
+}
+$("loadModels").onclick = async () => {
+  try {
+    readCfg();
+    const res = await fetch(cfg.base.replace(/\/$/, "") + "/models", { headers: { "Authorization": "Bearer " + cfg.key } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const ids = ((await res.json()).data || []).map((m) => m.id);
+    $("models").replaceChildren(...ids.map((id) => Object.assign(document.createElement("option"), { value: id })));
+    $("status").textContent = `${ids.length} model, bấm vào ô Model để chọn`;
+  } catch (e) { $("status").textContent = explain(e); }
+};
+async function start(forceNarrow) {
+  const lines = [];
+  log = (s) => { lines.push(s); $("log").textContent = lines.join("\n"); $("log").scrollTop = 1e9; };
+  $("report").textContent = "(đang chạy…)";
+  try {
+    readCfg();
+    if (!cfg.model) throw new Error("Chưa nhập Model.");
+    ctrl = new AbortController(); cfg.signal = ctrl.signal;
+    $("run").disabled = $("narrow").disabled = true; $("stop").disabled = false; $("status").textContent = "Đang chạy…";
+    const t0 = Date.now();
+    const report = await coordinator($("topic").value.trim(), Math.max(1, +$("rounds").value || 3), forceNarrow);
+    $("report").textContent = report;
+    $("status").textContent = `Xong sau ${Math.round((Date.now() - t0) / 1000)}s`;
+  } catch (e) {
+    log("✗ " + explain(e)); $("report").textContent = "(lỗi, xem log)"; $("status").textContent = "Lỗi";
+  } finally {
+    $("run").disabled = $("narrow").disabled = false; $("stop").disabled = true; ctrl = null;
+  }
+}
+$("run").onclick = () => start(false);
+$("narrow").onclick = () => start(true);
+$("stop").onclick = () => ctrl && ctrl.abort();
+</script>
+</main></body></html>

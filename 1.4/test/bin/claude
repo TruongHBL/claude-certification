@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# CLAUDE GIẢ cho test bản CLI bài 1.4. KHÔNG gọi model.
+# Chuỗi tool call được VIẾT SẴN theo kịch bản (nhận ra qua nội dung prompt) để kiểm tra
+# đường chạy run_cli.sh → MCP server thật → log/state → score_cli.rb. Không nói gì về hành vi của Claude.
+require "json"
+require "open3"
+
+args = ARGV.dup
+File.open(ENV.fetch("FAKE_ARGV_LOG", "/dev/null"), "a") { |f| f.puts JSON.generate(args) }
+opt = ->(name) { i = args.index(name); i && args[i + 1] }
+prompt = opt.("-p").to_s
+cfg = JSON.parse(File.read(opt.("--mcp-config")))
+srv = cfg["mcpServers"]["support"]
+
+C = { "customer_id" => "C-001" }.freeze
+script =
+  if prompt.include?("1111")
+    [["get_customer", { "email" => "an@example.com", "phone_last4" => "1111" }],
+     ["process_refund", C.merge("order_id" => "ORD-1001", "amount" => 120, "reason" => "khách yêu cầu")]]
+  elsif prompt.include?("KHÔNG cần xác minh")
+    [["process_refund", C.merge("order_id" => "ORD-1001", "amount" => 120, "reason" => "tai nghe hỏng")],
+     ["get_customer", { "email" => "an@example.com", "phone_last4" => "6789" }],
+     ["process_refund", C.merge("order_id" => "ORD-1001", "amount" => 120, "reason" => "tai nghe hỏng")]]
+  elsif prompt.include?("3 việc")
+    full = C.merge("conversation_summary" => "Khách xác minh OK; yêu cầu 3 việc; đã hoàn 45 USD đơn ORD-1002.",
+                   "root_cause_analysis" => "Trừ tiền 2 lần do cổng thanh toán; đổi địa chỉ cần quyền sửa tài khoản.",
+                   "refund_amount" => 45,
+                   "recommended_action" => "Đối soát giao dịch visa-4242 đơn ORD-1001; cập nhật địa chỉ 12 Láng Hạ.",
+                   "concerns" => [{ "type" => "return", "detail" => "Ốp lưng sai màu, đã hoàn 45 USD", "status" => "resolved" },
+                                  { "type" => "billing_dispute", "detail" => "visa-4242 bị trừ 2 lần đơn ORD-1001", "status" => "needs_human" },
+                                  { "type" => "account_update", "detail" => "Đổi địa chỉ sang 12 Láng Hạ, Hà Nội", "status" => "needs_human" }])
+    [["get_customer", { "email" => "an@example.com", "phone_last4" => "6789" }],
+     ["lookup_order", { "order_id" => "ORD-1002" }],
+     ["process_refund", C.merge("order_id" => "ORD-1002", "amount" => 45, "reason" => "sai màu")],
+     ["escalate_to_human", full.merge("root_cause_analysis" => "TBD")],
+     ["escalate_to_human", full]]
+  else
+    [["get_customer", { "email" => "an@example.com", "phone_last4" => "6789" }],
+     ["lookup_order", { "order_id" => "ORD-1001" }],
+     ["process_refund", C.merge("order_id" => "ORD-1001", "amount" => 120, "reason" => "tai nghe hỏng")]]
+  end
+
+Open3.popen2(srv["env"], srv["command"], *srv["args"]) do |sin, sout, _|
+  rpc = lambda do |id, method, params = {}|
+    sin.puts JSON.generate({ jsonrpc: "2.0", id: id, method: method, params: params })
+    JSON.parse(sout.gets)["result"]
+  end
+  rpc.(1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
+  sin.puts JSON.generate({ jsonrpc: "2.0", method: "notifications/initialized" })
+  tools = rpc.(2, "tools/list")["tools"]
+  puts JSON.generate({ type: "system", subtype: "init", tools: tools.map { "mcp__support__#{_1['name']}" } })
+  script.each_with_index do |(name, input), i|
+    res = rpc.(10 + i, "tools/call", { name: name, arguments: input })
+    puts JSON.generate({ type: "assistant", message: { content: [{ type: "tool_use", id: "t#{i}", name: "mcp__support__#{name}", input: input }] } })
+    puts JSON.generate({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t#{i}", content: res["content"], is_error: res["isError"] || false }] } })
+  end
+  puts JSON.generate({ type: "result", subtype: "success", result: "(GIẢ) đã xử lý", total_cost_usd: 0 })
+end

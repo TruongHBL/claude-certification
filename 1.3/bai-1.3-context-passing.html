@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 1.3 – Context Passing</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+</head><body><main>
+<h1>Bài tập 1.3 — Context Passing with Structured Metadata</h1>
+<div class="meta">Domain 1 · Agentic Architecture &amp; Orchestration · Mục 1.3 Subagent Invocation &amp; Context<br>Người thực hiện: TruongNQ · Ngày nộp: 08/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Dùng <b>Claude Agent SDK (TypeScript)</b> dựng một coordinator spawn <b>song song</b> 2 subagent nghiên cứu có phạm vi tool hẹp, rồi chuyển kết quả cho subagent tổng hợp. Trọng tâm là <b>metadata nguồn</b> (URL, tên tài liệu, số trang, độ tin cậy): nó phải đi nguyên vẹn qua coordinator để báo cáo cuối không có khẳng định nào thiếu trích dẫn.</p>
+<p>Vì sao không dùng Ruby như bài 1.1/1.2: đề bài dùng khái niệm của Agent SDK (<code>allowedTools</code>, <code>AgentDefinition</code>), mà Agent SDK chỉ có bản TypeScript và Python. Python trên máy là 3.8, không cài được SDK, nên chọn TypeScript.</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 760 380" role="img" aria-label="Coordinator spawn song song hai subagent, gộp findings rồi chuyển cho synthesizer">
+<rect class="c" x="250" y="12" width="260" height="58" rx="10"/><text x="380" y="36" text-anchor="middle" font-weight="600">Coordinator (query)</text><text x="380" y="56" text-anchor="middle" class="m">allowedTools: ["Agent", …]</text>
+<path class="l" d="M330 70 L170 128"/><polygon points="164,121 176,128 167,133" fill="var(--accent)"/>
+<path class="l" d="M430 70 L590 128"/><polygon points="584,123 594,129 586,133" fill="var(--accent)"/>
+<text x="522" y="34" class="m">2 lời gọi Agent trong</text><text x="522" y="50" class="m">CÙNG 1 response</text><text x="522" y="66" class="m">→ chạy song song</text>
+<rect class="b" x="30" y="132" width="280" height="62" rx="8"/><text x="170" y="156" text-anchor="middle" font-weight="600">web-researcher</text><text x="170" y="176" text-anchor="middle" class="m">tools: WebSearch, WebFetch</text>
+<rect class="b" x="450" y="132" width="280" height="62" rx="8"/><text x="590" y="156" text-anchor="middle" font-weight="600">doc-analyst</text><text x="590" y="176" text-anchor="middle" class="m">tools: Read, Grep, Glob</text>
+<path class="l" d="M170 194 L300 236"/><polygon points="293,240 304,238 297,231" fill="var(--accent)"/>
+<path class="l" d="M590 194 L460 236"/><polygon points="463,231 456,238 467,240" fill="var(--accent)"/>
+<text x="40" y="220" class="m">findings: W1, W2…</text><text x="40" y="236" class="m">+ source_url</text>
+<text x="720" y="220" text-anchor="end" class="m">findings: D1, D2…</text><text x="720" y="236" text-anchor="end" class="m">+ document_name, page_number</text>
+<rect class="c" x="220" y="240" width="320" height="50" rx="10"/><text x="380" y="261" text-anchor="middle" font-weight="600">Coordinator gộp findings</text><text x="380" y="279" text-anchor="middle" class="m">giữ NGUYÊN metadata, không tóm tắt</text>
+<path class="l" d="M380 290 V312"/><polygon points="375,312 380,322 385,312" fill="var(--accent)"/>
+<text x="392" y="306" class="m">&lt;findings&gt;JSON&lt;/findings&gt;</text>
+<rect class="b" x="220" y="322" width="320" height="50" rx="8"/><text x="380" y="343" text-anchor="middle" font-weight="600">synthesizer (tools: [])</text><text x="380" y="361" text-anchor="middle" class="m">mỗi claim → finding_ids + citation</text>
+<text x="30" y="330" class="m">Validator ở tầng code:</text><text x="30" y="346" class="m">song song? metadata đủ?</text><text x="30" y="362" class="m">claim nào mồ côi?</text>
+</svg></div>
+
+<h2>3. Sáu bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>Coordinator có Task/Agent trong <code>allowedTools</code></td><td><code>allowedTools: ["Agent", "WebSearch", "WebFetch", "Read", "Grep", "Glob"]</code>. <code>Agent</code> là tên hiện tại; tên cũ là <code>Task</code> (danh sách tool ở <code>system:init</code> vẫn ghi <code>Task</code>), nên code nhận cả hai</td></tr>
+<tr><td>2</td><td>Hai subagent phạm vi hẹp</td><td><code>AGENTS</code>: <code>web-researcher</code> chỉ có WebSearch/WebFetch; <code>doc-analyst</code> chỉ có Read/Grep/Glob. Mỗi cái có <code>description</code>, <code>prompt</code> và <code>tools</code></td></tr>
+<tr><td>3</td><td>Định dạng có cấu trúc tách content và metadata</td><td><code>interface Finding</code> + <code>FINDING_SCHEMA</code>: content (<code>claim</code>, <code>analysis</code>) và metadata (<code>source_type</code>, <code>source_url</code>, <code>document_name</code>, <code>page_number</code>, <code>confidence</code>)</td></tr>
+<tr><td>4</td><td>Chuyển findings nguyên vẹn cho synthesizer</td><td>Coordinator đặt toàn bộ JSON giữa <code>&lt;findings&gt;</code>. Code đọc lại đúng input của lời gọi Agent tới synthesizer (<code>findingsSentToSynthesizer</code>) và kiểm metadata từng finding (<code>findingErrors</code>)</td></tr>
+<tr><td>5</td><td>Mọi claim trong báo cáo có trích dẫn</td><td>Báo cáo cuối là structured output (<code>outputFormat: json_schema</code>). <code>orphanClaims</code> bắt claim không có nguồn, trỏ tới finding không tồn tại, hoặc citation sai URL/số trang</td></tr>
+<tr><td>6</td><td>Spawn song song</td><td>Prompt yêu cầu 2 lời gọi Agent trong cùng một response. <code>researchSpawnedInParallel</code> gom tool_use theo <code>message.id</code>, vì SDK stream mỗi content block thành một message riêng nhưng cùng id</td></tr>
+</table></div>
+
+<h2>4. Mã nguồn</h2>
+<p>File đi kèm: <code>bai_1_3_context_passing.ts</code>, tài liệu mẫu trong <code>bai_1_3_docs/</code> (dữ liệu tự tạo, có dấu <code>--- Trang N ---</code>), test <code>bai_1_3_test_stub.ts</code>.<br>
+Chạy (Node ≥ 22): <code>npm init -y &amp;&amp; npm pkg set type=module &amp;&amp; npm i @anthropic-ai/claude-agent-sdk &amp;&amp; export ANTHROPIC_API_KEY=… &amp;&amp; node --experimental-strip-types bai_1_3_context_passing.ts</code></p>
+<pre><code>// Bài tập 1.3 — Context Passing with Structured Metadata (Claude Agent SDK, TypeScript)
+//
+// Coordinator spawn SONG SONG 2 subagent nghiên cứu (web-researcher, doc-analyst),
+// gom findings có metadata (nguồn, trang, độ tin cậy), rồi chuyển NGUYÊN VẸN cho
+// synthesizer. Code kiểm tra: (1) spawn song song thật, (2) findings tới synthesizer
+// đủ metadata, (3) mọi claim trong báo cáo cuối đều có trích dẫn hợp lệ.
+//
+// Chạy: npm i @anthropic-ai/claude-agent-sdk &amp;&amp; export ANTHROPIC_API_KEY=...
+//       node --experimental-strip-types bai_1_3_context_passing.ts &quot;câu hỏi&quot;
+//
+// Ghi nhớ khi thi (phân biệt 3 thứ dễ nhầm):
+// - Song song: nhiều lời gọi Agent trong CÙNG một response của coordinator → các
+//   subagent chạy đồng thời, mỗi con có context RIÊNG, rỗng (chỉ nhận prompt của Agent call).
+// - resume (`resume: sessionId` / `--resume`): tiếp tục TUYẾN TÍNH đúng session cũ.
+// - fork (`resume` + `forkSession: true` / `fork_session=True`): rẽ nhánh từ một mốc
+//   chung sang session ID mới, nhánh cũ giữ nguyên — dùng để thử 2 hướng từ cùng baseline.
+
+import { query } from &quot;@anthropic-ai/claude-agent-sdk&quot;;
+import type { AgentDefinition, SDKMessage } from &quot;@anthropic-ai/claude-agent-sdk&quot;;
+
+// ---------- 1. Định dạng có cấu trúc: content tách khỏi metadata ----------
+
+export interface Finding {
+  id: string; // &quot;W1&quot;, &quot;D2&quot;… để báo cáo cuối trích dẫn lại
+  // content
+  claim: string;
+  analysis: string;
+  // metadata (attribution) — không được rơi rớt khi đi qua coordinator
+  source_type: &quot;web&quot; | &quot;document&quot;;
+  source_url: string | null; // bắt buộc khi source_type = web
+  document_name: string | null; // bắt buộc khi source_type = document
+  page_number: number | null; // bắt buộc khi source_type = document
+  confidence: &quot;high&quot; | &quot;medium&quot; | &quot;low&quot;;
+}
+
+export const FINDING_SCHEMA = {
+  type: &quot;object&quot;,
+  required: [&quot;id&quot;, &quot;claim&quot;, &quot;analysis&quot;, &quot;source_type&quot;, &quot;source_url&quot;, &quot;document_name&quot;, &quot;page_number&quot;, &quot;confidence&quot;],
+  properties: {
+    id: { type: &quot;string&quot; },
+    claim: { type: &quot;string&quot;, description: &quot;Một khẳng định, một câu&quot; },
+    analysis: { type: &quot;string&quot;, description: &quot;Diễn giải / ý nghĩa của khẳng định&quot; },
+    source_type: { enum: [&quot;web&quot;, &quot;document&quot;] },
+    source_url: { type: [&quot;string&quot;, &quot;null&quot;] },
+    document_name: { type: [&quot;string&quot;, &quot;null&quot;] },
+    page_number: { type: [&quot;integer&quot;, &quot;null&quot;] },
+    confidence: { enum: [&quot;high&quot;, &quot;medium&quot;, &quot;low&quot;] },
+  },
+} as const;
+
+// Báo cáo cuối: structured output của coordinator (outputFormat json_schema)
+export interface Report {
+  summary: string;
+  claims: { statement: string; finding_ids: string[]; citation: string }[];
+}
+
+export const REPORT_SCHEMA = {
+  type: &quot;object&quot;,
+  required: [&quot;summary&quot;, &quot;claims&quot;],
+  properties: {
+    summary: { type: &quot;string&quot; },
+    claims: {
+      type: &quot;array&quot;,
+      items: {
+        type: &quot;object&quot;,
+        required: [&quot;statement&quot;, &quot;finding_ids&quot;, &quot;citation&quot;],
+        properties: {
+          statement: { type: &quot;string&quot; },
+          finding_ids: { type: &quot;array&quot;, items: { type: &quot;string&quot; }, minItems: 1 },
+          citation: { type: &quot;string&quot;, description: &quot;URL, hoặc &#x27;tên tài liệu, tr. N&#x27;&quot; },
+        },
+      },
+    },
+  },
+} as const;
+
+// ---------- 2. Hai subagent có phạm vi tool hẹp + synthesizer ----------
+
+const FINDINGS_RULE = `Trả về DUY NHẤT một mảng JSON các finding, mỗi phần tử đúng schema:
+${JSON.stringify(FINDING_SCHEMA)}
+Mỗi finding chỉ một claim. Không bịa nguồn; không tìm được nguồn thì bỏ claim đó.`;
+
+export const AGENTS: Record&lt;string, AgentDefinition&gt; = {
+  &quot;web-researcher&quot;: {
+    description: &quot;Tìm thông tin công khai trên web. Dùng cho phần cần nguồn bên ngoài.&quot;,
+    prompt: `Bạn là chuyên viên tìm kiếm web. Chỉ dùng WebSearch/WebFetch.
+Đặt id dạng W1, W2…; source_type=&quot;web&quot;, source_url là URL thật đã đọc, document_name=null, page_number=null.
+${FINDINGS_RULE}`,
+    tools: [&quot;WebSearch&quot;, &quot;WebFetch&quot;], // chỉ tool tìm kiếm
+  },
+  &quot;doc-analyst&quot;: {
+    description: &quot;Phân tích tài liệu nội bộ trong thư mục bai_1_3_docs. Dùng cho phần dữ liệu nội bộ.&quot;,
+    prompt: `Bạn là chuyên viên phân tích tài liệu. Chỉ dùng Read/Grep/Glob, chỉ đọc thư mục bai_1_3_docs.
+Số trang lấy từ dấu &quot;--- Trang N ---&quot; đứng TRƯỚC đoạn chứa thông tin.
+Đặt id dạng D1, D2…; source_type=&quot;document&quot;, document_name là tên file, page_number là số trang, source_url=null.
+${FINDINGS_RULE}`,
+    tools: [&quot;Read&quot;, &quot;Grep&quot;, &quot;Glob&quot;], // chỉ tool đọc file
+  },
+  synthesizer: {
+    description: &quot;Tổng hợp các finding đã có thành báo cáo có trích dẫn. Không tự nghiên cứu thêm.&quot;,
+    prompt: `Bạn tổng hợp báo cáo từ mảng findings trong thẻ &lt;findings&gt;.
+Mỗi câu khẳng định trong báo cáo phải ghi finding_ids và citation lấy từ metadata của finding đó
+(web: source_url; document: &quot;document_name, tr. page_number&quot;). Không thêm khẳng định nào không có finding.`,
+    tools: [], // không cần tool: mọi dữ liệu đã nằm trong prompt
+  },
+};
+
+// Context của subagent KHÔNG kế thừa từ coordinator → coordinator phải tự nhét
+// câu hỏi, phạm vi và findings vào prompt của từng lời gọi Agent.
+export function coordinatorPrompt(question: string): string {
+  return `Câu hỏi nghiên cứu: ${question}
+
+Quy trình bắt buộc:
+1. Trong CÙNG MỘT response, gọi Agent hai lần song song: subagent_type &quot;web-researcher&quot; và
+   subagent_type &quot;doc-analyst&quot;. Prompt của mỗi lời gọi phải chứa nguyên văn câu hỏi ở trên
+   (subagent không thấy hội thoại này). Đợi cả hai hoàn thành.
+2. Gộp hai mảng findings, GIỮ NGUYÊN mọi trường (không tóm tắt, không bỏ metadata).
+3. Gọi Agent với subagent_type &quot;synthesizer&quot;; prompt chứa câu hỏi và toàn bộ findings dạng JSON
+   đặt giữa &lt;findings&gt; và &lt;/findings&gt;.
+4. Trả về báo cáo của synthesizer theo đúng output schema.`;
+}
+
+// ---------- 3. Kiểm tra ở tầng code (không tin vào prompt) ----------
+
+type ToolUse = { id: string; name: string; input: Record&lt;string, unknown&gt; };
+const isAgentTool = (name: string) =&gt; name === &quot;Agent&quot; || name === &quot;Task&quot;; // tên cũ là Task
+
+// SDK stream mỗi content block thành một SDKAssistantMessage riêng nhưng cùng message.id,
+// nên phải gom theo message.id mới biết các Agent call có nằm trong cùng một response không.
+export function agentCallsByResponse(messages: SDKMessage[]): Map&lt;string, ToolUse[]&gt; {
+  const byId = new Map&lt;string, ToolUse[]&gt;();
+  for (const m of messages) {
+    if (m.type !== &quot;assistant&quot; || m.parent_tool_use_id !== null) continue; // chỉ coordinator
+    for (const b of m.message.content) {
+      if (b.type !== &quot;tool_use&quot; || !isAgentTool(b.name)) continue;
+      const list = byId.get(m.message.id) ?? [];
+      list.push({ id: b.id, name: b.name, input: b.input as Record&lt;string, unknown&gt; });
+      byId.set(m.message.id, list);
+    }
+  }
+  return byId;
+}
+
+export function researchSpawnedInParallel(messages: SDKMessage[]): boolean {
+  for (const calls of agentCallsByResponse(messages).values()) {
+    const types = new Set(calls.map((c) =&gt; c.input.subagent_type));
+    if (types.has(&quot;web-researcher&quot;) &amp;&amp; types.has(&quot;doc-analyst&quot;)) return true;
+  }
+  return false;
+}
+
+export function findingErrors(f: Finding): string[] {
+  const errs: string[] = [];
+  if (!f.id || !f.claim || !f.analysis) errs.push(`${f.id ?? &quot;?&quot;}: thiếu id/claim/analysis`);
+  if (![&quot;high&quot;, &quot;medium&quot;, &quot;low&quot;].includes(f.confidence)) errs.push(`${f.id}: confidence không hợp lệ`);
+  if (f.source_type === &quot;web&quot; &amp;&amp; !/^https?:\/\//.test(f.source_url ?? &quot;&quot;))
+    errs.push(`${f.id}: finding web thiếu source_url`);
+  if (f.source_type === &quot;document&quot; &amp;&amp; (!f.document_name || !Number.isInteger(f.page_number)))
+    errs.push(`${f.id}: finding tài liệu thiếu document_name/page_number`);
+  if (f.source_type !== &quot;web&quot; &amp;&amp; f.source_type !== &quot;document&quot;) errs.push(`${f.id}: source_type lạ`);
+  return errs;
+}
+
+// Lấy findings mà coordinator THỰC SỰ gửi cho synthesizer (đọc từ input của Agent call)
+export function findingsSentToSynthesizer(messages: SDKMessage[]): Finding[] | null {
+  for (const calls of agentCallsByResponse(messages).values()) {
+    for (const c of calls) {
+      if (c.input.subagent_type !== &quot;synthesizer&quot;) continue;
+      const m = String(c.input.prompt ?? &quot;&quot;).match(/&lt;findings&gt;([\s\S]*?)&lt;\/findings&gt;/);
+      if (!m) return null;
+      return JSON.parse(m[1]) as Finding[];
+    }
+  }
+  return null;
+}
+
+// Không có claim mồ côi: mỗi claim phải trỏ tới finding có thật và citation khớp metadata
+export function orphanClaims(report: Report, findings: Finding[]): string[] {
+  const byId = new Map(findings.map((f) =&gt; [f.id, f]));
+  const problems: string[] = [];
+  for (const c of report.claims) {
+    if (c.finding_ids.length === 0) {
+      problems.push(`Không có nguồn: &quot;${c.statement}&quot;`);
+      continue;
+    }
+    for (const id of c.finding_ids) {
+      const f = byId.get(id);
+      if (!f) {
+        problems.push(`Trỏ tới finding không tồn tại ${id}: &quot;${c.statement}&quot;`);
+        continue;
+      }
+      const ok = f.source_type === &quot;web&quot;
+        ? c.citation.includes(f.source_url ?? &quot;\u0000&quot;)
+        : c.citation.includes(f.document_name ?? &quot;\u0000&quot;) &amp;&amp;
+          new RegExp(`(tr\\.|trang|p\\.|page)\\s*${f.page_number}(?!\\d)`, &quot;i&quot;).test(c.citation);
+      if (!ok) problems.push(`Citation không khớp metadata của ${id}: &quot;${c.citation}&quot;`);
+    }
+  }
+  return problems;
+}
+
+// ---------- 4. Chạy coordinator ----------
+
+export async function research(question: string) {
+  const messages: SDKMessage[] = [];
+  let report: Report | null = null;
+
+  for await (const m of query({
+    prompt: coordinatorPrompt(question),
+    options: {
+      // &quot;Agent&quot; là cổng cứng: thiếu nó thì coordinator KHÔNG thể spawn subagent.
+      // Liệt kê luôn tool của subagent để chúng chạy không cần hỏi quyền.
+      allowedTools: [&quot;Agent&quot;, &quot;WebSearch&quot;, &quot;WebFetch&quot;, &quot;Read&quot;, &quot;Grep&quot;, &quot;Glob&quot;],
+      agents: AGENTS,
+      outputFormat: { type: &quot;json_schema&quot;, schema: REPORT_SCHEMA },
+      maxTurns: 20,
+      maxBudgetUsd: 2,
+      cwd: new URL(&quot;.&quot;, import.meta.url).pathname,
+    },
+  })) {
+    messages.push(m);
+    if (m.type === &quot;result&quot;) {
+      if (m.subtype !== &quot;success&quot;) throw new Error(`Coordinator dừng bất thường: ${m.subtype}`);
+      report = m.structured_output as Report;
+    }
+  }
+  if (!report) throw new Error(&quot;Không nhận được báo cáo có cấu trúc&quot;);
+  return { messages, report };
+}
+
+export function verify(messages: SDKMessage[], report: Report) {
+  const sent = findingsSentToSynthesizer(messages);
+  return {
+    parallel: researchSpawnedInParallel(messages),
+    findingsSent: sent?.length ?? 0,
+    metadataErrors: sent ? sent.flatMap(findingErrors) : [&quot;Synthesizer không nhận được &lt;findings&gt;&quot;],
+    orphanClaims: sent ? orphanClaims(report, sent) : [],
+  };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const question = process.argv[2] ??
+    &quot;Làm việc hybrid ảnh hưởng thế nào tới năng suất kỹ sư phần mềm, và công ty mình đang áp dụng ra sao?&quot;;
+  const { messages, report } = await research(question);
+  console.log(JSON.stringify(report, null, 2));
+  const v = verify(messages, report);
+  console.log(&quot;\n== Kiểm tra ==&quot;);
+  console.log(`Spawn song song 2 subagent nghiên cứu: ${v.parallel ? &quot;CÓ&quot; : &quot;KHÔNG&quot;}`);
+  console.log(`Findings gửi tới synthesizer: ${v.findingsSent}`);
+  console.log(`Lỗi metadata: ${v.metadataErrors.length ? v.metadataErrors.join(&quot;; &quot;) : &quot;không&quot;}`);
+  console.log(`Claim mồ côi: ${v.orphanClaims.length ? v.orphanClaims.join(&quot;; &quot;) : &quot;không&quot;}`);
+  if (!v.parallel || v.metadataErrors.length || v.orphanClaims.length) process.exitCode = 1;
+}
+</code></pre>
+
+<h2>5. Kiểm tra</h2>
+<div class="card ok"><b>Đã chạy:</b>
+<ul style="margin:6px 0">
+<li><code>tsc --noEmit</code> (strict) với type thật của <code>@anthropic-ai/claude-agent-sdk</code> 0.3.293: <b>0 lỗi</b>. Tên option, <code>AgentDefinition</code>, <code>SDKMessage</code> đều khớp SDK.</li>
+<li>Test các hàm kiểm tra bằng luồng <code>SDKMessage</code> giả lập (không gọi API): <b>10/10 pass</b>.</li>
+</ul>
+<pre><code>Kịch bản A (đúng): {&quot;parallel&quot;:true,&quot;findingsSent&quot;:3,&quot;metadataErrors&quot;:[],&quot;orphanClaims&quot;:[]}
+PASS  A: phát hiện spawn song song (gom theo message.id)
+PASS  A: synthesizer nhận đủ 3 findings
+PASS  A: findings tới synthesizer giữ nguyên metadata (deep-equal)
+PASS  A: không lỗi metadata
+PASS  A: không có claim mồ côi
+PASS  B: spawn tuần tự bị phát hiện
+PASS  C: tool tên cũ Task vẫn tính
+Kịch bản D (coordinator làm rơi metadata): [&quot;W1: finding web thiếu source_url&quot;,&quot;D1: finding tài liệu thiếu document_name/page_number&quot;,&quot;D2: finding tài liệu thiếu document_name/page_number&quot;]
+PASS  D: bắt được 3 finding mất metadata
+Kịch bản E (báo cáo xấu): [&quot;Không có nguồn: \&quot;Năng suất tăng 30%\&quot;&quot;,&quot;Trỏ tới finding không tồn tại W9: \&quot;Đa số công ty bỏ hybrid\&quot;&quot;,&quot;Citation không khớp metadata của D2: \&quot;khao-sat-noi-bo-2026.md, tr. 2\&quot;&quot;,&quot;Citation không khớp metadata của D1: \&quot;khao-sat-noi-bo-2026.md, tr. 12\&quot;&quot;]
+PASS  E: bắt được 4 vấn đề trích dẫn (kể cả tr. 12 ≠ trang 2)
+PASS  F: synthesizer không nhận findings → báo lỗi
+
+10 pass, 0 fail</code></pre>
+Ý nghĩa các kịch bản: A là luồng đúng. B: spawn tuần tự bị phát hiện. C: tên tool cũ <code>Task</code>. D: coordinator “tóm tắt” làm rơi metadata. E: báo cáo có claim mồ côi, id bịa, sai số trang. F: synthesizer không nhận được findings.</div>
+<div class="card warn"><b>Chưa chạy: với API thật.</b> Chưa có key Claude API hợp lệ nên chưa gọi <code>query()</code> thật. Phần đã kiểm là kiểu dữ liệu với SDK thật và logic kiểm tra; việc Claude có thực sự phát 2 lời gọi Agent trong một response hay không chỉ biết khi chạy thật, và đó chính là lý do có <code>researchSpawnedInParallel</code>.</div>
+
+<h2>6. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li><code>allowedTools</code> có <code>Agent</code> (cổng cứng để spawn subagent)</li>
+<li>2 <code>AgentDefinition</code> có description, prompt, tools giới hạn</li>
+<li>Schema tách content và metadata</li>
+<li>Synthesizer nhận findings với metadata nguyên vẹn (kiểm bằng code, test A và D)</li>
+<li>Không có claim mồ côi trong báo cáo (kiểm bằng code, test E)</li>
+<li>2 subagent nghiên cứu được spawn trong cùng một response (kiểm bằng code, test A và B)</li>
+</ul>
+
+<h2>7. Bài học rút ra (bẫy hay gặp trong đề)</h2>
+<ul>
+<li><b>Subagent không kế thừa context.</b> Nó chỉ thấy system prompt của nó và chuỗi <code>prompt</code> trong lời gọi Agent. Câu hỏi, phạm vi, findings đều phải được coordinator nhét vào prompt.</li>
+<li><b>Thiếu trích dẫn thường không phải lỗi prompt của synthesizer.</b> Nếu coordinator đã làm rơi metadata thì synthesizer không có gì để trích. Hãy kiểm tra dữ liệu đầu vào trước (test D).</li>
+<li><b>Việc độc lập thì spawn song song</b>: nhiều lời gọi Agent trong một response. Spawn tuần tự làm tổng thời gian bằng tổng các subagent thay vì bằng subagent chậm nhất.</li>
+<li><b>Thiếu <code>Agent</code>/<code>Task</code> trong <code>allowedTools</code> thì coordinator không spawn được.</b> Đây là cổng có/không, không phải tùy chọn.</li>
+<li><b>Phân biệt:</b> <code>resume</code> tiếp tục tuyến tính session cũ; <code>forkSession</code> rẽ nhánh từ một mốc chung sang session mới; song song là nhiều subagent độc lập chạy cùng lúc.</li>
+</ul>
+
+<h2>8. Bản chạy không cần API key</h2>
+<div class="card"><b>Kết luận: Agent SDK không tự gọi API.</b> <code>query()</code> spawn một tiến trình Claude Code rồi trao đổi với nó qua stdin/stdout dạng stream-json. Tiến trình đó đọc cùng thông tin đăng nhập với lệnh <code>claude</code>, nên khi <b>không có</b> <code>ANTHROPIC_API_KEY</code> nó dùng phiên đăng nhập claude.ai (trừ vào hạn mức gói, không cần key). Đối chiếu trong mã SDK 0.3.293 đã cài (<code>@anthropic-ai/claude-agent-sdk/sdk.mjs</code> là file đã minify, chỉ 148 dòng rất dài):
+<ul>
+<li><b>Binary mặc định là bản đóng gói, không phải <code>claude</code> trên PATH.</b> <code>sdk.mjs</code> dòng 142: khi không có <code>pathToClaudeCodeExecutable</code>, SDK tìm binary trong gói phụ thuộc theo nền tảng, nếu không thấy thì báo lỗi <i>"Native CLI binary for linux-x64 not found … or set options.pathToClaudeCodeExecutable"</i>. Trên máy này đó là <code>@anthropic-ai/claude-agent-sdk-linux-x64/claude</code>, phiên bản <b>2.1.293</b>, còn <code>claude</code> đã đăng nhập là <b>2.1.296</b>. Ở <code>sdk.d.ts</code> dòng 1978–1980: <i>"Uses the built-in executable if not specified."</i></li>
+<li><b>Env được kế thừa nguyên vẹn.</b> <code>sdk.mjs</code> dòng 142 (<code>St=O?{...O}:{...process.env}</code>) và dòng 136 (<code>env:c={...process.env}</code>): nếu shell có <code>ANTHROPIC_API_KEY</code> thì tiến trình con cũng có, và key sẽ được ưu tiên. Vì vậy <code>run_cli.sh</code> <code>unset</code> biến này trước khi chạy.</li>
+<li><b>Đăng nhập dùng chung.</b> <code>sdk.mjs</code> dòng 142 đọc <code>~/.claude/.credentials.json</code> (hoặc <code>$CLAUDE_CONFIG_DIR</code>) khi không có <code>ANTHROPIC_API_KEY</code> hay <code>CLAUDE_CODE_OAUTH_TOKEN</code>. Đây cũng là file của <code>claude</code> đã đăng nhập (<code>claude auth status</code> → <code>"authMethod": "claude.ai"</code>).</li>
+</ul>
+Để chắc chắn chạy đúng bản CLI đã đăng nhập, code nhận biến <code>CLAUDE_BIN</code> và truyền vào <code>pathToClaudeCodeExecutable</code>. <code>run_cli.sh</code> mặc định đặt <code>CLAUDE_BIN=$(command -v claude)</code>; đặt <code>CLAUDE_BIN=</code> (rỗng) để quay về bản đóng gói. Đã kiểm lại <code>tsc --strict</code> với SDK thật: sạch.</div>
+
+<h3>Lệnh chạy</h3>
+<pre><code>cd ~/Downloads/claude-cert/1.3
+./run_cli.sh                      # câu hỏi mặc định
+./run_cli.sh "câu hỏi khác"
+# đã có sẵn node_modules của SDK ở chỗ khác thì không cần npm i:
+SDK_NODE_MODULES=/đường/dẫn/node_modules ./run_cli.sh</code></pre>
+<p><code>run_cli.sh</code> làm 4 việc: <code>unset ANTHROPIC_API_KEY</code>; kiểm <code>claude auth status</code> có <code>loggedIn: true</code> (lệnh này không gọi model); cài <code>@anthropic-ai/claude-agent-sdk@0.3.293</code> vào <code>node_modules</code> nếu chưa có; rồi chạy <code>bai_1_3_context_passing.ts</code> với <code>CLAUDE_BIN</code> trỏ về CLI đã đăng nhập.</p>
+<h3>Kiểm thử</h3>
+<p><code>test/bin/claude-sdk-fake</code> là một <b>Claude Code giả nói đúng giao thức stream-json của SDK</b>: trả lời <code>control_request initialize</code>, nhận prompt, phát luồng message của coordinator → 2 subagent → synthesizer rồi trả <code>result</code> có <code>structured_output</code>. SDK và hàm <code>verify()</code> là <b>thật</b>; nội dung luồng message là <b>kịch bản GIẢ</b>, nên test chỉ chứng minh đường chạy và cách SDK truyền cấu hình, không chứng minh Claude sẽ spawn song song.</p>
+<pre><code>== Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake)
+PASS  run_cli.sh chạy xong, exit 0
+PASS  SDK spawn đúng binary trỏ bởi CLAUDE_BIN
+PASS  tiến trình con KHÔNG có ANTHROPIC_API_KEY (run_cli.sh đã unset)
+PASS  --allowedTools có Agent (thiếu là không spawn được subagent)  → Agent,WebSearch,WebFetch,Read,Grep,Glob
+PASS  outputFormat json_schema → cờ --json-schema
+PASS  --max-budget-usd 2 được truyền xuống CLI
+PASS  SDK gửi đủ 3 AgentDefinition trong initialize
+PASS  verify(): phát hiện spawn song song từ stream thật của SDK
+PASS  verify(): synthesizer nhận findings đủ metadata
+PASS  verify(): không có claim mồ côi
+
+== Test hàm thuần có sẵn (bai_1_3_test_stub.ts)
+PASS  bai_1_3_test_stub.ts  → 10 pass, 0 fail
+
+11 PASS, 0 FAIL</code></pre>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> Lệnh thật sẽ tính vào hạn mức gói claude.ai của bạn. Ước tính: 1 coordinator + 3 subagent (có WebSearch/WebFetch), model mặc định của tài khoản, tương đương <b>~0,5–2 USD</b> giá API (code đặt <code>maxBudgetUsd: 2</code>). Lưu ý khi chạy bằng phiên đăng nhập: CLI vẫn nạp CLAUDE.md, hook và plugin của bạn; cờ <code>--bare</code> để tắt chúng lại chỉ nhận API key.</div>
+
+<h2>9. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/1-agentic-architecture/1-3-subagent-invocation-context">Lesson 1.3 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/agent-sdk/subagents">Subagents in the SDK – Claude Code docs</a></li>
+<li><a href="https://code.claude.com/docs/en/agent-sdk/typescript">Agent SDK TypeScript reference</a></li>
+</ul>
+</main></body></html>

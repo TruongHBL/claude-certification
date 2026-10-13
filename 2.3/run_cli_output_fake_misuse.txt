@@ -1,0 +1,30 @@
+== misuse: chạy claude -p (model haiku, trần 1.5 USD) ==
+(log từ `claude` GIẢ – kịch bản cố định, không phải Claude)
+
+Tool theo agent (lệnh được cho qua):
+  coordinator   Agent×4, review_output×1
+  web-search    search_web×1, load_document×3, save_snippet×2
+  doc-analysis  extract_metadata×3, extract_data_points×2, summarize_content×1, verify_claim×1
+  synthesis     verify_fact×2, format_citation×1, compile_report×1
+
+Cổng extract_metadata đã chặn:
+  doc-analysis (agent_2adaba) → extract_data_points
+
+Vi phạm bị hook chặn:
+  synthesis → search_web [outside_allowlist]
+
+Chi phí: 0.0 USD · số lượt: 24
+
+Kiểm tra:
+  ĐẠT  có log hook (hook PreToolUse thực sự chạy) — 24 lệnh gọi tool
+  ĐẠT  mọi lệnh được cho qua đều nằm trong bộ tool của agent gọi
+  ĐẠT  server chỉ thực thi lệnh đã qua hook
+  ĐẠT  lệnh vi phạm không được thực thi
+  ĐẠT  doc-analysis: lệnh đầu tiên được thực thi trong mỗi phiên là extract_metadata (2 phiên) — extract_metadata×2; cổng hook chặn 1 lệnh sai thứ tự
+  ĐẠT  synthesis dùng compile_report + verify_fact — verify_fact×2, format_citation×1, compile_report×1
+  ĐẠT  nhận định phức tạp được chuyển coordinator → doc-analysis verify_claim — 1 nhận định chờ, verify_claim: true
+  ĐẠT  coordinator không tự dùng tool nghiệp vụ
+  ĐẠT  DEMO cấu hình sai: hook bắt được ≥ 1 vi phạm — synthesis→search_web
+  ĐẠT  claude kết thúc không lỗi — subtype=success
+
+10/10 đạt

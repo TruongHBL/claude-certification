@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "mcp__ops__process_refund",
+        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/pre_refund_limit.rb\"" }] },
+      { "matcher": "mcp__ops__transfer_funds",
+        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/pre_aml_gate.rb\"" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "mcp__ops__get_.*",
+        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/post_normalize.rb\"" }] },
+      { "matcher": "mcp__ops__aml_check",
+        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/post_aml_record.rb\"" }] }
+    ]
+  }
+}

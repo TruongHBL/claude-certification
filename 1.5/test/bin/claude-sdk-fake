@@ -1,0 +1,122 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# CLAUDE GIẢ nói giao thức stream-json của Agent SDK (để test run_cli.sh / bai_1_5_sdk_hooks.ts --run).
+# KHÔNG gọi model. "Model" ở đây là kịch bản cố định theo từ khoá trong prompt (GIẢ ĐỊNH).
+# Cái được kiểm tra THẬT: SDK spawn đúng binary trỏ bởi CLAUDE_BIN, env không có ANTHROPIC_API_KEY,
+# hook callback và SDK MCP server trong tiến trình Node được gọi đúng thứ tự Pre → tool → Post.
+require "json"
+require "securerandom"
+
+$stdout.sync = true
+if ARGV[0, 2] == %w[auth status] # run_cli.sh kiểm tra đăng nhập
+  puts JSON.generate({ loggedIn: true, authMethod: "fake" })
+  exit 0
+end
+LOG = ENV["FAKE_SDK_LOG"] ? File.open(ENV["FAKE_SDK_LOG"], "a").tap { _1.sync = true } : nil
+def log(h) = LOG&.puts(JSON.generate(h))
+def out(h) = $stdout.puts(JSON.generate(h))
+
+log(argv: ARGV, has_api_key: ENV.key?("ANTHROPIC_API_KEY"), self: $PROGRAM_NAME)
+
+$pending = [] # message không phải control_response đọc được trong lúc chờ
+def read_msg = ($pending.shift || (l = $stdin.gets) && JSON.parse(l))
+
+# Gửi control_request cho SDK rồi chờ đúng control_response
+def ctl(request)
+  id = SecureRandom.hex(6)
+  out(type: "control_request", request_id: id, request: request)
+  loop do
+    l = $stdin.gets or abort("stdin đóng khi chờ #{request[:subtype]}")
+    m = JSON.parse(l)
+    if m["type"] == "control_response" && m.dig("response", "request_id") == id
+      abort("SDK trả lỗi: #{m['response']['error']}") if m["response"]["subtype"] == "error"
+      return m["response"]["response"]
+    end
+    $pending << m
+  end
+end
+
+$hooks = {}
+$mcp_id = 0
+SESSION = SecureRandom.uuid
+
+def mcp(server, method, params = nil)
+  msg = { jsonrpc: "2.0", id: ($mcp_id += 1), method: method }
+  msg[:params] = params if params
+  ctl(subtype: "mcp_message", server_name: server, message: msg)["mcp_response"]
+end
+
+def matches?(matcher, name)
+  return true if matcher.nil? || matcher.empty? || matcher == "*"
+  matcher.match?(/\A[\w|]+\z/) ? matcher.split("|").include?(name) : Regexp.new(matcher).match?(name)
+end
+
+def run_hooks(event, base)
+  ($hooks[event] || []).select { matches?(_1["matcher"], base[:tool_name]) }.flat_map do |m|
+    m["hookCallbackIds"].map do |cb|
+      ctl(subtype: "hook_callback", callback_id: cb, tool_use_id: base[:tool_use_id], input: base.merge(hook_event_name: event))
+    end
+  end
+end
+
+$seq = 0
+def call_tool(server, short, args)
+  name = "mcp__#{server}__#{short}"
+  id = "toolu_fake_#{$seq += 1}"
+  base = { session_id: SESSION, transcript_path: "/dev/null", cwd: Dir.pwd, tool_name: name, tool_input: args, tool_use_id: id }
+  out(type: "assistant", session_id: SESSION, parent_tool_use_id: nil,
+      message: { id: "msg_#{id}", role: "assistant", content: [{ type: "tool_use", id: id, name: name, input: args }] })
+  deny = run_hooks("PreToolUse", base).map { _1&.dig("hookSpecificOutput") }.compact.find { _1["permissionDecision"] == "deny" }
+  if deny
+    log(tool: short, args: args, executed: false, reason: deny["permissionDecisionReason"])
+    out(type: "user", session_id: SESSION, parent_tool_use_id: nil,
+        message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, is_error: true, content: deny["permissionDecisionReason"] }] })
+    return nil
+  end
+  res = mcp(server, "tools/call", { name: short, arguments: args })["result"]
+  upd = run_hooks("PostToolUse", base.merge(tool_response: res)).map { _1&.dig("hookSpecificOutput", "updatedToolOutput") }.compact.first
+  shown = upd || res
+  log(tool: short, args: args, executed: true, raw: res.dig("content", 0, "text"), to_model: shown.dig("content", 0, "text"))
+  out(type: "user", session_id: SESSION, parent_tool_use_id: nil,
+      message: { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: shown["content"] }] })
+  shown
+end
+
+# Kịch bản GIẢ cho 3 prompt của bài 1.5
+def scenario(prompt, servers)
+  s = servers.first
+  case prompt
+  when /ORD-1001: cho tôi biết/ then %w[get_order get_shipment get_payment].each { call_tool(s, _1, { order_id: "ORD-1001" }) }; "(GIẢ) đã đọc 3 nguồn"
+  when /Hoàn tiền \$(\d+)/ then call_tool(s, "process_refund", { order_id: "ORD-1001", amount_usd: $1.to_i }) ? "(GIẢ) đã hoàn" : "(GIẢ) yêu cầu chờ duyệt"
+  when /Chuyển \$(\d+) cho khách (\S+?)\./
+    amt, cus = $1.to_i, $2
+    call_tool(s, "transfer_funds", { customer_id: cus, amount_usd: amt }) # thử trước khi AML → phải bị chặn
+    call_tool(s, "aml_check", { customer_id: cus })
+    call_tool(s, "transfer_funds", { customer_id: cus, amount_usd: amt }) ? "(GIẢ) đã chuyển" : "(GIẢ) bị chặn"
+  else "(GIẢ) không có kịch bản"
+  end
+end
+
+servers = []
+while (m = read_msg)
+  case m["type"]
+  when "control_request"
+    req = m["request"]
+    if req["subtype"] == "initialize"
+      $hooks = req["hooks"] || {}
+      servers = req["sdkMcpServers"] || []
+      log(initialize: { hooks: $hooks.transform_values { |v| v.map { _1["matcher"] } }, sdkMcpServers: servers })
+    end
+    out(type: "control_response", response: { subtype: "success", request_id: m["request_id"], response: {} })
+  when "user"
+    out(type: "system", subtype: "init", session_id: SESSION, model: "fake", tools: [], mcp_servers: servers.map { { name: _1, status: "connected" } })
+    servers.each do |sv|
+      mcp(sv, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
+    end
+    prompt = Array(m.dig("message", "content")).map { _1.is_a?(Hash) ? _1["text"] : _1 }.join
+    text = scenario(prompt, servers)
+    out(type: "result", subtype: "success", is_error: false, result: text, session_id: SESSION, num_turns: 1,
+        duration_ms: 1, duration_api_ms: 0, total_cost_usd: 0, usage: {}, uuid: SecureRandom.uuid)
+    break
+  end
+end

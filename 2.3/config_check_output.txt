@@ -1,0 +1,19 @@
+== Bảng tool theo agent ==
+  coordinator   3 tool  Agent, review_output, request_revision
+  web_search    4 tool  search_web, load_document, extract_links, save_snippet
+  doc_analysis  4 tool  extract_metadata, extract_data_points, summarize_content, verify_claim
+  synthesis     4 tool  compile_report, verify_fact*, format_citation, assess_coverage
+  (* = scoped cross-role)
+
+== Kiểm tra ==
+  PASS  web_search: 4–5 tool  [4 tool]
+  PASS  doc_analysis: 4–5 tool  [4 tool]
+  PASS  synthesis: 4–5 tool  [4 tool]
+  PASS  không tool nào trùng giữa các role (trừ scoped)  [OK]
+  PASS  scoped verify_fact chỉ ở synthesis và mô tả có giới hạn  [owner=["synthesis"]]
+  PASS  không có tên tool chung chung / fetch_url  [OK]
+  PASS  coordinator không giữ tool nghiệp vụ  [OK]
+  PASS  mọi tool có mô tả ≥ 40 ký tự  [OK]
+  PASS  doc_analysis: lượt 1 ép extract_metadata, lượt 2 auto  [{:type=>"tool", :name=>"extract_metadata"} → {:type=>"auto"}]
+
+9/9 đạt

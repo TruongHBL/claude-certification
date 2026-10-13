@@ -1,0 +1,88 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# CLAUDE GIẢ cho test run_cli_hooks.sh (bài 1.5 bản thuần CLI). KHÔNG gọi model.
+# "Model" = kịch bản cố định theo prompt (GIẢ ĐỊNH). Phần THẬT: đọc --settings/--mcp-config như CLI,
+# spawn MCP server Ruby thật, chạy ĐÚNG lệnh hook trong settings (stdin JSON, exit code, JSON output),
+# và chỉ gọi tool khi PreToolUse không chặn. Giả định thêm: tool_response của MCP tool là mảng content block.
+require "json"
+require "open3"
+require "securerandom"
+
+if ARGV[0, 2] == %w[auth status]
+  puts JSON.generate({ loggedIn: true, authMethod: "fake" })
+  exit 0
+end
+
+$stdout.sync = true
+args = ARGV.dup
+File.open(ENV["FAKE_ARGV_LOG"], "a") { _1.puts(JSON.generate(args)) } if ENV["FAKE_ARGV_LOG"]
+opt = ->(n) { i = args.index(n); i && args[i + 1] }
+prompt = opt.("-p")
+settings = JSON.parse(File.read(opt.("--settings")))
+srv = JSON.parse(File.read(opt.("--mcp-config")))["mcpServers"]["ops"]
+allowed = opt.("--allowedTools").to_s.split(",")
+SESSION = SecureRandom.uuid
+def out(h) = puts(JSON.generate(h))
+
+def matches?(m, name)
+  return true if m.nil? || m.empty? || m == "*"
+  m.match?(/\A[\w|]+\z/) ? m.split("|").include?(name) : Regexp.new(m).match?(name)
+end
+
+# Chạy các hook của event như Claude Code: mỗi command là 1 tiến trình, stdin = JSON
+run_hooks = lambda do |event, input|
+  (settings.dig("hooks", event) || []).select { matches?(_1["matcher"], input[:tool_name]) }.flat_map do |m|
+    m["hooks"].map do |h|
+      o, e, st = Open3.capture3({ "CLAUDE_PROJECT_DIR" => Dir.pwd }, "sh", "-c", h["command"],
+                                stdin_data: JSON.generate(input.merge(hook_event_name: event)))
+      { exit: st.exitstatus, stdout: o, stderr: e, json: (JSON.parse(o) rescue nil) }
+    end
+  end
+end
+
+Open3.popen2(srv["env"] || {}, srv["command"], *srv["args"]) do |sin, sout, _|
+  rid = 0
+  rpc = lambda do |method, params = {}|
+    sin.puts JSON.generate({ jsonrpc: "2.0", id: (rid += 1), method: method, params: params }); JSON.parse(sout.gets)
+  end
+  rpc.("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
+  sin.puts JSON.generate({ jsonrpc: "2.0", method: "notifications/initialized" })
+  tools = rpc.("tools/list")["result"]["tools"].map { "mcp__ops__#{_1['name']}" }
+  out(type: "system", subtype: "init", session_id: SESSION, tools: tools)
+
+  seq = 0
+  call = lambda do |short, a|
+    name = "mcp__ops__#{short}"; id = "toolu_fake_#{seq += 1}"
+    abort("tool #{name} không nằm trong --allowedTools") unless allowed.include?(name)
+    base = { session_id: SESSION, transcript_path: "/dev/null", cwd: Dir.pwd, permission_mode: "dontAsk",
+             tool_name: name, tool_input: a, tool_use_id: id }
+    out(type: "assistant", message: { content: [{ type: "tool_use", id: id, name: name, input: a }] })
+    pre = run_hooks.("PreToolUse", base)
+    blocked = pre.find { _1[:exit] == 2 }
+    deny = pre.map { _1[:json]&.dig("hookSpecificOutput") }.compact.find { _1["permissionDecision"] == "deny" }
+    if blocked || deny
+      out(type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, is_error: true,
+                                                content: deny ? deny["permissionDecisionReason"] : blocked[:stderr] }] })
+      next nil
+    end
+    content = rpc.("tools/call", { name: short, arguments: a })["result"]["content"]
+    post = run_hooks.("PostToolUse", base.merge(tool_response: content))
+    upd = post.map { _1[:json]&.dig("hookSpecificOutput") }.compact
+              .map { _1["updatedToolOutput"] || _1["updatedMCPToolOutput"] }.compact.first
+    out(type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, content: upd || content }] })
+    upd || content
+  end
+
+  result =
+    case prompt
+    when /ORD-1001: cho tôi biết/ then %w[get_order get_shipment get_payment].each { call.(_1, { "order_id" => "ORD-1001" }) }; "(GIẢ) đã đọc 3 nguồn"
+    when /Hoàn tiền \$(\d+)/ then call.("process_refund", { "order_id" => "ORD-1001", "amount_usd" => $1.to_i }) ? "(GIẢ) đã hoàn" : "(GIẢ) chờ duyệt"
+    when /Chuyển \$(\d+) cho khách (\S+?)\./
+      amt, cus = $1.to_i, $2
+      call.("transfer_funds", { "customer_id" => cus, "amount_usd" => amt })
+      call.("aml_check", { "customer_id" => cus })
+      call.("transfer_funds", { "customer_id" => cus, "amount_usd" => amt }) ? "(GIẢ) đã chuyển" : "(GIẢ) bị chặn"
+    else "(GIẢ) không có kịch bản"
+    end
+  out(type: "result", subtype: "success", result: result, session_id: SESSION, total_cost_usd: 0)
+end

@@ -1,0 +1,11 @@
+# Nội bộ công ty: không đưa lên repo public
+bai-tap-leader/
+
+# Log chạy thật / kết quả sinh ra
+**/results/
+**/logs/
+**/cli_runs/
+**/bai_1_6_results/
+**/bai_1_6_results_cli/
+**/node_modules/
+*.err

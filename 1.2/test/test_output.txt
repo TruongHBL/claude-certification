@@ -1,0 +1,23 @@
+PASS  agents.json: đủ search/analysis/synthesis
+PASS  agents.json: search-agent chỉ có tool search
+PASS  agents.json: analysis/synthesis cấm Agent, Task và search
+PASS  agents.json: mọi agent có description + prompt
+PASS  server: tools/list = [search]
+PASS  server: search trả 3 kết quả có URL
+PASS  server: query rỗng → isError
+PASS  server: tool lạ → isError
+PASS  server: method lạ → -32601
+PASS  server: ghi log 3 lần
+PASS  e2e: --agents trỏ tới agents.json
+PASS  e2e: --tools Agent (chỉ giữ Agent trong bộ built-in)
+PASS  e2e: --allowedTools Agent + search
+PASS  e2e: --system-prompt là coordinator prompt
+PASS  e2e: model haiku, stream-json, budget, strict-mcp
+PASS  e2e: kịch bản đúng → 8/8 PASS, exit 0
+PASS  e2e: liệt kê 11 lần spawn trong 3 lượt
+PASS  e2e: lượt 1 là 5 subagent SONG SONG
+PASS  e2e: server ghi 5 search, khớp stream
+PASS  misuse nested: báo FAIL 'Subagent không spawn…' + chỉ ra analysis-agent
+PASS  misuse search: báo FAIL 'search chỉ chạy trong search-agent'
+
+21 PASS, 0 FAIL

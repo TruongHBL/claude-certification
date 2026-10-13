@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+# CLAUDE GIẢ cho test run_llm.sh bài 2.2. KHÔNG gọi model: khởi chạy server thật từ --mcp-config,
+# gọi đúng 1 tool theo luật viết tay rồi in stream-json. Chỉ để kiểm tra đường ống, không đo hành vi model.
+require "json"
+require "open3"
+args = ARGV.dup
+opt = ->(name) { i = args.index(name); i && args[i + 1] }
+prompt = opt.("-p").to_s
+srv = JSON.parse(File.read(opt.("--mcp-config")))["mcpServers"]["support"]
+Open3.popen2(srv["env"], srv["command"], *srv["args"]) do |sin, sout, _|
+  rpc = lambda do |id, method, params = {}|
+    sin.puts JSON.generate({ jsonrpc: "2.0", id: id, method: method, params: params }); JSON.parse(sout.gets)["result"]
+  end
+  rpc.(1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
+  tools = rpc.(2, "tools/list")["tools"]
+  id = prompt[/CUS-\d{4}/] || prompt[/cus \d+/]
+  name, input = prompt =~ /hoàn/i ? ["process_refund", { customer_id: id, amount: prompt[/\d+(?= USD)/].to_i }] : ["get_customer", { customer_id: id }]
+  res = rpc.(3, "tools/call", { name: name, arguments: input })
+  puts JSON.generate({ type: "system", subtype: "init", tools: tools.map { "mcp__support__#{_1['name']}" } })
+  puts JSON.generate({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__support__#{name}", input: input }] } })
+  puts JSON.generate({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: res["content"], is_error: res["isError"] }] } })
+  puts JSON.generate({ type: "result", subtype: "success", result: "(GIẢ) #{res.dig('content', 0, 'text')[0, 60]}", total_cost_usd: 0 })
+end

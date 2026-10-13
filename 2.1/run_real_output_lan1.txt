@@ -1,0 +1,50 @@
+== Cấu hình A: TOOLSET=vague, prompt=system_conflict.txt, model=haiku
+  q1: Kiểm tra giúp tôi đơn #12345 đang ở đâu rồi?
+  q2: Đơn hàng #20871 đã thanh toán chưa vậy?
+  q3: Mã vận đơn GHN-8842137 đang giao tới đâu?
+  q4: Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?
+  q5: Cho tôi xem hồ sơ khách hàng CUS-0042.
+  q6: Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?
+  q7: Đơn #31007 được giao tới địa chỉ nào?
+  q8: Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?
+  q9: Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+  q10: Chị Lan email lan.nguyen@example.vn có những đơn nào gần đây?
+== Cấu hình B: TOOLSET=clear, prompt=system_conflict.txt, model=haiku
+  q1: Kiểm tra giúp tôi đơn #12345 đang ở đâu rồi?
+  q2: Đơn hàng #20871 đã thanh toán chưa vậy?
+  q3: Mã vận đơn GHN-8842137 đang giao tới đâu?
+  q4: Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?
+  q5: Cho tôi xem hồ sơ khách hàng CUS-0042.
+  q6: Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?
+  q7: Đơn #31007 được giao tới địa chỉ nào?
+  q8: Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?
+  q9: Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+  q10: Chị Lan email lan.nguyen@example.vn có những đơn nào gần đây?
+== Cấu hình C: TOOLSET=clear, prompt=system_fixed.txt, model=haiku
+  q1: Kiểm tra giúp tôi đơn #12345 đang ở đâu rồi?
+  q2: Đơn hàng #20871 đã thanh toán chưa vậy?
+  q3: Mã vận đơn GHN-8842137 đang giao tới đâu?
+  q4: Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?
+  q5: Cho tôi xem hồ sơ khách hàng CUS-0042.
+  q6: Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?
+  q7: Đơn #31007 được giao tới địa chỉ nào?
+  q8: Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?
+  q9: Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+  q10: Chị Lan email lan.nguyen@example.vn có những đơn nào gần đây?
+
+== A (vague + conflict): 7/10
+   ✗ q3: cần lookup_order, gọi get_customer  | Mã vận đơn GHN-8842137 đang giao tới đâu?
+   ✗ q5: cần get_customer, gọi (không gọi tool)  | Cho tôi xem hồ sơ khách hàng CUS-0042.
+   ✗ q9: cần lookup_order, gọi get_customer  | Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+
+== B (clear + conflict): 7/10
+   ✗ q1: cần lookup_order, gọi (không gọi tool)  | Kiểm tra giúp tôi đơn #12345 đang ở đâu rồi?
+   ✗ q7: cần lookup_order, gọi (không gọi tool)  | Đơn #31007 được giao tới địa chỉ nào?
+   ✗ q9: cần lookup_order, gọi get_customer  | Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+
+== C (clear + fixed): 10/10
+
+Cấu hình             Đúng
+A  vague + conflict   7/10
+B  clear + conflict   7/10
+C  clear + fixed     10/10

@@ -1,0 +1,54 @@
+   | == single-pass
+   | [single] lấy output từ structured_output · cost 0 USD
+   | == multi-pass: per-file (song song 4)
+   | [file_01_db.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_04_favorites_repo.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_02_users_repo.js] lấy output từ result text · cost 0 USD
+   | [file_03_notify_matches.js] lấy output từ structured_output · cost 0 USD
+   | [file_06_matching_service.js] lấy output từ structured_output · cost 0 USD
+   | [file_08_pagination.js] lấy output từ result text · cost 0 USD
+   | [file_07_user_profile.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_05_api_client.js] lấy output từ result text · cost 0 USD
+   | [file_09_favorites_controller.js] lấy output từ structured_output · cost 0 USD
+   | [file_12_mailer.js] lấy output từ structured_output · cost 0 USD
+   | [file_10_search.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_11_reminder_job.js] lấy output từ result text · cost 0 USD
+   | == multi-pass: integration (chỉ summary/exports/imports)
+   | [integration] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | == compare
+   | Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):
+   |   file                                 single          multi
+   |   01_db.js                          0 |     0       0 |     0
+   |   02_users_repo.js                  1 |    45       1 |    45
+   |   03_notify_matches.js              1 |    88       1 |    88
+   |   04_favorites_repo.js              0 |     0       0 |     0
+   |   05_api_client.js                  1 |    82       1 |    82
+   |   06_matching_service.js            1 |    64       1 |    64
+   |   07_user_profile.js                1 |    60       1 |    60
+   |   08_pagination.js                  0 |     0       0 |     0
+   |   09_favorites_controller.js        0 |     0       0 |     0
+   |   10_search.js                      0 |     0       1 |    47
+   |   11_reminder_job.js                0 |     0       1 |    50
+   |   12_mailer.js                      0 |     0       1 |    59
+   | single: lỗi trong file 5/8 ["B1", "B2", "B3", "B4", "B5"], lỗi chéo file 0/2 []
+   | multi : lỗi trong file 8/8 ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"], lỗi chéo file 2/2 ["C1", "C2"]
+   | Đoạn forEach y hệt ở 03 & 11 – single: {"03_notify_matches.js"=>true, "11_reminder_job.js"=>false} → KHÔNG nhất quán (dilution)
+   | Đoạn forEach y hệt ở 03 & 11 – multi: {"03_notify_matches.js"=>true, "11_reminder_job.js"=>true} → nhất quán
+   | Lỗi chéo file chỉ integration pass bắt được: ["C1", "C2"]
+PASS  run_cli.sh all chạy xong (mã 0)
+PASS  đúng 14 lệnh claude (1 single + 12 per-file + 1 integration)
+PASS  mọi lệnh: -p, --json-schema, --tools "", dontAsk, stream-json, --no-session-persistence
+PASS  12 lệnh per-file, mỗi lệnh chứa ĐÚNG 1 file
+PASS  schema per-file = FILE_REVIEW_TOOL.input_schema của bản API
+PASS  integration pass KHÔNG nhận code (không có dòng đánh số kiểu '  1| ')
+PASS  integration pass nhận summary/exports/imports_used của 12 file
+PASS  parser đọc được kênh structured_output
+PASS  parser đọc được kênh tool_use StructuredOutput
+PASS  parser đọc được JSON trong result.result
+PASS  ghi 12 file kết quả per-file + raw stream
+PASS  compare (bộ chấm bản API) chạy trên kết quả CLI: multi 8/8, 2/2
+PASS  compare: single bỏ sót theo kịch bản giả (5/8, 0/2)
+PASS  compare: lỗi chéo file chỉ integration bắt được = C1, C2
+PASS  parser raise khi không có structured output (nêu subtype)
+
+15 PASS, 0 FAIL

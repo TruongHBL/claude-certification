@@ -1,0 +1,23 @@
+PASS  server: initialize trả serverInfo loop
+PASS  server: tools/list có web_search + calculator
+PASS  server: web_search trả số liệu giả lập
+PASS  server: calculator tính đúng 9.1954
+PASS  server: chia 0 → isError
+PASS  server: ký tự lạ → isError
+PASS  server: method lạ → -32601
+PASS  server: ghi log 4 lần tools/call
+PASS  e2e: lệnh claude có -p, stream-json, --verbose
+PASS  e2e: --tools "" (tắt tool built-in)
+PASS  e2e: --allowedTools đúng 2 tool MCP
+PASS  e2e: --strict-mcp-config + --max-budget-usd + --model haiku
+PASS  e2e: không dùng --bare / --safe-mode
+PASS  e2e: exit 0, 4 PASS của parser
+PASS  e2e: gom 2 dòng cùng message.id thành 1 lượt → 3 lượt
+PASS  e2e: 4 tool_use, ghép đủ 4/4 tool_result
+PASS  e2e: server ghi 4 lần, khớp số tool_use
+PASS  e2e: kết quả calculator thật từ server (9.1954)
+PASS  e2e: lưu report.txt
+PASS  thiếu stop_reason → suy ra và đánh dấu (suy ra)
+PASS  thiếu tool_result → parser báo FAIL, exit≠0
+
+21 PASS, 0 FAIL

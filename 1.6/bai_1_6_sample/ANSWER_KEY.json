@@ -1,0 +1,127 @@
+{
+  "note": "Đáp án các lỗi cài sẵn. per_file: thấy được khi đọc riêng 1 file. cross_file: chỉ thấy khi đối chiếu 2 file. 01_db.js, 04_favorites_repo.js (bản thân), 08_pagination.js không có lỗi cài sẵn.",
+  "bugs": [
+    {
+      "id": "B1",
+      "scope": "per_file",
+      "file": "02_users_repo.js",
+      "line": 10,
+      "type": "sql_injection",
+      "severity": "critical",
+      "files": [
+        "02_users_repo.js"
+      ],
+      "description": "findUserByEmail nối chuỗi email vào SQL"
+    },
+    {
+      "id": "B2",
+      "scope": "per_file",
+      "file": "03_notify_matches.js",
+      "line": 10,
+      "type": "async_foreach",
+      "severity": "high",
+      "files": [
+        "03_notify_matches.js"
+      ],
+      "description": "forEach(async) không chờ: trả { sent: 0 } trước khi gửi xong, lỗi gửi mail bị nuốt"
+    },
+    {
+      "id": "B3",
+      "scope": "per_file",
+      "file": "05_api_client.js",
+      "line": 12,
+      "type": "missing_await",
+      "severity": "high",
+      "files": [
+        "05_api_client.js"
+      ],
+      "description": "fetchMatchingList thiếu await fetch → res là Promise, res.json không tồn tại"
+    },
+    {
+      "id": "B4",
+      "scope": "per_file",
+      "file": "06_matching_service.js",
+      "line": 16,
+      "type": "off_by_one",
+      "severity": "medium",
+      "files": [
+        "06_matching_service.js"
+      ],
+      "description": "topBudgets lấy n+1 phần tử (i <= n), có thể push undefined"
+    },
+    {
+      "id": "B5",
+      "scope": "per_file",
+      "file": "07_user_profile.js",
+      "line": 6,
+      "type": "null_deref",
+      "severity": "high",
+      "files": [
+        "07_user_profile.js"
+      ],
+      "description": "findUserByEmail trả null khi không có user → TypeError"
+    },
+    {
+      "id": "B6",
+      "scope": "per_file",
+      "file": "10_search.js",
+      "line": 9,
+      "type": "sql_injection",
+      "severity": "critical",
+      "files": [
+        "10_search.js"
+      ],
+      "description": "sort từ người dùng nối thẳng vào ORDER BY"
+    },
+    {
+      "id": "B7",
+      "scope": "per_file",
+      "file": "11_reminder_job.js",
+      "line": 10,
+      "type": "async_foreach",
+      "severity": "high",
+      "files": [
+        "11_reminder_job.js"
+      ],
+      "description": "Đoạn y hệt file 03: forEach(async) không chờ"
+    },
+    {
+      "id": "B8",
+      "scope": "per_file",
+      "file": "12_mailer.js",
+      "line": 7,
+      "type": "missing_await",
+      "severity": "medium",
+      "files": [
+        "12_mailer.js"
+      ],
+      "description": "Không await ghi log: lỗi DB thành unhandled rejection"
+    },
+    {
+      "id": "C1",
+      "scope": "cross_file",
+      "file": "09_favorites_controller.js",
+      "line": 6,
+      "type": "signature_mismatch",
+      "severity": "high",
+      "files": [
+        "04_favorites_repo.js",
+        "09_favorites_controller.js"
+      ],
+      "description": "04 đổi addFavorite sang tham số object { userId, matchingId }, nhưng 09 vẫn gọi kiểu vị trí → userId/matchingId undefined"
+    },
+    {
+      "id": "C2",
+      "scope": "cross_file",
+      "file": "06_matching_service.js",
+      "line": 8,
+      "type": "field_mismatch",
+      "severity": "high",
+      "files": [
+        "05_api_client.js",
+        "06_matching_service.js"
+      ],
+      "description": "05 trả khoá snake_case user_id, 06 đọc matching.userId → luôn undefined, ownerName luôn '(không rõ)'"
+    }
+  ]
+}

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 1.7 – Session Management</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style><style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+<style>.fill{border:1px dashed var(--warn);border-radius:6px;min-height:22px;color:var(--muted);font-style:italic}</style>
+</head><body><main>
+<h1>Bài tập 1.7 — Session Management Strategies</h1>
+<div class="meta">Domain 1 · Agentic Architecture &amp; Orchestration · Mục 1.7 Session State &amp; Resumption<br>Người thực hiện: TruongNQ · Ngày nộp: 12/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Thực hành ba cách quản lý phiên của Claude Code: <b>resume</b> (nối tiếp), <b>fork</b> (rẽ nhánh) và <b>fresh start + summary</b> (phiên mới, nạp bản tóm tắt). Bài làm cho thấy tận mắt rằng resume sau khi file đã đổi sẽ sinh ra <b>stale context</b> (Claude lập luận theo kết quả đọc file cũ), còn phiên mới có summary và danh sách file đã đổi thì đưa ra nhận xét đúng với code hiện tại.</p>
+<p>Bài chạy bằng <b>Claude Code CLI thật</b> (<code>claude -p</code>) qua script <code>run.sh</code>, trên một bản copy của codebase mẫu nên file gốc không bị sửa.</p>
+
+<h2>2. Ba lựa chọn</h2>
+<div class="card"><svg viewBox="0 0 760 300" role="img" aria-label="So sánh resume, fork và fresh start với summary">
+<text x="20" y="40" font-weight="600">Resume</text><text x="20" y="58" class="m">--resume &lt;id&gt;</text>
+<rect class="b" x="150" y="20" width="110" height="46" rx="8"/><text x="205" y="40" text-anchor="middle" font-weight="600">Phiên A</text><text x="205" y="57" text-anchor="middle" class="m">đọc file bản cũ</text>
+<path class="l" d="M260 43 H330"/><polygon points="330,38 340,43 330,48" fill="var(--accent)"/>
+<rect class="b" x="340" y="20" width="180" height="46" rx="8"/><text x="430" y="40" text-anchor="middle" font-weight="600">Phiên A (nối tiếp)</text><text x="430" y="57" text-anchor="middle" class="m">+ câu hỏi mới</text>
+<text x="545" y="38" class="m">giữ nguyên mọi tool_result cũ</text><text x="545" y="55" class="m">→ file đã đổi thì bị stale</text>
+
+<text x="20" y="128" font-weight="600">Fork</text><text x="20" y="146" class="m">--resume &lt;id&gt;</text><text x="20" y="162" class="m">--fork-session</text>
+<rect class="b" x="150" y="112" width="110" height="46" rx="8"/><text x="205" y="132" text-anchor="middle" font-weight="600">Phiên A</text><text x="205" y="149" text-anchor="middle" class="m">phân tích chung</text>
+<path class="l" d="M260 128 H330"/><polygon points="330,123 340,128 330,133" fill="var(--accent)"/>
+<rect class="b" x="340" y="100" width="180" height="40" rx="8"/><text x="430" y="125" text-anchor="middle">Phiên A: không đổi</text>
+<path class="l" d="M290 128 V172 H330"/><polygon points="330,167 340,172 330,177" fill="var(--accent)"/>
+<rect class="c" x="340" y="152" width="180" height="40" rx="8"/><text x="430" y="177" text-anchor="middle">Phiên B: bản copy, ID mới</text>
+<text x="545" y="128" class="m">rẽ nhánh để thử hướng khác</text><text x="545" y="145" class="m">nhưng kế thừa luôn dữ liệu cũ</text><text x="545" y="162" class="m">→ không chữa được stale</text>
+
+<text x="20" y="250" font-weight="600">Fresh start</text><text x="20" y="268" class="m">+ summary</text>
+<rect class="b" x="150" y="230" width="110" height="46" rx="8"/><text x="205" y="250" text-anchor="middle" font-weight="600">Phiên A</text><text x="205" y="267" text-anchor="middle" class="m">kết luận cũ</text>
+<path class="lu" d="M260 253 H290"/><polygon points="290,248 300,253 290,258" fill="var(--ok)"/>
+<rect class="h" x="300" y="234" width="100" height="38" rx="8"/><text x="350" y="258" text-anchor="middle">summary.md</text>
+<path class="l" d="M400 253 H430"/><polygon points="430,248 440,253 430,258" fill="var(--accent)"/>
+<rect class="u" x="440" y="230" width="170" height="46" rx="8"/><text x="525" y="250" text-anchor="middle" font-weight="600">Phiên C (mới)</text><text x="525" y="267" text-anchor="middle" class="m">summary + 3 file đã đổi</text>
+<text x="625" y="248" class="m">không còn</text><text x="625" y="265" class="m">tool_result cũ</text>
+</svg></div>
+<p>Nhớ nhanh: <b>resume để nối tiếp, fork để rẽ nhánh, fresh start + summary để thay dữ liệu đã cũ</b>.</p>
+
+<h2>3. Bảng quyết định</h2>
+<div class="tw"><table><tr><th>Tình huống</th><th>Chọn</th><th>Lý do</th></tr>
+<tr><td>Làm tiếp việc hôm qua, file không đổi</td><td><code>--resume</code></td><td>Context cũ vẫn đúng, giữ đủ lịch sử là có lợi</td></tr>
+<tr><td>So sánh hai hướng refactor từ cùng một phân tích</td><td><code>--fork-session</code></td><td>Hai nhánh độc lập, cùng điểm xuất phát</td></tr>
+<tr><td>Đã sửa 3/50 file rồi mới quay lại</td><td>Fresh start + summary</td><td>Kết quả đọc file cũ sẽ mâu thuẫn với code hiện tại</td></tr>
+<tr><td>Phiên dài, lịch sử rối</td><td>Fresh start + summary</td><td>Bắt đầu lại từ một nền sạch</td></tr>
+<tr><td>Vừa cập nhật dependency</td><td>Fresh start + summary</td><td>Nhiều file có thể đổi gián tiếp</td></tr>
+</table></div>
+
+<h2>4. Sáu bước của đề ↔ lệnh trong <code>run.sh</code></h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Lệnh</th><th>Chi tiết</th></tr>
+<tr><td>1</td><td>Mở phiên có tên, phân tích codebase 10 file</td><td><code>./run.sh step1</code></td><td><code>claude -p -n cca-1-7-review --session-id &lt;uuid&gt;</code>, chỉ cho phép <code>Read,Grep,Glob</code>; uuid lưu vào <code>.session_id</code></td></tr>
+<tr><td>2</td><td>Viết summary có cấu trúc, không có tool output</td><td><code>./run.sh step2</code></td><td>Resume phiên, yêu cầu bảng File | Vấn đề | Mức độ | Đề xuất → <code>out/summary.md</code></td></tr>
+<tr><td>3</td><td>Sửa 3 file</td><td><code>./run.sh step3</code></td><td>Copy <code>fixes/</code> đè <code>auth.rb</code>, <code>session.rb</code>, <code>middleware.rb</code> trong <code>work/</code>; lưu diff</td></tr>
+<tr><td>4</td><td>Resume, quan sát stale context</td><td><code>./run.sh step4</code></td><td><code>--resume &lt;id&gt;</code> rồi hỏi bình thường: “Liệt kê vấn đề còn tồn tại trong 3 file…”</td></tr>
+<tr><td>5</td><td>Phiên mới + summary, chỉ phân tích lại 3 file</td><td><code>./run.sh step5</code></td><td>Phiên mới <code>cca-1-7-fresh</code>; prompt gồm summary và danh sách 3 file đã đổi</td></tr>
+<tr><td>6</td><td>So sánh hai phiên</td><td><code>./run.sh compare</code></td><td>Chấm theo <code>ANSWER_KEY.md</code> và liệt kê file mỗi phiên đã <code>Read</code> (đọc từ transcript)</td></tr>
+<tr><td>+</td><td>(Thêm) minh hoạ fork</td><td><code>./run.sh step6</code></td><td><code>--resume &lt;id&gt; --fork-session</code>: ID mới, transcript phiên gốc không thêm dòng nào</td></tr>
+</table></div>
+
+<h2>5. Codebase mẫu và bản sửa</h2>
+<p><code>bai_1_7_session/codebase/</code>: 10 file Ruby mô phỏng module CRM, có 7 vấn đề. <code>fixes/</code> chứa bản mới của 3 file. Chi tiết trong <code>ANSWER_KEY.md</code>.</p>
+<div class="tw"><table><tr><th>File</th><th>Trước (bước 1)</th><th>Sau bước 3</th></tr>
+<tr><td><code>auth.rb</code></td><td>A1: so sánh digest bằng <code>==</code> (timing attack)<br>A2: <code>legacy_login</code> dùng MD5 không salt</td><td>A1 đã sửa (<code>secure_compare</code>)<br><b>Method <code>legacy_login</code> bị xoá</b></td></tr>
+<tr><td><code>session.rb</code></td><td>S1: token sinh bằng <code>rand</code></td><td>S1 đã sửa (<code>SecureRandom</code>)</td></tr>
+<tr><td><code>middleware.rb</code></td><td>W1: SQL injection trong <code>find_tenant</code></td><td>W1 <b>vẫn còn</b> + <b>vấn đề mới N1</b>: log cả header <code>Authorization</code></td></tr>
+<tr><td>7 file còn lại</td><td>M1 N+1 (matching), F1 thiếu uniqueness (favorite), C1 <code>permit!</code> (controller); 4 file sạch</td><td>Không đổi</td></tr>
+</table></div>
+<p>Dấu hiệu stale context mà <code>compare</code> kiểm tra: nói tới <code>legacy_login</code> như thể vẫn còn, đề xuất lại <code>secure_compare</code>/<code>SecureRandom</code> (đã làm rồi), và bỏ sót N1.</p>
+
+<h2>6. Script <code>run.sh</code></h2>
+<p>Chạy: <code>cd bai_1_7_session &amp;&amp; ./run.sh reset &amp;&amp; ./run.sh all</code> (hoặc từng bước). Mỗi lần gọi <code>claude</code> bị chặn chi phí bằng <code>--max-budget-usd</code> (mặc định 1 USD); dùng <code>--safe-mode</code> để tắt CLAUDE.md, plugin, hook của máy cho thí nghiệm sạch. Ctrl+C để dừng bất cứ lúc nào.</p>
+<pre><code>#!/usr/bin/env bash
+# Bài 1.7: Session management (resume / fork / fresh start + summary) với Claude Code CLI.
+#
+# Cách dùng:  ./run.sh &lt;lệnh&gt;
+#   reset    Tạo lại work/ từ codebase/ (bản gốc không bao giờ bị sửa), xoá out/ và .session_id
+#   step1    Phiên có tên &quot;cca-1-7-review&quot;: review 10 file
+#   step2    Resume phiên đó: viết summary có cấu trúc → out/summary.md
+#   step3    Copy fixes/ đè 3 file (auth, session, middleware) trong work/
+#   step4    Resume phiên cũ sau khi file đã đổi → quan sát stale context
+#   step5    Phiên MỚI: inject summary + danh sách 3 file đã đổi → chỉ phân tích lại 3 file
+#   step6    (bonus) --resume --fork-session: rẽ nhánh, phiên gốc không bị thay đổi
+#   compare  So sánh step4 và step5 theo ANSWER_KEY.md (grep dấu hiệu stale + file đã Read)
+#   all      reset → step1 … step5 → compare
+#
+# Chi phí: mỗi lệnh claude bị chặn bởi --max-budget-usd (mặc định 1 USD, đổi bằng BUDGET_USD).
+#   10 file nhỏ với sonnet: ước lượng ~0.05–0.3 USD/bước, cả bài thường dưới 1–2 USD
+#   (nếu đăng nhập bằng gói Pro/Max thì trừ vào hạn mức của gói thay vì tiền).
+# Dừng: Ctrl+C bất cứ lúc nào; mỗi bước độc lập, chạy lại bước nào cũng được.
+# Biến môi trường: MODEL (mặc định sonnet), BUDGET_USD, SAFE_MODE=0 để tắt --safe-mode,
+#   CLAUDE_BIN (mặc định claude), CLAUDE_PROJECTS_DIR (mặc định ~/.claude/projects).
+set -euo pipefail
+
+ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+WORK=&quot;$ROOT/work&quot;
+OUT=&quot;$ROOT/out&quot;
+SID_FILE=&quot;$ROOT/.session_id&quot;
+CLAUDE=&quot;${CLAUDE_BIN:-claude}&quot;
+MODEL=&quot;${MODEL:-sonnet}&quot;
+BUDGET=&quot;${BUDGET_USD:-1}&quot;
+PROJECTS_DIR=&quot;${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}&quot;
+NAME=&quot;cca-1-7-review&quot;
+CHANGED=(auth.rb session.rb middleware.rb)
+
+# Cờ chung: chạy không tương tác, output JSON, chỉ cho đọc file.
+# --safe-mode tắt CLAUDE.md/plugin/hook của máy để thí nghiệm sạch và rẻ.
+common_flags() {
+  local f=(-p --output-format json --model &quot;$MODEL&quot; --max-budget-usd &quot;$BUDGET&quot;
+           --allowedTools &quot;Read,Grep,Glob&quot; --permission-mode dontAsk)
+  [[ &quot;${SAFE_MODE:-1}&quot; == 1 ]] &amp;&amp; f+=(--safe-mode)
+  printf &#x27;%s\n&#x27; &quot;${f[@]}&quot;
+}
+
+# ask &lt;tên-output&gt; &lt;prompt&gt; [cờ thêm...]  — luôn chạy trong work/ (phiên gắn với thư mục)
+ask() {
+  local out=&quot;$1&quot; prompt=&quot;$2&quot;; shift 2
+  local flags; mapfile -t flags &lt; &lt;(common_flags)
+  mkdir -p &quot;$OUT&quot;
+  echo &quot;▶ $out: $CLAUDE ${flags[*]} $* -- \&quot;&lt;prompt&gt;\&quot;&quot;
+  (cd &quot;$WORK&quot; &amp;&amp; &quot;$CLAUDE&quot; &quot;${flags[@]}&quot; &quot;$@&quot; -- &quot;$prompt&quot;) &gt; &quot;$OUT/$out.json&quot;
+  ruby -rjson -e &#x27;
+    d = JSON.parse(File.read(ARGV[0]))
+    File.write(ARGV[1], d[&quot;result&quot;].to_s)
+    printf(&quot;  session_id=%s  cost=$%.4f  turns=%s  subtype=%s\n&quot;,
+           d[&quot;session_id&quot;], d[&quot;total_cost_usd&quot;].to_f, d[&quot;num_turns&quot;], d[&quot;subtype&quot;])
+  &#x27; &quot;$OUT/$out.json&quot; &quot;$OUT/$out.md&quot;
+}
+
+need_session() {
+  [[ -s &quot;$SID_FILE&quot; ]] || { echo &quot;Chưa có phiên: chạy ./run.sh step1 trước&quot; &gt;&amp;2; exit 1; }
+  cat &quot;$SID_FILE&quot;
+}
+
+need_work() { [[ -d &quot;$WORK&quot; ]] || { echo &quot;Chưa có work/: chạy ./run.sh reset&quot; &gt;&amp;2; exit 1; }; }
+
+cmd_reset() {
+  rm -rf &quot;$WORK&quot; &quot;$OUT&quot; &quot;$SID_FILE&quot; &quot;$ROOT/.fresh_session_id&quot; &quot;$ROOT/.step4_mark&quot;
+  cp -r &quot;$ROOT/codebase&quot; &quot;$WORK&quot;
+  echo &quot;Đã tạo lại work/ ($(ls &quot;$WORK&quot; | wc -l) file), xoá out/ và .session_id&quot;
+}
+
+cmd_step1() {
+  need_work
+  local sid; sid=&quot;$(cat /proc/sys/kernel/random/uuid)&quot;
+  echo &quot;$sid&quot; &gt; &quot;$SID_FILE&quot;
+  ask step1 &quot;Review toàn bộ 10 file Ruby trong thư mục hiện tại (module CRM). Với mỗi vấn đề nêu: file, method, mô tả, mức độ (Critical/High/Medium/Low), đề xuất sửa. Cuối cùng liệt kê file không có vấn đề.&quot; \
+    -n &quot;$NAME&quot; --session-id &quot;$sid&quot;
+  echo &quot;Phiên &#x27;$NAME&#x27; = $sid (resume tay: cd work &amp;&amp; claude --resume $sid)&quot;
+}
+
+cmd_step2() {
+  local sid; sid=&quot;$(need_session)&quot;
+  ask step2 &quot;Viết summary có cấu trúc cho phân tích vừa rồi, dạng bảng Markdown: | File | Vấn đề | Mức độ | Đề xuất |. Chỉ ghi kết luận, KHÔNG dán code hay output của tool. Thêm một dòng liệt kê file không có vấn đề. Chỉ in summary, không thêm lời dẫn.&quot; \
+    --resume &quot;$sid&quot;
+  cp &quot;$OUT/step2.md&quot; &quot;$OUT/summary.md&quot;
+  echo &quot;Summary → out/summary.md (đọc lại, sửa tay nếu cần trước step5)&quot;
+}
+
+cmd_step3() {
+  need_work
+  for f in &quot;${CHANGED[@]}&quot;; do
+    diff -u &quot;$WORK/$f&quot; &quot;$ROOT/fixes/$f&quot; &gt; &quot;$OUT/diff_$f.txt&quot; 2&gt;/dev/null || true
+    cp &quot;$ROOT/fixes/$f&quot; &quot;$WORK/$f&quot;
+  done
+  echo &quot;Đã thay 3 file trong work/: ${CHANGED[*]} (diff ở out/diff_*.txt)&quot;
+}
+
+cmd_step4() {
+  local sid; sid=&quot;$(need_session)&quot;
+  # Đánh dấu vị trí transcript trước step4 để compare chỉ đếm file Read trong step4
+  wc -l &lt; &quot;$(transcript &quot;$sid&quot;)&quot; &gt; &quot;$ROOT/.step4_mark&quot; 2&gt;/dev/null || echo 0 &gt; &quot;$ROOT/.step4_mark&quot;
+  ask step4 &quot;Mình quay lại tiếp tục. Liệt kê các vấn đề còn tồn tại trong auth.rb, session.rb và middleware.rb, kèm đề xuất sửa.&quot; \
+    --resume &quot;$sid&quot;
+}
+
+cmd_step5() {
+  need_work
+  [[ -s &quot;$OUT/summary.md&quot; ]] || { echo &quot;Chưa có out/summary.md: chạy step2&quot; &gt;&amp;2; exit 1; }
+  local sid; sid=&quot;$(cat /proc/sys/kernel/random/uuid)&quot;
+  echo &quot;$sid&quot; &gt; &quot;$ROOT/.fresh_session_id&quot;
+  local prompt
+  prompt=&quot;Dưới đây là summary của một lần review trước đó cho thư mục này:
+
+$(cat &quot;$OUT/summary.md&quot;)
+
+Kể từ lần review đó, ĐÚNG 3 file đã thay đổi: ${CHANGED[*]}. 7 file còn lại không đổi, giữ nguyên kết luận trong summary.
+Hãy CHỈ đọc lại 3 file đã đổi (không đọc file khác) và cho biết: vấn đề nào trong summary đã được sửa, vấn đề nào còn, có vấn đề mới nào không, kèm đề xuất sửa.&quot;
+  ask step5 &quot;$prompt&quot; -n &quot;cca-1-7-fresh&quot; --session-id &quot;$sid&quot;
+}
+
+cmd_step6() {
+  local sid; sid=&quot;$(need_session)&quot;
+  local tr; tr=&quot;$(transcript &quot;$sid&quot;)&quot;
+  local before; before=$(wc -l &lt; &quot;$tr&quot; 2&gt;/dev/null || echo 0)
+  ask step6 &quot;Giả sử chọn hướng thay toàn bộ Auth tự viết bằng Devise. Phác thảo kế hoạch 5 bước, không sửa file.&quot; \
+    --resume &quot;$sid&quot; --fork-session
+  local after; after=$(wc -l &lt; &quot;$tr&quot; 2&gt;/dev/null || echo 0)
+  local fork_sid; fork_sid=$(ruby -rjson -e &#x27;puts JSON.parse(File.read(ARGV[0]))[&quot;session_id&quot;]&#x27; &quot;$OUT/step6.json&quot;)
+  echo &quot;Phiên gốc $sid: $before → $after dòng transcript (fork không ghi vào phiên gốc)&quot;
+  echo &quot;Phiên fork mới: $fork_sid ($( [[ &quot;$fork_sid&quot; != &quot;$sid&quot; ]] &amp;&amp; echo &#x27;khác ID gốc ✓&#x27; || echo &#x27;TRÙNG ID ✗&#x27;))&quot;
+}
+
+# Đường dẫn transcript của một phiên: ~/.claude/projects/&lt;cwd, ký tự không phải chữ/số → &#x27;-&#x27;&gt;/&lt;id&gt;.jsonl
+transcript() {
+  local enc; enc=&quot;$(echo &quot;$WORK&quot; | sed &#x27;s|[^a-zA-Z0-9]|-|g&#x27;)&quot;
+  echo &quot;$PROJECTS_DIR/$enc/$1.jsonl&quot;
+}
+
+# Các file mà phiên đã Read (sau mốc dòng $2 nếu có), lấy từ transcript
+reads_of() {
+  local tr; tr=&quot;$(transcript &quot;$1&quot;)&quot;
+  [[ -f &quot;$tr&quot; ]] || { echo &quot;(không tìm thấy transcript $tr)&quot;; return; }
+  ruby -rjson -e &#x27;
+    skip = ARGV[1].to_i
+    files = File.readlines(ARGV[0]).drop(skip).flat_map do |l|
+      m = (JSON.parse(l)[&quot;message&quot;] rescue nil) or next []
+      c = m[&quot;content&quot;]; next [] unless c.is_a?(Array)
+      c.select { |b| b[&quot;type&quot;] == &quot;tool_use&quot; &amp;&amp; b[&quot;name&quot;] == &quot;Read&quot; }
+       .map { |b| File.basename(b.dig(&quot;input&quot;, &quot;file_path&quot;).to_s) }
+    end
+    puts files.empty? ? &quot;(không đọc file nào)&quot; : files.tally.map { |f, n| n &gt; 1 ? &quot;#{f}×#{n}&quot; : f }.join(&quot;, &quot;)
+  &#x27; &quot;$tr&quot; &quot;${2:-0}&quot;
+}
+
+cmd_compare() {
+  local s4=&quot;$OUT/step4.md&quot; s5=&quot;$OUT/step5.md&quot;
+  [[ -s &quot;$s4&quot; &amp;&amp; -s &quot;$s5&quot; ]] || { echo &quot;Cần out/step4.md và out/step5.md&quot; &gt;&amp;2; exit 1; }
+  # check &lt;mô tả&gt; &lt;regex&gt; &lt;kỳ vọng: absent|present&gt; [regex loại trừ trên cùng dòng]
+  # In ASCII cho cột kết quả để thẳng hàng; mô tả tiếng Việt để ở cột cuối.
+  printf &#x27;%-7s %-7s %s\n&#x27; &quot;step4&quot; &quot;step5&quot; &quot;Kiểm tra (theo ANSWER_KEY.md)&quot;
+  printf &#x27;%.0s-&#x27; {1..72}; echo
+  check() {
+    local label=&quot;$1&quot; re=&quot;$2&quot; want=&quot;$3&quot; excl=&quot;${4:-}&quot; res=() f n
+    for f in &quot;$s4&quot; &quot;$s5&quot;; do
+      if [[ -n &quot;$excl&quot; ]]; then
+        n=$( { grep -iE &quot;$re&quot; &quot;$f&quot; || true; } | { grep -viE &quot;$excl&quot; || true; } | wc -l)
+      else
+        n=$(grep -ciE &quot;$re&quot; &quot;$f&quot; || true)
+      fi
+      if { [[ &quot;$want&quot; == absent &amp;&amp; &quot;$n&quot; -eq 0 ]] || [[ &quot;$want&quot; == present &amp;&amp; &quot;$n&quot; -gt 0 ]]; }; then
+        res+=(&quot;OK&quot;); else res+=(&quot;FAIL&quot;); fi
+    done
+    printf &#x27;%-7s %-7s %s\n&#x27; &quot;${res[0]}&quot; &quot;${res[1]}&quot; &quot;$label&quot;
+  }
+  # Nhắc legacy_login mà KHÔNG kèm ý &quot;đã xoá&quot; → tham chiếu code không còn tồn tại
+  check &quot;Không coi legacy_login là còn tồn tại (method đã bị xoá)&quot; &#x27;legacy_login&#x27; absent \
+        &#x27;đã (bị |được )?(xoá|xóa)|(has been|was) removed|deleted|không còn|no longer&#x27;
+  check &quot;Không đề xuất lại secure_compare (A1 đã sửa)&quot; \
+        &#x27;nên dùng .*secure_compare|use .*secure_compare|thay .*bằng .*secure_compare|secure_compare thay&#x27; absent
+  check &quot;Không đề xuất lại SecureRandom (S1 đã sửa)&quot; \
+        &#x27;nên dùng .*SecureRandom|use .*SecureRandom|thay .*bằng .*SecureRandom|SecureRandom thay&#x27; absent
+  check &quot;Vẫn báo SQL injection ở middleware (W1 còn)&quot; &#x27;SQL&#x27; present
+  check &quot;Phát hiện vấn đề MỚI: log header Authorization (N1)&quot; &#x27;authoriz&#x27; present
+  echo
+  echo &quot;Dòng có nhắc tới legacy_login / secure_compare / SecureRandom (người chấm đọc ngữ cảnh):&quot;
+  for f in &quot;$s4&quot; &quot;$s5&quot;; do
+    echo &quot;  [$(basename &quot;$f&quot; .md)]&quot;; grep -niE &#x27;legacy_login|secure_compare|SecureRandom&#x27; &quot;$f&quot; | sed &#x27;s/^/    /&#x27; || echo &quot;    (không có)&quot;
+  done
+  echo
+  if [[ -s &quot;$SID_FILE&quot; ]]; then
+    echo &quot;File đã Read — phiên gốc, riêng step4: $(reads_of &quot;$(cat &quot;$SID_FILE&quot;)&quot; &quot;$(cat &quot;$ROOT/.step4_mark&quot; 2&gt;/dev/null || echo 0)&quot;)&quot;
+  fi
+  if [[ -s &quot;$ROOT/.fresh_session_id&quot; ]]; then
+    echo &quot;File đã Read — phiên mới (step5):      $(reads_of &quot;$(cat &quot;$ROOT/.fresh_session_id&quot;)&quot;)&quot;
+  fi
+  echo
+  echo &quot;Xem đầy đủ: out/step4.md (resume) và out/step5.md (fresh + summary)&quot;
+}
+
+case &quot;${1:-}&quot; in
+  reset|step1|step2|step3|step4|step5|step6|compare) &quot;cmd_$1&quot; ;;
+  all) cmd_reset; cmd_step1; cmd_step2; cmd_step3; cmd_step4; cmd_step5; cmd_compare ;;
+  *) sed -n &#x27;2,22p&#x27; &quot;$0&quot;; exit 1 ;;
+esac
+</code></pre>
+
+<h2>7. Kiểm thử script (chưa gọi Claude thật)</h2>
+<div class="card ok"><b>Đã kiểm tra:</b> <code>bash -n run.sh</code> sạch. Chạy toàn bộ <code>all</code> + <code>step6</code> với <code>CLAUDE_BIN</code> trỏ tới một Claude giả lập (script Ruby trả JSON và ghi transcript giả) để kiểm tra luồng file, việc lưu session ID, cách đọc transcript và bộ chấm <code>compare</code>. Câu trả lời của Claude giả được viết sẵn: bước 4 cố ý “stale”, bước 5 cố ý đúng. Bảng dưới chỉ chứng minh <b>bộ chấm hoạt động</b>, không phải hành vi thật của Claude.
+<pre><code>$ bash -n run.sh &amp;&amp; echo OK
+OK
+$ CLAUDE_BIN=fake_claude ./run.sh all
+Đã tạo lại work/ (10 file), xoá out/ và .session_id
+▶ step1: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode -n cca-1-7-review --session-id 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 -- &quot;&lt;prompt&gt;&quot;
+  session_id=3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087  cost=$0.0123  turns=11  subtype=success
+Phiên &#x27;cca-1-7-review&#x27; = 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 (resume tay: cd work &amp;&amp; claude --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087)
+▶ step2: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 -- &quot;&lt;prompt&gt;&quot;
+  session_id=3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087  cost=$0.0123  turns=1  subtype=success
+Summary → out/summary.md (đọc lại, sửa tay nếu cần trước step5)
+Đã thay 3 file trong work/: auth.rb session.rb middleware.rb (diff ở out/diff_*.txt)
+▶ step4: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 -- &quot;&lt;prompt&gt;&quot;
+  session_id=3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087  cost=$0.0123  turns=1  subtype=success
+▶ step5: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode -n cca-1-7-fresh --session-id f1d651f4-f9b6-4bfe-a33b-24688f50e6d2 -- &quot;&lt;prompt&gt;&quot;
+  session_id=f1d651f4-f9b6-4bfe-a33b-24688f50e6d2  cost=$0.0123  turns=4  subtype=success
+step4   step5   Kiểm tra (theo ANSWER_KEY.md)
+------------------------------------------------------------------------
+FAIL    OK      Không coi legacy_login là còn tồn tại (method đã bị xoá)
+FAIL    OK      Không đề xuất lại secure_compare (A1 đã sửa)
+FAIL    OK      Không đề xuất lại SecureRandom (S1 đã sửa)
+OK      OK      Vẫn báo SQL injection ở middleware (W1 còn)
+FAIL    OK      Phát hiện vấn đề MỚI: log header Authorization (N1)
+
+Dòng có nhắc tới legacy_login / secure_compare / SecureRandom (người chấm đọc ngữ cảnh):
+  [step4]
+    2:1. auth.rb: legacy_login dùng MD5, nên xoá.
+    3:2. auth.rb: nên dùng ActiveSupport secure_compare thay ==.
+    4:3. session.rb: nên dùng SecureRandom thay rand.
+  [step5]
+    1:auth.rb: đã chuyển sang secure_compare, method cũ đã bị xoá → hết vấn đề.
+    2:session.rb: đã dùng SecureRandom → hết vấn đề.
+
+File đã Read — phiên gốc, riêng step4: (không đọc file nào)
+File đã Read — phiên mới (step5):      auth.rb, session.rb, middleware.rb
+
+Xem đầy đủ: out/step4.md (resume) và out/step5.md (fresh + summary)
+$ CLAUDE_BIN=fake_claude ./run.sh step6
+▶ step6: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 --fork-session -- &quot;&lt;prompt&gt;&quot;
+  session_id=5d6e7c15-f3be-4e2b-b99d-0476eebce13c  cost=$0.0123  turns=1  subtype=success
+Phiên gốc 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087: 16 → 16 dòng transcript (fork không ghi vào phiên gốc)
+Phiên fork mới: 5d6e7c15-f3be-4e2b-b99d-0476eebce13c (khác ID gốc ✓)
+</code></pre></div>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> Cờ CLI lấy từ <code>claude --help</code> bản 2.1.296; chưa xác nhận bằng một lần chạy thật rằng CLI nhận dấu <code>--</code> trước prompt và kết hợp <code>--safe-mode</code> với <code>--allowedTools</code>. Nếu lệnh báo lỗi cờ, chạy lại với <code>SAFE_MODE=0</code>.</div>
+
+<h2>8. Kết quả quan sát (điền sau khi chạy <code>run.sh</code>)</h2>
+<div class="card warn"><b>Chưa chạy — điền sau khi chạy run.sh.</b> Dán bảng của <code>./run.sh compare</code> và ghi chú quan sát vào đây.</div>
+<div class="tw"><table><tr><th>Kiểm tra</th><th>Bước 4 (resume)</th><th>Bước 5 (fresh + summary)</th></tr>
+<tr><td>Coi <code>legacy_login</code> là còn tồn tại?</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>Đề xuất lại fix đã làm (<code>secure_compare</code>, <code>SecureRandom</code>)?</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>Vẫn báo SQL injection (W1)?</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>Phát hiện vấn đề mới N1 (log <code>Authorization</code>)?</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>File đã đọc lại</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>Chi phí (USD)</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+</table></div>
+<p>Ghi chú quan sát:</p><div class="fill" style="min-height:72px;padding:6px 10px">…</div>
+
+<h2>9. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>Phiên có tên <code>cca-1-7-review</code>, resume lại được bằng ID đã lưu</li>
+<li>Summary ghi kết luận dạng bảng, không có tool output</li>
+<li>Phiên resume ở bước 4 có dấu hiệu stale đo được (bảng <code>compare</code>)</li>
+<li>Phiên mới ở bước 5 chỉ đọc 3 file đã đổi và nhận xét đúng với code hiện tại</li>
+</ul>
+<p class="meta">Tiêu chí 3 và 4 chỉ đánh dấu xong sau khi chạy thật và điền mục 8. Claude thật có thể tự đọc lại file khi resume và không bị stale; khi đó ghi đúng kết quả quan sát được, đó cũng là một kết luận.</p>
+
+<h2>10. Bài học rút ra</h2>
+<ul>
+<li><b>Resume nối tiếp, fork rẽ nhánh, fresh start + summary thay dữ liệu cũ.</b> Đề thi kiểm tra việc chọn đúng cách cho từng tình huống.</li>
+<li><b>Resume sau khi file đổi là sai lựa chọn:</b> mọi tool_result cũ vẫn nằm trong lịch sử. Bảo Claude “đọc lại 3 file” vẫn chưa đủ, vì kết quả cũ vẫn ảnh hưởng tới các suy luận khác.</li>
+<li><b>Fork không chữa được stale context:</b> nhánh mới là bản copy, kế thừa luôn dữ liệu cũ.</li>
+<li><b>Phân tích lại có mục tiêu:</b> chỉ đọc lại file đã đổi, kết luận về file không đổi lấy từ summary. Đọc lại cả 50 file là lãng phí.</li>
+<li><b>Summary tốt chỉ chứa kết luận</b> (file, vấn đề, mức độ, đề xuất), không chứa output thô; nó là cầu nối giữa phiên cũ và phiên mới. Cách này cũng giống “ghi quyết định vào file memory” ở task favorite.</li>
+<li>Session chỉ lưu <b>hội thoại</b>, không lưu file system; fork cũng chỉ rẽ nhánh hội thoại.</li>
+</ul>
+
+<h2>11. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/1-agentic-architecture/1-7-session-state-resumption">Lesson 1.7 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/agent-sdk/sessions">Work with sessions – Agent SDK docs</a></li>
+<li><code>claude --help</code> (Claude Code 2.1.296): <code>-n/--name</code>, <code>-r/--resume</code>, <code>--fork-session</code>, <code>--session-id</code>, <code>--max-budget-usd</code>, <code>--safe-mode</code></li>
+</ul>
+</main></body></html>

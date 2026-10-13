@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 2.1 – Tool Descriptions</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+</head><body><main>
+<h1>Bài tập 2.1 — Tool Descriptions chống chọn nhầm tool</h1>
+<div class="meta">Domain 2 · Tool Design &amp; MCP Integration · Mục 2.1 Tool Interface Design<br>Người thực hiện: TruongNQ · Ngày nộp: 13/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Model chọn tool <b>chủ yếu dựa vào name + description</b>. Bài này tái hiện lỗi <b>misrouting</b> khi hai tool có mô tả mơ hồ, chồng lấn; sửa bằng mô tả đủ <b>5 yếu tố</b> (mục đích, input, ví dụ, giới hạn, ranh giới); rồi tìm câu <b>nhạy từ khoá trong system prompt</b> có thể đè lên mô tả tốt. Ba cấu hình A/B/C tách riêng tác động của mô tả và của system prompt, chấm tự động theo nhãn.</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 800 330" role="img" aria-label="Luồng thí nghiệm chọn tool">
+<rect class="b" x="14" y="120" width="120" height="70" rx="8"/><text x="74" y="150" text-anchor="middle" font-weight="600">10 query</text><text x="74" y="170" text-anchor="middle" class="m">queries.json</text>
+<path class="l" d="M134 155 H176"/><polygon points="176,150 184,155 176,160" fill="var(--accent)"/>
+<rect class="c" x="184" y="70" width="230" height="170" rx="10"/><text x="299" y="96" text-anchor="middle" font-weight="700">claude -p (mỗi query 1 lệnh)</text>
+<rect class="h" x="200" y="110" width="198" height="50" rx="6"/><text x="299" y="131" text-anchor="middle">System prompt</text><text x="299" y="149" text-anchor="middle" class="m">conflict | fixed</text>
+<rect class="b" x="200" y="172" width="198" height="54" rx="6"/><text x="299" y="194" text-anchor="middle">Mô tả 2 tool (tools/list)</text><text x="299" y="212" text-anchor="middle" class="m">vague | clear</text>
+<path class="l" d="M414 155 H456"/><polygon points="456,150 464,155 456,160" fill="var(--accent)"/>
+<text x="436" y="140" text-anchor="middle" class="m">tool_use</text>
+<rect class="b" x="464" y="100" width="150" height="110" rx="8"/><text x="539" y="128" text-anchor="middle" font-weight="600">MCP server “shop”</text><text x="539" y="150" text-anchor="middle" class="m">Ruby, stdio</text><text x="539" y="170" text-anchor="middle" class="m">get_customer</text><text x="539" y="188" text-anchor="middle" class="m">lookup_order</text>
+<path class="lu" d="M614 135 H656"/><polygon points="656,130 664,135 656,140" fill="var(--ok)"/>
+<path class="lu" d="M614 185 H656"/><polygon points="656,180 664,185 656,190" fill="var(--ok)"/>
+<rect class="u" x="664" y="100" width="122" height="110" rx="8"/><text x="725" y="128" text-anchor="middle" font-weight="600">score.rb</text><text x="725" y="150" text-anchor="middle" class="m">tool ĐẦU TIÊN</text><text x="725" y="168" text-anchor="middle" class="m">so với nhãn</text><text x="725" y="190" text-anchor="middle" class="m">→ x/10</text>
+<text x="640" y="122" text-anchor="middle" class="m">log</text><text x="640" y="206" text-anchor="middle" class="m">stream</text>
+<rect class="b" x="184" y="262" width="186" height="50" rx="8"/><text x="277" y="284" text-anchor="middle" font-weight="600">A: vague + conflict</text><text x="277" y="302" text-anchor="middle" class="m">hiện trạng</text>
+<rect class="b" x="392" y="262" width="186" height="50" rx="8"/><text x="485" y="284" text-anchor="middle" font-weight="600">B: clear + conflict</text><text x="485" y="302" text-anchor="middle" class="m">chỉ sửa mô tả</text>
+<rect class="u" x="600" y="262" width="186" height="50" rx="8"/><text x="693" y="284" text-anchor="middle" font-weight="600">C: clear + fixed</text><text x="693" y="302" text-anchor="middle" class="m">sửa cả system prompt</text>
+<text x="74" y="290" text-anchor="middle" class="m">3 cấu hình × 10 = 30 lệnh</text>
+</svg></div>
+
+
+<h2>3. Năm bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>Tạo 2 MCP tool mô tả mơ hồ, tái hiện misrouting</td><td><code>shop_mcp_server.rb</code> (Ruby thuần, JSON-RPC 2.0 qua stdio). <code>TOOLSET=vague</code>: mô tả 1 câu, cả hai nhận chung field <code>query</code></td></tr>
+<tr><td>2</td><td>Chạy 10 query nhiều ý định, ghi tool được chọn</td><td><code>queries.json</code> có nhãn tool gọi <b>đầu tiên</b>. <code>./run.sh A</code>: mỗi query một lệnh <code>claude -p</code> riêng; tool lấy từ block <code>tool_use</code> đầu tiên trong stream-json, dự phòng bằng log của server</td></tr>
+<tr><td>3</td><td>Viết lại mô tả đủ 5 yếu tố, 3–5 câu</td><td><code>TOOLSET=clear</code>: 5 câu mỗi tool + schema tách field có <code>pattern</code>. Xem bảng mục 4</td></tr>
+<tr><td>4</td><td>Chạy lại 10 query, so sánh (mục tiêu 9–10/10)</td><td><code>./run.sh B</code> (chỉ đổi mô tả) rồi <code>./run.sh score</code></td></tr>
+<tr><td>5</td><td>Rà system prompt tìm câu nhạy từ khoá</td><td><code>prompts/system_conflict.txt</code> vs <code>system_fixed.txt</code>; <code>./run.sh C</code>. Tách B và C để đo riêng tác động của system prompt</td></tr>
+</table></div>
+
+<h2>4. Mô tả tool trước / sau</h2>
+<div class="tw"><table><tr><th>Yếu tố</th><th>Trước (vague)</th><th>Sau (clear)</th></tr>
+<tr><td><b>Mục đích</b></td><td>“Lấy thông tin khách hàng.” / “Lấy thông tin đơn hàng.” – hai câu gần như trùng nhau</td><td>Nêu rõ trả về gì: hồ sơ khách (hạng, điểm, ngày đăng ký, mã đơn gần đây) vs chi tiết 1 đơn (trạng thái, vận chuyển, thanh toán, địa chỉ giao, sản phẩm)</td></tr>
+<tr><td><b>Định dạng input</b></td><td>Cả hai nhận chung <code>query</code> (string tự do)</td><td>get_customer: <code>customer_id</code> CUS-NNNN | <code>email</code> | <code>phone</code> 10 số. lookup_order: <code>order_number</code> <code>^#\d{5}$</code> | <code>tracking_id</code> (GHN-…, GHTK-…)</td></tr>
+<tr><td><b>Ví dụ query</b></td><td>Không có</td><td>3 ví dụ mỗi tool, gồm cả câu dễ nhầm “đơn #31007 giao tới địa chỉ nào”</td></tr>
+<tr><td><b>Edge case / giới hạn</b></td><td>Không có</td><td>get_customer không trả trạng thái giao, không tìm theo tên. lookup_order không tìm theo email/SĐT/tên → gọi get_customer trước</td></tr>
+<tr><td><b>Ranh giới với tool kia</b></td><td>Không có</td><td>“KHÔNG dùng khi câu hỏi có mã đơn #NNNNN hoặc mã vận đơn” / “KHÔNG dùng để tra hồ sơ hay điểm của khách”</td></tr>
+</table></div>
+<h3>Nguyên văn</h3>
+<div class="tw"><table><tr><th>Trước</th><th>Sau</th></tr>
+<tr><td><b><code>get_customer</code></b><br>Lấy thông tin khách hàng.<br><span class="tag">input: query</span></td><td><b><code>get_customer</code></b><br>Tra HỒ SƠ KHÁCH HÀNG (danh tính, hạng thành viên, điểm tích luỹ, ngày đăng ký, danh sách mã đơn gần đây) và dùng để xác minh danh tính khách.<br>Input: truyền ĐÚNG MỘT trong ba field: customer_id dạng CUS-NNNN (vd CUS-0042), email, hoặc phone là số di động VN 10 chữ số (vd 0912345678).<br>Ví dụ dùng: &quot;khách CUS-0042 là ai&quot;, &quot;SĐT 0912345678 hạng gì&quot;, &quot;email lan@... có những đơn nào&quot;.<br>Giới hạn: không trả trạng thái giao hàng hay chi tiết đơn; không tìm theo tên; không có kết quả thì trả lỗi not_found.<br>KHÔNG dùng khi câu hỏi có mã đơn #NNNNN hoặc mã vận đơn: khi đó gọi lookup_order trực tiếp.<br><span class="tag">input: customer_id | email | phone</span></td></tr>
+<tr><td><b><code>lookup_order</code></b><br>Lấy thông tin đơn hàng.<br><span class="tag">input: query</span></td><td><b><code>lookup_order</code></b><br>Tra CHI TIẾT MỘT ĐƠN HÀNG: trạng thái, đơn vị vận chuyển, ngày giao dự kiến, đã thanh toán chưa, địa chỉ giao, danh sách sản phẩm.<br>Input: truyền ĐÚNG MỘT trong hai field: order_number dạng # + 5 chữ số (vd #12345), hoặc tracking_id là mã vận đơn của hãng vận chuyển (vd GHN-8842137, GHTK-770215).<br>Ví dụ dùng: &quot;đơn #12345 tới đâu rồi&quot;, &quot;mã vận đơn GHN-8842137 giao chưa&quot;, &quot;đơn #31007 giao tới địa chỉ nào&quot;.<br>Giới hạn: không tìm đơn theo email, SĐT hay tên khách; nếu khách chỉ đưa email/SĐT thì gọi get_customer trước để lấy mã đơn.<br>KHÔNG dùng để tra hồ sơ hay điểm của khách: đó là việc của get_customer.<br><span class="tag">input: order_number | tracking_id</span></td></tr>
+</table></div>
+<p class="meta">Schema dùng nhiều field tuỳ chọn thay cho <code>oneOf/anyOf</code> ở cấp gốc; ràng buộc “đúng một field” ghi trong mô tả và server trả <code>isError</code> + <code>not_found</code> khi không khớp.</p>
+
+<h2>5. System prompt: câu gây lệch và bản viết lại</h2>
+<div class="tw"><table><tr><th>Bản conflict (A, B)</th><th>Bản fixed (C)</th></tr>
+<tr><td><pre><code>Bạn là trợ lý chăm sóc khách hàng của cửa hàng online. Trả lời ngắn gọn bằng tiếng Việt.
+Luôn kiểm tra thông tin khách hàng trước khi trả lời bất kỳ câu hỏi nào.
+Khi khách nhắc tới đơn hàng, hãy tra cứu thông tin khách để chắc chắn đúng người.
+</code></pre></td><td><pre><code>Bạn là trợ lý chăm sóc khách hàng của cửa hàng online. Trả lời ngắn gọn bằng tiếng Việt.
+Chọn tool theo loại định danh có trong câu hỏi, đọc kỹ mô tả tool trước khi gọi.
+Chỉ xác minh danh tính khách khi thao tác cần danh tính (đổi địa chỉ, hoàn tiền, huỷ đơn, xem dữ liệu cá nhân).
+Câu hỏi về trạng thái, thanh toán hay địa chỉ giao của một đơn đã có mã đơn hoặc mã vận đơn: tra đơn trực tiếp.
+</code></pre></td></tr></table></div>
+<div class="tw"><table><tr><th>Câu nhạy từ khoá</th><th>Vì sao gây lệch</th><th>Viết lại</th></tr>
+<tr><td>“<b>Luôn kiểm tra thông tin khách hàng</b> trước khi trả lời bất kỳ câu hỏi nào”</td><td>Cụm “thông tin khách hàng” khớp gần nguyên văn mô tả <code>get_customer</code>, và “luôn… bất kỳ” biến nó thành bước bắt buộc trước mọi tool</td><td>“Chỉ xác minh danh tính khách khi thao tác cần danh tính (đổi địa chỉ, hoàn tiền, huỷ đơn, xem dữ liệu cá nhân)”</td></tr>
+<tr><td>“Khi khách <b>nhắc tới đơn hàng</b>, hãy <b>tra cứu thông tin khách</b>”</td><td>Gắn trực tiếp từ khoá “đơn hàng” với tool khách, ngược với ranh giới vừa viết trong mô tả <code>lookup_order</code></td><td>“Câu hỏi về trạng thái, thanh toán hay địa chỉ giao của một đơn đã có mã đơn hoặc mã vận đơn: tra đơn trực tiếp”</td></tr>
+</table></div>
+
+<h2>6. Mười query và nhãn</h2>
+<p>Nhãn là tool phải được gọi <b>đầu tiên</b>. Các câu bẫy: 7 (chữ “địa chỉ”), 9 (bẫy system prompt), 10 (không có mã đơn nên phải tra khách trước).</p>
+<div class="tw"><table><tr><th>#</th><th>Query</th><th>Nhãn</th><th>Lý do</th></tr>
+<tr><td>1</td><td>Kiểm tra giúp tôi đơn #12345 đang ở đâu rồi?</td><td><code>lookup_order</code></td><td>Có mã đơn #NNNNN, hỏi trạng thái giao</td></tr>
+<tr><td>2</td><td>Đơn hàng #20871 đã thanh toán chưa vậy?</td><td><code>lookup_order</code></td><td>Thanh toán là thông tin của đơn</td></tr>
+<tr><td>3</td><td>Mã vận đơn GHN-8842137 đang giao tới đâu?</td><td><code>lookup_order</code></td><td>Mã vận đơn → tracking_id</td></tr>
+<tr><td>4</td><td>Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?</td><td><code>get_customer</code></td><td>SĐT + hỏi hồ sơ khách</td></tr>
+<tr><td>5</td><td>Cho tôi xem hồ sơ khách hàng CUS-0042.</td><td><code>get_customer</code></td><td>Mã khách CUS-NNNN</td></tr>
+<tr><td>6</td><td>Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?</td><td><code>get_customer</code></td><td>Ngày đăng ký là thông tin hồ sơ</td></tr>
+<tr><td>7</td><td>Đơn #31007 được giao tới địa chỉ nào?</td><td><code>lookup_order</code></td><td>Bẫy: chữ &#39;địa chỉ&#39; gợi tới khách, nhưng địa chỉ giao nằm trong đơn</td></tr>
+<tr><td>8</td><td>Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?</td><td><code>get_customer</code></td><td>Điểm tích luỹ là thông tin khách</td></tr>
+<tr><td>9</td><td>Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.</td><td><code>lookup_order</code></td><td>Bẫy system prompt: chỉ hỏi trạng thái đơn, không thao tác cần xác minh danh tính, nên tra đơn trực tiếp. Bản prompt conflict (&#39;luôn kiểm tra khách trước&#39;) đẩy sang get_customer</td></tr>
+<tr><td>10</td><td>Chị Lan email lan.nguyen@example.vn có những đơn nào gần đây?</td><td><code>get_customer</code></td><td>Không có mã đơn; lookup_order không tìm theo email, nên phải tra khách trước để lấy danh sách mã đơn</td></tr>
+</table></div>
+
+<h2>7. Mã nguồn</h2>
+<p>Chạy: <code>cd ~/Downloads/claude-cert/2.1 &amp;&amp; ./run.sh all</code> (cần Ruby và Claude Code CLI đã đăng nhập; không cần gem).</p>
+<div class="tw"><table><tr><th>Flag <code>claude</code></th><th>Mục đích</th></tr>
+<tr><td><code>-p --output-format stream-json --verbose</code></td><td>Chạy không tương tác, xuất từng sự kiện để đọc block <code>tool_use</code> đầu tiên</td></tr>
+<tr><td><code>--mcp-config &lt;file&gt; --strict-mcp-config</code></td><td>Chỉ nạp server “shop”, bỏ MCP server khác của máy</td></tr>
+<tr><td><code>--tools ""</code></td><td>Tắt toàn bộ tool built-in (Read, Bash…), chỉ còn 2 tool MCP để chọn</td></tr>
+<tr><td><code>--allowedTools mcp__shop__get_customer mcp__shop__lookup_order</code> + <code>--permission-mode dontAsk</code></td><td>Cho phép 2 tool, không hỏi quyền</td></tr>
+<tr><td><code>--system-prompt</code></td><td>Thay system prompt mặc định bằng bản conflict/fixed</td></tr>
+<tr><td><code>--model haiku --max-budget-usd 0.2 --no-session-persistence</code></td><td>Rẻ, chặn trần chi phí mỗi lệnh, không lưu phiên</td></tr>
+</table></div>
+<p class="meta">Không dùng <code>--safe-mode</code> (tắt cả MCP server) và <code>--bare</code> (chỉ nhận ANTHROPIC_API_KEY, không dùng OAuth).</p>
+<p>File <code>shop_mcp_server.rb</code></p><pre><code>#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Bài 2.1 – MCP server &quot;shop&quot; (stdio, JSON-RPC 2.0, Ruby thuần, không cần gem).
+#
+# Hai tool: get_customer, lookup_order. Bộ mô tả chọn bằng biến môi trường:
+#   TOOLSET=vague  : mô tả 1 câu, chồng lấn, cả hai nhận chung field `query` (tái hiện misrouting)
+#   TOOLSET=clear  : mô tả 3–5 câu đủ 5 yếu tố + schema tách field rõ ràng
+# SHOP_LOG=&lt;file&gt;  : mỗi tools/call ghi 1 dòng JSON (tool, arguments, toolset, thời điểm)
+#
+# Dữ liệu là dữ liệu GIẢ, chỉ để agent có kết quả hợp lý mà trả lời.
+
+require &quot;json&quot;
+require &quot;time&quot;
+
+TOOLSET = ENV.fetch(&quot;TOOLSET&quot;, &quot;vague&quot;)
+LOG_FILE = ENV[&quot;SHOP_LOG&quot;]
+
+CUSTOMERS = [
+  { customer_id: &quot;CUS-0042&quot;, name: &quot;Nguyễn Thị Lan&quot;, email: &quot;lan.nguyen@example.vn&quot;, phone: &quot;0912345678&quot;,
+    tier: &quot;Vàng&quot;, points: 1240, joined: &quot;2024-03-18&quot;, recent_orders: [&quot;#12345&quot;, &quot;#31007&quot;] },
+  { customer_id: &quot;CUS-0117&quot;, name: &quot;Trần Văn Minh&quot;, email: &quot;minh.tran@example.vn&quot;, phone: &quot;0987654321&quot;,
+    tier: &quot;Bạc&quot;, points: 380, joined: &quot;2025-07-02&quot;, recent_orders: [&quot;#20871&quot;, &quot;#45210&quot;] }
+].freeze
+
+ORDERS = [
+  { order_number: &quot;#12345&quot;, customer_id: &quot;CUS-0042&quot;, status: &quot;Đang giao&quot;, carrier: &quot;GHN&quot;, tracking_id: &quot;GHN-5521093&quot;,
+    eta: &quot;2026-10-14&quot;, paid: true, ship_to: &quot;12 Lê Lợi, Q.1, TP.HCM&quot;, items: [&quot;Nồi chiên không dầu 5L&quot;] },
+  { order_number: &quot;#20871&quot;, customer_id: &quot;CUS-0117&quot;, status: &quot;Đã đóng gói&quot;, carrier: &quot;GHN&quot;, tracking_id: &quot;GHN-8842137&quot;,
+    eta: &quot;2026-10-16&quot;, paid: false, ship_to: &quot;45 Trần Phú, Hà Đông, Hà Nội&quot;, items: [&quot;Bàn phím cơ&quot;, &quot;Lót chuột&quot;] },
+  { order_number: &quot;#31007&quot;, customer_id: &quot;CUS-0042&quot;, status: &quot;Đã giao&quot;, carrier: &quot;GHTK&quot;, tracking_id: &quot;GHTK-770215&quot;,
+    eta: &quot;2026-10-05&quot;, paid: true, ship_to: &quot;88 Nguyễn Huệ, Q.1, TP.HCM&quot;, items: [&quot;Máy xay sinh tố&quot;] },
+  { order_number: &quot;#45210&quot;, customer_id: &quot;CUS-0117&quot;, status: &quot;Chờ xác nhận&quot;, carrier: &quot;GHTK&quot;, tracking_id: nil,
+    eta: nil, paid: true, ship_to: &quot;45 Trần Phú, Hà Đông, Hà Nội&quot;, items: [&quot;Tai nghe bluetooth&quot;, &quot;Cáp sạc USB-C&quot;] }
+].freeze
+
+VAGUE_TOOLS = [
+  { name: &quot;get_customer&quot;,
+    description: &quot;Lấy thông tin khách hàng.&quot;,
+    inputSchema: { type: &quot;object&quot;, properties: { query: { type: &quot;string&quot;, description: &quot;Thông tin cần tìm&quot; } },
+                   required: [&quot;query&quot;] } },
+  { name: &quot;lookup_order&quot;,
+    description: &quot;Lấy thông tin đơn hàng.&quot;,
+    inputSchema: { type: &quot;object&quot;, properties: { query: { type: &quot;string&quot;, description: &quot;Thông tin cần tìm&quot; } },
+                   required: [&quot;query&quot;] } }
+].freeze
+
+CLEAR_TOOLS = [
+  { name: &quot;get_customer&quot;,
+    description: &lt;&lt;~DESC.strip,
+      Tra HỒ SƠ KHÁCH HÀNG (danh tính, hạng thành viên, điểm tích luỹ, ngày đăng ký, danh sách mã đơn gần đây) và dùng để xác minh danh tính khách.
+      Input: truyền ĐÚNG MỘT trong ba field: customer_id dạng CUS-NNNN (vd CUS-0042), email, hoặc phone là số di động VN 10 chữ số (vd 0912345678).
+      Ví dụ dùng: &quot;khách CUS-0042 là ai&quot;, &quot;SĐT 0912345678 hạng gì&quot;, &quot;email lan@... có những đơn nào&quot;.
+      Giới hạn: không trả trạng thái giao hàng hay chi tiết đơn; không tìm theo tên; không có kết quả thì trả lỗi not_found.
+      KHÔNG dùng khi câu hỏi có mã đơn #NNNNN hoặc mã vận đơn: khi đó gọi lookup_order trực tiếp.
+    DESC
+    inputSchema: { type: &quot;object&quot;,
+                   properties: {
+                     customer_id: { type: &quot;string&quot;, pattern: &quot;^CUS-\\d{4}$&quot;, description: &quot;Mã khách, vd CUS-0042&quot; },
+                     email: { type: &quot;string&quot;, description: &quot;Email đăng ký của khách&quot; },
+                     phone: { type: &quot;string&quot;, pattern: &quot;^0\\d{9}$&quot;, description: &quot;SĐT di động 10 số, vd 0912345678&quot; }
+                   } } },
+  { name: &quot;lookup_order&quot;,
+    description: &lt;&lt;~DESC.strip,
+      Tra CHI TIẾT MỘT ĐƠN HÀNG: trạng thái, đơn vị vận chuyển, ngày giao dự kiến, đã thanh toán chưa, địa chỉ giao, danh sách sản phẩm.
+      Input: truyền ĐÚNG MỘT trong hai field: order_number dạng # + 5 chữ số (vd #12345), hoặc tracking_id là mã vận đơn của hãng vận chuyển (vd GHN-8842137, GHTK-770215).
+      Ví dụ dùng: &quot;đơn #12345 tới đâu rồi&quot;, &quot;mã vận đơn GHN-8842137 giao chưa&quot;, &quot;đơn #31007 giao tới địa chỉ nào&quot;.
+      Giới hạn: không tìm đơn theo email, SĐT hay tên khách; nếu khách chỉ đưa email/SĐT thì gọi get_customer trước để lấy mã đơn.
+      KHÔNG dùng để tra hồ sơ hay điểm của khách: đó là việc của get_customer.
+    DESC
+    inputSchema: { type: &quot;object&quot;,
+                   properties: {
+                     order_number: { type: &quot;string&quot;, pattern: &quot;^#\\d{5}$&quot;, description: &quot;Mã đơn, vd #12345&quot; },
+                     tracking_id: { type: &quot;string&quot;, description: &quot;Mã vận đơn, vd GHN-8842137&quot; }
+                   } } }
+].freeze
+
+TOOLS = TOOLSET == &quot;clear&quot; ? CLEAR_TOOLS : VAGUE_TOOLS
+
+def log_call(name, args)
+  return unless LOG_FILE
+
+  File.open(LOG_FILE, &quot;a&quot;) do |f|
+    f.puts JSON.generate({ at: Time.now.iso8601, toolset: TOOLSET, tool: name, arguments: args })
+  end
+end
+
+# Ở bản vague, field `query` là chuỗi tự do: dò mọi kiểu định danh trong chuỗi.
+def find_customer(args)
+  q = [args[&quot;customer_id&quot;], args[&quot;email&quot;], args[&quot;phone&quot;], args[&quot;query&quot;]].compact.join(&quot; &quot;)
+  CUSTOMERS.find do |c|
+    q.include?(c[:customer_id]) || q.downcase.include?(c[:email]) || q.gsub(/\D/, &quot;&quot;).include?(c[:phone])
+  end
+end
+
+def find_order(args)
+  q = [args[&quot;order_number&quot;], args[&quot;tracking_id&quot;], args[&quot;query&quot;]].compact.join(&quot; &quot;)
+  ORDERS.find { |o| q.include?(o[:order_number]) || (o[:tracking_id] &amp;&amp; q.include?(o[:tracking_id])) }
+end
+
+def call_tool(name, args)
+  log_call(name, args)
+  result =
+    case name
+    when &quot;get_customer&quot; then find_customer(args)
+    when &quot;lookup_order&quot; then find_order(args)
+    else return { content: [{ type: &quot;text&quot;, text: JSON.generate({ error: &quot;unknown_tool&quot;, tool: name }) }], isError: true }
+    end
+  if result
+    { content: [{ type: &quot;text&quot;, text: JSON.generate(result) }] }
+  else
+    { content: [{ type: &quot;text&quot;, text: JSON.generate({ error: &quot;not_found&quot;, input: args }) }], isError: true }
+  end
+end
+
+def respond(id, result) = $stdout.puts(JSON.generate({ jsonrpc: &quot;2.0&quot;, id: id, result: result }))
+
+def respond_error(id, code, message)
+  $stdout.puts(JSON.generate({ jsonrpc: &quot;2.0&quot;, id: id, error: { code: code, message: message } }))
+end
+
+$stdout.sync = true
+$stdin.each_line do |line|
+  next if line.strip.empty?
+
+  begin
+    msg = JSON.parse(line)
+  rescue JSON::ParserError
+    respond_error(nil, -32_700, &quot;Parse error&quot;)
+    next
+  end
+  id = msg[&quot;id&quot;]
+  case msg[&quot;method&quot;]
+  when &quot;initialize&quot;
+    respond(id, { protocolVersion: msg.dig(&quot;params&quot;, &quot;protocolVersion&quot;) || &quot;2025-06-18&quot;,
+                  capabilities: { tools: {} },
+                  serverInfo: { name: &quot;shop&quot;, version: &quot;1.0.0&quot; } })
+  when &quot;notifications/initialized&quot;, &quot;notifications/cancelled&quot;
+    nil # notification: không trả lời
+  when &quot;ping&quot;
+    respond(id, {})
+  when &quot;tools/list&quot;
+    respond(id, { tools: TOOLS })
+  when &quot;tools/call&quot;
+    respond(id, call_tool(msg.dig(&quot;params&quot;, &quot;name&quot;), msg.dig(&quot;params&quot;, &quot;arguments&quot;) || {}))
+  else
+    respond_error(id, -32_601, &quot;Method not found: #{msg[&#39;method&#39;]}&quot;) unless id.nil?
+  end
+end
+</code></pre>
+<p>File <code>run.sh</code></p><pre><code>#!/usr/bin/env bash
+# Bài 2.1 – chạy 10 query qua Claude Code CLI với 3 cấu hình rồi chấm tool được gọi ĐẦU TIÊN.
+#
+#   A = mô tả vague + system prompt conflict   (tình trạng ban đầu)
+#   B = mô tả clear + system prompt conflict   (chỉ sửa mô tả)
+#   C = mô tả clear + system prompt fixed      (sửa cả mô tả lẫn system prompt)
+#
+# Dùng:  ./run.sh A | B | C | all     chạy (MỖI query một lệnh `claude -p` riêng, không chung context)
+#        ./run.sh score               in bảng độ chính xác + danh sách câu sai
+#        ./run.sh clean               xoá results/
+#
+# Chi phí ước tính (haiku): ~10–20k token input mỗi lệnh (system prompt CLI + mô tả tool), 1–2 lượt.
+# 30 lệnh ≈ 0,3–0,8 USD. Mỗi lệnh bị chặn trần bằng --max-budget-usd.
+set -euo pipefail
+
+ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+RESULTS=&quot;$ROOT/results&quot;
+MODEL=&quot;${MODEL:-haiku}&quot;
+BUDGET=&quot;${BUDGET:-0.2}&quot;
+CLAUDE_BIN=&quot;${CLAUDE_BIN:-claude}&quot;
+
+toolset_of() { case &quot;$1&quot; in A) echo vague ;; B|C) echo clear ;; esac; }
+prompt_of()  { case &quot;$1&quot; in A|B) echo &quot;$ROOT/prompts/system_conflict.txt&quot; ;; C) echo &quot;$ROOT/prompts/system_fixed.txt&quot; ;; esac; }
+
+run_config() {
+  local cfg=&quot;$1&quot; toolset prompt dir n
+  toolset=&quot;$(toolset_of &quot;$cfg&quot;)&quot;; prompt=&quot;$(prompt_of &quot;$cfg&quot;)&quot;
+  dir=&quot;$RESULTS/$cfg&quot;; mkdir -p &quot;$dir&quot;
+  n=&quot;$(ruby -rjson -e &#39;puts JSON.parse(File.read(ARGV[0]))[&quot;queries&quot;].size&#39; &quot;$ROOT/queries.json&quot;)&quot;
+  echo &quot;== Cấu hình $cfg: TOOLSET=$toolset, prompt=$(basename &quot;$prompt&quot;), model=$MODEL&quot;
+  for ((i = 0; i &lt; n; i++)); do
+    local id text mcp
+    id=&quot;$(ruby -rjson -e &#39;puts JSON.parse(File.read(ARGV[0]))[&quot;queries&quot;][ARGV[1].to_i][&quot;id&quot;]&#39; &quot;$ROOT/queries.json&quot; &quot;$i&quot;)&quot;
+    text=&quot;$(ruby -rjson -e &#39;puts JSON.parse(File.read(ARGV[0]))[&quot;queries&quot;][ARGV[1].to_i][&quot;text&quot;]&#39; &quot;$ROOT/queries.json&quot; &quot;$i&quot;)&quot;
+    mcp=&quot;$dir/q$id.mcp.json&quot;
+    rm -f &quot;$dir/q$id.log&quot;
+    # Mỗi query một file cấu hình MCP để log tool call tách riêng theo query.
+    ruby -rjson -e &#39;puts JSON.pretty_generate({ mcpServers: { shop: { type: &quot;stdio&quot;, command: &quot;ruby&quot;, args: [ARGV[0]],
+                      env: { TOOLSET: ARGV[1], SHOP_LOG: ARGV[2] } } } })&#39; \
+      &quot;$ROOT/shop_mcp_server.rb&quot; &quot;$toolset&quot; &quot;$dir/q$id.log&quot; &gt; &quot;$mcp&quot;
+    echo &quot;  q$id: $text&quot;
+    # Chạy trong thư mục rỗng để không nạp CLAUDE.md/settings của project nào.
+    (cd &quot;$RESULTS&quot; &amp;&amp; &quot;$CLAUDE_BIN&quot; -p &quot;$text&quot; \
+      --model &quot;$MODEL&quot; \
+      --system-prompt &quot;$(cat &quot;$prompt&quot;)&quot; \
+      --mcp-config &quot;$mcp&quot; --strict-mcp-config \
+      --tools &quot;&quot; \
+      --allowedTools &quot;mcp__shop__get_customer&quot; &quot;mcp__shop__lookup_order&quot; \
+      --permission-mode dontAsk \
+      --max-budget-usd &quot;$BUDGET&quot; \
+      --no-session-persistence \
+      --output-format stream-json --verbose \
+      &gt; &quot;$dir/q$id.jsonl&quot; 2&gt; &quot;$dir/q$id.err&quot;) || echo &quot;    (lệnh trả mã lỗi, xem $dir/q$id.err)&quot;
+  done
+}
+
+case &quot;${1:-}&quot; in
+  A|B|C) run_config &quot;$1&quot; ;;
+  all)   for c in A B C; do run_config &quot;$c&quot;; done; ruby &quot;$ROOT/score.rb&quot; &quot;$RESULTS&quot; &quot;$ROOT/queries.json&quot; ;;
+  score) ruby &quot;$ROOT/score.rb&quot; &quot;$RESULTS&quot; &quot;$ROOT/queries.json&quot; ;;
+  clean) rm -rf &quot;$RESULTS&quot; ;;
+  *) echo &quot;Dùng: $0 A|B|C|all|score|clean&quot;; exit 1 ;;
+esac
+</code></pre>
+<p>File <code>score.rb</code></p><pre><code># frozen_string_literal: true
+
+# Bài 2.1 – chấm tool được gọi ĐẦU TIÊN cho từng query, từng cấu hình.
+# Nguồn chính: block tool_use đầu tiên trong stream-json (qN.jsonl).
+# Dự phòng: dòng đầu của log server (qN.log), nếu stream-json không đọc được.
+# Dùng: ruby score.rb results queries.json
+
+require &quot;json&quot;
+
+results_dir, queries_file = ARGV
+queries = JSON.parse(File.read(queries_file))[&quot;queries&quot;]
+CONFIGS = { &quot;A&quot; =&gt; &quot;vague + conflict&quot;, &quot;B&quot; =&gt; &quot;clear + conflict&quot;, &quot;C&quot; =&gt; &quot;clear + fixed&quot; }.freeze
+
+def first_tool_from_stream(path)
+  return nil unless File.exist?(path)
+
+  File.foreach(path) do |line|
+    ev = JSON.parse(line) rescue next
+    next unless ev[&quot;type&quot;] == &quot;assistant&quot;
+
+    Array(ev.dig(&quot;message&quot;, &quot;content&quot;)).each do |b|
+      return b[&quot;name&quot;].sub(/\Amcp__shop__/, &quot;&quot;) if b[&quot;type&quot;] == &quot;tool_use&quot;
+    end
+  end
+  nil
+end
+
+def first_tool_from_log(path)
+  return nil unless File.exist?(path) &amp;&amp; !File.zero?(path)
+
+  JSON.parse(File.foreach(path).first)[&quot;tool&quot;]
+end
+
+summary = []
+CONFIGS.each do |cfg, label|
+  dir = File.join(results_dir, cfg)
+  next unless Dir.exist?(dir)
+
+  rows = queries.map do |q|
+    got = first_tool_from_stream(File.join(dir, &quot;q#{q[&#39;id&#39;]}.jsonl&quot;)) ||
+          first_tool_from_log(File.join(dir, &quot;q#{q[&#39;id&#39;]}.log&quot;)) || &quot;(không gọi tool)&quot;
+    { id: q[&quot;id&quot;], text: q[&quot;text&quot;], expected: q[&quot;expected&quot;], got: got, ok: got == q[&quot;expected&quot;] }
+  end
+  correct = rows.count { _1[:ok] }
+  summary &lt;&lt; [cfg, label, correct, rows.size]
+  puts &quot;\n== #{cfg} (#{label}): #{correct}/#{rows.size}&quot;
+  rows.reject { _1[:ok] }.each do |r|
+    puts &quot;   ✗ q#{r[:id]}: cần #{r[:expected]}, gọi #{r[:got]}  | #{r[:text]}&quot;
+  end
+end
+
+if summary.empty?
+  puts &quot;Chưa có kết quả trong #{results_dir}. Chạy ./run.sh all trước.&quot;
+  exit 1
+end
+puts &quot;\nCấu hình             Đúng&quot;
+summary.each { |cfg, label, c, n| puts format(&quot;%-2s %-17s %2d/%d&quot;, cfg, label, c, n) }
+File.write(File.join(results_dir, &quot;score.json&quot;),
+           JSON.pretty_generate(summary.map { |cfg, label, c, n| { config: cfg, label: label, correct: c, total: n } }))
+</code></pre>
+
+<h2>8. Kiểm thử</h2>
+<div class="card ok"><b>Đã chạy: kiểm thử server và pipeline với <code>claude</code> giả.</b>
+<ul>
+<li>Server: bơm JSON-RPC qua stdin, kiểm tra <code>initialize</code>, <code>tools/list</code> (vague/clear), <code>tools/call</code> trả dữ liệu, lỗi <code>not_found</code> có <code>isError: true</code>, method lạ trả <code>-32601</code>, mỗi call ghi 1 dòng log.</li>
+<li>Pipeline: <code>test/bin/claude</code> giả đọc <code>--mcp-config</code>, <b>khởi chạy server thật qua stdio</b>, gọi <code>tools/list</code> rồi <code>tools/call</code>, xuất stream-json như CLI. Bộ chấm đọc được cả stream-json lẫn log dự phòng.</li>
+</ul>
+<p><b>Quan trọng:</b> tool mà <code>claude</code> giả chọn là <b>HEURISTIC GIẢ ĐỊNH</b> viết tay (mô tả ngắn thì bắt theo chữ “khách/địa chỉ”, prompt conflict có chữ “khách” thì gọi get_customer…). Điểm 5/10 → 9/10 → 10/10 dưới đây chỉ chứng minh pipeline và bộ chấm chạy đúng, <b>không phải kết quả của Claude</b>.</p></div>
+<pre><code>$ (JSON-RPC qua stdin, TOOLSET=clear)
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;result&quot;:{&quot;protocolVersion&quot;:&quot;2025-06-18&quot;,&quot;capabilities&quot;:{&quot;tools&quot;:{}},&quot;serverInfo&quot;:{&quot;name&quot;:&quot;shop&quot;,&quot;version&quot;:&quot;1.0.0&quot;}}}
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:2,&quot;result&quot;:{&quot;tools&quot;:[{&quot;name&quot;:&quot;get_customer&quot;,&quot;description&quot;:&quot;Tra HỒ SƠ KHÁCH HÀNG (danh tính, hạng thành viên, điểm tích luỹ, ngày…
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:3,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;{\&quot;order_number\&quot;:\&quot;#12345\&quot;,\&quot;customer_id\&quot;:\&quot;CUS-0042\&quot;,\&quot;status\&quot;:\&quot;Đang giao\&quot;…
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:4,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;{\&quot;error\&quot;:\&quot;not_found\&quot;,\&quot;input\&quot;:{\&quot;order_number\&quot;:\&quot;#99999\&quot;}}&quot;}],&quot;isError&quot;:tru…
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:5,&quot;error&quot;:{&quot;code&quot;:-32601,&quot;message&quot;:&quot;Method not found: foo&quot;}}
+
+$ PATH=test/bin:$PATH ./run.sh all     # claude GIẢ
+== Cấu hình A: TOOLSET=vague, prompt=system_conflict.txt, model=haiku
+== Cấu hình B: TOOLSET=clear, prompt=system_conflict.txt, model=haiku
+== Cấu hình C: TOOLSET=clear, prompt=system_fixed.txt, model=haiku
+
+== A (vague + conflict): 5/10
+   ✗ q4: cần get_customer, gọi lookup_order  | Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?
+   ✗ q6: cần get_customer, gọi lookup_order  | Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?
+   ✗ q7: cần lookup_order, gọi get_customer  | Đơn #31007 được giao tới địa chỉ nào?
+   ✗ q8: cần get_customer, gọi lookup_order  | Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?
+   ✗ q9: cần lookup_order, gọi get_customer  | Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+
+== B (clear + conflict): 9/10
+   ✗ q9: cần lookup_order, gọi get_customer  | Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+
+== C (clear + fixed): 10/10
+
+Cấu hình             Đúng
+A  vague + conflict   5/10
+B  clear + conflict   9/10
+C  clear + fixed     10/10
+</code></pre>
+<div class="card ok"><b>Đã chạy với Claude thật</b> ngày 13/10/2026 (Claude Code CLI 2.1.296, model haiku, đăng nhập claude.ai, không cần API key). Bảng điểm phía trên là của <code>claude</code> giả; kết quả thật ở mục 9.</div>
+
+<h2>9. Kết quả quan sát</h2>
+<p class="meta">Chạy 2 lượt <code>./run.sh all</code> (mỗi lượt 30 lệnh <code>claude -p</code>, mỗi query một phiên riêng). Tổng chi phí khoảng 0,05 USD, thấp hơn nhiều so với ước tính 0,3–0,8 USD. Đã kiểm chứng: <code>--tools ""</code> tắt tool built-in nhưng vẫn giữ 2 tool MCP (<code>system:init</code> chỉ liệt kê <code>mcp__shop__get_customer</code>, <code>mcp__shop__lookup_order</code>).</p>
+<div class="tw"><table><tr><th>Cấu hình</th><th>Lượt 1</th><th>Lượt 2</th><th>Câu sai (lượt 2)</th></tr>
+<tr><td>A · vague + conflict</td><td><i>không dùng</i>*</td><td>8/10</td><td>q3 mã vận đơn → gọi <code>get_customer</code>; q9 → gọi <code>get_customer</code> trước</td></tr>
+<tr><td>B · clear + conflict</td><td>7/10</td><td>8/10</td><td>q7 không gọi tool, đòi xác minh khách; q9 → gọi <code>get_customer</code> trước (lượt 1 sai thêm q1 cùng kiểu với q7)</td></tr>
+<tr><td>C · clear + fixed</td><td class="grn">10/10</td><td class="grn">10/10</td><td>không có</td></tr></table></div>
+<p class="meta">* Trong lúc lượt 1 chạy, một lượt <code>./run.sh all</code> thứ hai được khởi động và ghi đè thư mục <code>results/A</code>, nên điểm A của lượt 1 bị lẫn dữ liệu và bị loại. Điểm B, C của lượt 1 lấy từ <code>run_real_output_lan1.txt</code>; điểm lượt 2 chấm lại từ <code>results/</code>.</p>
+<h3>Nhận xét</h3>
+<ul>
+<li><b>Chỉ sửa mô tả không giúp gì khi system prompt còn câu gây lệch.</b> B không tốt hơn A (8/10 so với 8/10), dù mô tả đủ 5 yếu tố. Lỗi chỉ đổi kiểu: ở A, model gọi nhầm tool (q3); ở B, model <b>từ chối gọi tool</b> và hỏi lại mã khách, email hoặc SĐT (q1, q7). Đó là làm theo đúng câu “luôn kiểm tra thông tin khách hàng trước khi trả lời”.</li>
+<li><b>Sửa system prompt mới đạt 10/10</b> ở cả hai lượt (C). Kết quả này khớp bước 5 của đề: câu nhạy từ khoá trong system prompt đè lên mô tả tốt.</li>
+<li><b>q9</b> (“Tôi là khách CUS-0042, đơn #12345…”) sai ở mọi cấu hình còn câu “Khi khách nhắc tới đơn hàng, hãy tra cứu thông tin khách”. Câu đó gắn thẳng “đơn hàng” với <code>get_customer</code>.</li>
+<li><b>Mô tả mơ hồ ít sai hơn dự kiến</b> (8/10, trong khi <code>claude</code> giả cho 5/10). Haiku vẫn đoán đúng phần lớn nhờ tên tool <code>lookup_order</code> và mã <code>#NNNNN</code> trong câu hỏi. Cái mô tả mơ hồ làm hỏng là các câu mập mờ như mã vận đơn (q3).</li>
+<li><b>Giới hạn:</b> chỉ 10 query và 2 lượt, kết quả có dao động (B được 7 rồi 8). Đây là minh hoạ, chưa phải số đo có ý nghĩa thống kê. CLI vẫn nạp hook, plugin (thấy trong <code>system:init</code>) và CLAUDE.md global của user. Lệnh chạy trong thư mục <code>results/</code> nên không có CLAUDE.md của project nào.</li>
+</ul>
+
+<h2>10. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>Có so sánh độ chính xác trước/sau trên cùng 10 query (A → B → C, chấm tự động bằng <code>score.rb</code>)</li>
+<li>Mô tả mới nêu định dạng định danh (#NNNNN, CUS-NNNN, mã vận đơn, SĐT 10 số) và ranh giới “KHÔNG dùng cho…” giữa hai tool</li>
+<li>Có danh sách câu system prompt gây xung đột kèm bản viết lại (mục 5)</li>
+<li>Mục tiêu khi chạy thật: C đạt 9–10/10. <span class="grn">Đạt: 10/10 ở cả 2 lượt</span></li>
+</ul>
+
+<h2>11. Bài học rút ra</h2>
+<ul>
+<li><b>Description là cơ chế chọn tool chính.</b> Mô tả một câu chồng lấn thì model đoán theo từ khoá. Sửa mô tả là bước đầu tiên: rẻ và nhắm thẳng nguyên nhân.</li>
+<li><b>Mô tả tốt có 5 yếu tố:</b> mục đích, định dạng input, ví dụ query, edge case/giới hạn, ranh giới với tool tương tự. Schema tách field có <code>pattern</code> giúp thêm, nhưng không thay được ranh giới viết bằng lời.</li>
+<li><b>Bẫy đề thi</b> (đều sai khi hỏi “bước đầu tiên”): thêm few-shot vào system prompt (tốn token, không sửa gốc), routing classifier theo từ khoá (quá nặng, bỏ qua khả năng hiểu ngôn ngữ của model), gộp tool thành một (hợp lệ về lâu dài nhưng tốn công hơn).</li>
+<li><b>Sửa mô tả rồi phải đọc lại system prompt.</b> Câu kiểu “luôn kiểm tra thông tin khách hàng” tạo liên kết từ khoá với một tool và đè lên mô tả tốt (cấu hình B vs C).</li>
+<li><b>Tách tool</b> khi tool quá chung (vd <code>analyze_document</code> → <code>extract_data_points</code>, <code>summarize_content</code>, <code>verify_claim_against_source</code>); <b>đổi tên</b> khi tên dễ nhầm (vd <code>analyze_content</code> → <code>extract_web_results</code>).</li>
+<li><b>Giới hạn:</b> mô tả chỉ chữa nhầm giữa một số ít tool. Khi một agent có quá ~4–5 tool, chọn sai vì số lượng; cách sửa là phân bổ tool theo vai trò (bài 2.3).</li>
+</ul>
+
+<h2>12. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/2-tool-design-mcp/2-1-tool-schema-design">Lesson 2.1 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Writing effective tools for agents – Anthropic</a></li>
+<li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview">Tool use with Claude – Claude docs</a></li>
+<li><a href="https://modelcontextprotocol.io/specification/2025-06-18/server/tools">MCP specification: Tools</a></li>
+</ul>
+</main></body></html>

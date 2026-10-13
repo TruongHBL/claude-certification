@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 1.5 – SDK Hooks</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+</head><body><main>
+<h1>Bài tập 1.5 — Agent SDK Hooks: chuẩn hoá dữ liệu &amp; ép chính sách</h1>
+<div class="meta">Domain 1 · Agentic Architecture &amp; Orchestration · Mục 1.5 Agent SDK Hooks<br>Người thực hiện: TruongNQ · Ngày nộp: 08/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Dùng <b>Claude Agent SDK</b> (TypeScript) với một MCP server trong tiến trình (<code>createSdkMcpServer</code> + <code>tool()</code>) và 4 hook:</p>
+<ul>
+<li><b>PostToolUse</b> chuẩn hoá 3 nguồn dữ liệu lệch định dạng về cùng một schema (ngày ISO 8601, status tiếng Anh) <b>trước khi model đọc</b>.</li>
+<li><b>PreToolUse</b> chặn <code>process_refund</code> &gt; $500 và chặn <code>transfer_funds</code> khi chưa qua AML, <b>trước khi tool chạy</b>.</li>
+</ul>
+<p>Vì sao TypeScript, không phải Ruby: Agent SDK chỉ có bản TypeScript và Python. Hook là tính năng của Agent SDK, không có trong Messages API thuần.</p>
+
+<h2>2. Sơ đồ: hook nằm ở đâu trong một lần gọi tool</h2>
+<div class="card"><svg viewBox="0 0 760 300" role="img" aria-label="Sơ đồ PreToolUse, tool, PostToolUse">
+<rect class="b" x="10" y="30" width="130" height="60" rx="8"/><text x="75" y="56" text-anchor="middle" font-weight="600">Claude</text><text x="75" y="75" text-anchor="middle" class="m">tool_use</text>
+<path class="l" d="M140 60 H190"/><polygon points="190,55 200,60 190,65" fill="var(--accent)"/>
+<rect class="c" x="200" y="22" width="160" height="76" rx="10"/><text x="280" y="48" text-anchor="middle" font-weight="600">PreToolUse</text><text x="280" y="67" text-anchor="middle" class="m">refund ≤ $500?</text><text x="280" y="84" text-anchor="middle" class="m">AML đã pass?</text>
+<path class="l" d="M360 60 H410"/><polygon points="410,55 420,60 410,65" fill="var(--accent)"/><text x="388" y="52" text-anchor="middle" class="m">allow</text>
+<rect class="b" x="420" y="30" width="130" height="60" rx="8"/><text x="485" y="56" text-anchor="middle" font-weight="600">Tool chạy</text><text x="485" y="75" text-anchor="middle" class="m">MCP handler</text>
+<path class="l" d="M550 60 H600"/><polygon points="600,55 610,60 600,65" fill="var(--accent)"/>
+<rect class="c" x="610" y="22" width="140" height="76" rx="10"/><text x="680" y="48" text-anchor="middle" font-weight="600">PostToolUse</text><text x="680" y="67" text-anchor="middle" class="m">chuẩn hoá output</text><text x="680" y="84" text-anchor="middle" class="m">ghi state AML</text>
+<path class="l" d="M680 98 V160"/><polygon points="675,160 680,170 685,160" fill="var(--accent)"/>
+<rect class="b" x="560" y="172" width="190" height="56" rx="8"/><text x="655" y="196" text-anchor="middle" font-weight="600">tool_result → Claude</text><text x="655" y="215" text-anchor="middle" class="m">updatedToolOutput</text>
+<path class="l" d="M280 98 V160"/><polygon points="275,160 280,170 285,160" fill="var(--accent)"/><text x="290" y="135" class="m">deny</text>
+<rect class="b" x="170" y="172" width="230" height="56" rx="8"/><text x="285" y="196" text-anchor="middle" font-weight="600">Tool KHÔNG chạy</text><text x="285" y="215" text-anchor="middle" class="m">permissionDecisionReason → Claude</text>
+<path class="l" d="M170 200 H75 V90"/><polygon points="70,100 75,90 80,100" fill="var(--accent)"/>
+<text x="20" y="262" class="m">Chặn phải đặt ở PreToolUse. Đến PostToolUse thì tool đã chạy, tiền đã chuyển,</text>
+<text x="20" y="280" class="m">chỉ còn sửa được dữ liệu trả về.</text>
+</svg></div>
+
+<h2>3. Chuẩn hoá: trước và sau PostToolUse</h2>
+<div class="tw"><table><tr><th>Tool</th><th>Output gốc (model sẽ phải tự đoán)</th><th>Sau hook (model nhận)</th></tr>
+<tr><td>A <code>get_order</code><br><span class="m">ERP cũ</span></td><td><code>created_ts: 1790845200</code> (Unix giây)<br><code>status_code: 2</code></td><td><code>date: "2026-10-01T09:00:00.000Z"</code><br><code>status: "shipped"</code></td></tr>
+<tr><td>B <code>get_shipment</code><br><span class="m">API vận chuyển</span></td><td><code>shipped_at: "2026-10-03T09:30:00+09:00"</code><br><code>state: "IN_TRANSIT"</code></td><td><code>date: "2026-10-03T00:30:00.000Z"</code><br><code>status: "in transit"</code></td></tr>
+<tr><td>C <code>get_payment</code><br><span class="m">cổng thanh toán</span></td><td><code>paid_on: "02/10/2026"</code> (DD/MM/YYYY)<br><code>st: "P"</code></td><td><code>date: "2026-10-02T00:00:00.000Z"</code><br><code>status: "paid"</code></td></tr>
+</table></div>
+<p class="m">Cả 3 đều về schema <code>{source, id, date, status}</code>. Giả định: DD/MM/YYYY không có giờ nên lấy 00:00 UTC. Ngày có múi giờ thì quy về UTC.</p>
+
+<h2>4. Sáu bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>3 MCP tool lệch định dạng</td><td><code>createSdkMcpServer({name: "ops"})</code> với <code>get_order</code> / <code>get_shipment</code> / <code>get_payment</code>. Tên tool phía model: <code>mcp__ops__get_order</code>…</td></tr>
+<tr><td>2</td><td>PostToolUse chuẩn hoá</td><td><code>normalizeHook</code>, matcher <code>^mcp__ops__get_</code>. Trả <code>hookSpecificOutput.updatedToolOutput</code>, đúng kiểu <code>PostToolUseHookSpecificOutput</code> trong SDK 0.3.293. <code>updatedMCPToolOutput</code> là trường cũ, chỉ cho MCP tool.</td></tr>
+<tr><td>3</td><td>Dữ liệu đồng nhất</td><td>Test kiểm tra cả 3 output có cùng key và cùng định dạng ngày/status.</td></tr>
+<tr><td>4</td><td>PreToolUse chặn refund &gt; $500</td><td><code>refundLimitHook</code> trả <code>permissionDecision: "deny"</code> + <code>permissionDecisionReason</code>, đồng thời đẩy vào hàng đợi <code>ESCALATIONS</code> cho người duyệt. Amount không phải số (NaN) cũng bị chặn.</td></tr>
+<tr><td>5</td><td>AML: 2 hook phối hợp</td><td><code>amlRecordHook</code> (PostToolUse trên <code>aml_check</code>) ghi <code>session_id:customer_id</code> khi pass. <code>amlGateHook</code> (PreToolUse trên <code>transfer_funds</code>) deny nếu chưa có.</td></tr>
+<tr><td>6</td><td>Test chặn và mở khoá</td><td><code>LEDGER</code> chỉ được ghi trong handler tiền tệ. Lời gọi bị deny thì LEDGER không đổi, nghĩa là tool chưa hề chạy.</td></tr>
+</table></div>
+
+<h2>5. Mã nguồn</h2>
+<p>File đi kèm: <code>bai_1_5_sdk_hooks.ts</code>. Chạy thật: <code>npm i @anthropic-ai/claude-agent-sdk zod</code>, đặt <code>ANTHROPIC_API_KEY</code>, rồi <code>node --experimental-strip-types bai_1_5_sdk_hooks.ts --run</code> (Node 22).</p>
+<pre><code>// Build Exercise 1.5 — Agent SDK Hooks for Normalisation and Policy Enforcement
+// TypeScript + @anthropic-ai/claude-agent-sdk (Agent SDK chỉ có bản TypeScript/Python, không có Ruby).
+//
+//   npm i @anthropic-ai/claude-agent-sdk zod
+//   export ANTHROPIC_API_KEY=...
+//   node --experimental-strip-types bai_1_5_sdk_hooks.ts --run
+//
+// Ý tưởng:
+//   PreToolUse  = TRƯỚC khi tool chạy  → chặn chính sách (refund &gt; $500, chuyển tiền khi chưa AML)
+//   PostToolUse = SAU khi tool đã chạy → biến đổi dữ liệu (chuẩn hoá ngày/status) + ghi state AML
+// Không dùng PostToolUse để chặn: lúc đó tool đã chạy xong, tiền đã đi rồi.
+
+import { pathToFileURL } from &quot;node:url&quot;;
+import { z } from &quot;zod&quot;;
+import {
+  createSdkMcpServer,
+  query,
+  tool,
+  type HookCallback,
+  type HookCallbackMatcher,
+  type HookEvent,
+  type HookJSONOutput,
+  type PostToolUseHookInput,
+  type PreToolUseHookInput,
+} from &quot;@anthropic-ai/claude-agent-sdk&quot;;
+
+export const SERVER = &quot;ops&quot;;
+export const toolName = (short: string) =&gt; `mcp__${SERVER}__${short}`;
+
+export const REFUND_LIMIT_USD = 500;
+
+// ---------------------------------------------------------------------------
+// State phía ứng dụng (không nằm trong prompt nên model không &quot;quên&quot; được)
+// ---------------------------------------------------------------------------
+export const LEDGER: string[] = []; // bằng chứng tool tiền tệ thật sự đã chạy
+export const ESCALATIONS: { tool: string; input: unknown; reason: string }[] = []; // hàng đợi người duyệt
+const amlPassed = new Set&lt;string&gt;(); // key = `${session_id}:${customer_id}`
+
+export function resetState(): void {
+  LEDGER.length = 0;
+  ESCALATIONS.length = 0;
+  amlPassed.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Bước 1: 3 tool dữ liệu, mỗi tool một định dạng ngày/status khác nhau
+// ---------------------------------------------------------------------------
+const json = (data: unknown) =&gt; ({ content: [{ type: &quot;text&quot; as const, text: JSON.stringify(data) }] });
+
+export const handlers = {
+  // Tool A — ERP cũ: Unix timestamp (giây) + mã status dạng số
+  get_order: async ({ order_id }: { order_id: string }) =&gt;
+    json({ order_id, created_ts: 1790845200, status_code: 2 }),
+
+  // Tool B — API vận chuyển: ISO 8601 + chuỗi tiếng Anh viết hoa/gạch dưới
+  get_shipment: async ({ order_id }: { order_id: string }) =&gt;
+    json({ tracking_no: `SHP-${order_id}`, shipped_at: &quot;2026-10-03T09:30:00+09:00&quot;, state: &quot;IN_TRANSIT&quot; }),
+
+  // Tool C — cổng thanh toán: DD/MM/YYYY + mã 1 ký tự
+  get_payment: async ({ order_id }: { order_id: string }) =&gt;
+    json({ payment_id: `PAY-${order_id}`, paid_on: &quot;02/10/2026&quot;, st: &quot;P&quot; }),
+
+  process_refund: async ({ order_id, amount_usd }: { order_id: string; amount_usd: number }) =&gt; {
+    LEDGER.push(`refund ${order_id} $${amount_usd}`);
+    return json({ order_id, refunded_usd: amount_usd, result: &quot;ok&quot; });
+  },
+
+  aml_check: async ({ customer_id }: { customer_id: string }) =&gt;
+    json({ customer_id, aml: customer_id.startsWith(&quot;BLOCKED&quot;) ? &quot;fail&quot; : &quot;pass&quot; }),
+
+  transfer_funds: async ({ customer_id, amount_usd }: { customer_id: string; amount_usd: number }) =&gt; {
+    LEDGER.push(`transfer ${customer_id} $${amount_usd}`);
+    return json({ customer_id, transferred_usd: amount_usd, result: &quot;ok&quot; });
+  },
+};
+
+const orderId = { order_id: z.string().describe(&quot;Mã đơn hàng, ví dụ ORD-1001&quot;) };
+
+export const opsServer = createSdkMcpServer({
+  name: SERVER,
+  version: &quot;1.0.0&quot;,
+  tools: [
+    tool(&quot;get_order&quot;, &quot;Lấy thông tin đơn hàng (ngày tạo, trạng thái đơn).&quot;, orderId, handlers.get_order),
+    tool(&quot;get_shipment&quot;, &quot;Lấy trạng thái vận chuyển của đơn hàng.&quot;, orderId, handlers.get_shipment),
+    tool(&quot;get_payment&quot;, &quot;Lấy trạng thái thanh toán của đơn hàng.&quot;, orderId, handlers.get_payment),
+    tool(
+      &quot;process_refund&quot;,
+      &quot;Hoàn tiền cho đơn hàng.&quot;,
+      { order_id: z.string(), amount_usd: z.number().positive() },
+      handlers.process_refund,
+    ),
+    tool(&quot;aml_check&quot;, &quot;Kiểm tra chống rửa tiền (AML) cho khách hàng.&quot;, { customer_id: z.string() }, handlers.aml_check),
+    tool(
+      &quot;transfer_funds&quot;,
+      &quot;Chuyển tiền cho khách hàng.&quot;,
+      { customer_id: z.string(), amount_usd: z.number().positive() },
+      handlers.transfer_funds,
+    ),
+  ],
+});
+
+// ---------------------------------------------------------------------------
+// Bước 2: PostToolUse chuẩn hoá về 1 schema: date = ISO 8601 (UTC), status = tiếng Anh dễ đọc
+// ---------------------------------------------------------------------------
+const ORDER_STATUS: Record&lt;number, string&gt; = { 1: &quot;pending&quot;, 2: &quot;shipped&quot;, 3: &quot;delivered&quot;, 4: &quot;cancelled&quot; };
+const PAYMENT_STATUS: Record&lt;string, string&gt; = { P: &quot;paid&quot;, N: &quot;pending&quot;, F: &quot;failed&quot;, R: &quot;refunded&quot; };
+
+export function toIso(value: unknown): string {
+  if (typeof value === &quot;number&quot;) return new Date(value * 1000).toISOString(); // Unix giây
+  if (typeof value === &quot;string&quot;) {
+    const dmy = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); // DD/MM/YYYY, không có giờ → giả định 00:00 UTC
+    if (dmy) return new Date(Date.UTC(+dmy[3], +dmy[2] - 1, +dmy[1])).toISOString();
+    const d = new Date(value); // ISO 8601 có múi giờ → đưa về UTC
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  throw new Error(`Không nhận dạng được ngày: ${JSON.stringify(value)}`);
+}
+
+const humanize = (s: string) =&gt; s.toLowerCase().replace(/_/g, &quot; &quot;);
+
+type Row = Record&lt;string, any&gt;;
+export const NORMALIZERS: Record&lt;string, (r: Row) =&gt; Row&gt; = {
+  get_order: (r) =&gt; ({ source: &quot;order&quot;, id: r.order_id, date: toIso(r.created_ts), status: ORDER_STATUS[r.status_code] ?? `unknown (${r.status_code})` }),
+  get_shipment: (r) =&gt; ({ source: &quot;shipment&quot;, id: r.tracking_no, date: toIso(r.shipped_at), status: humanize(r.state) }),
+  get_payment: (r) =&gt; ({ source: &quot;payment&quot;, id: r.payment_id, date: toIso(r.paid_on), status: PAYMENT_STATUS[r.st] ?? `unknown (${r.st})` }),
+};
+
+// tool_response của MCP tool có thể là chuỗi, mảng content block, hoặc { content: [...] } → đọc cả 3
+function readPayload(resp: unknown): Row | null {
+  const blocks = Array.isArray(resp) ? resp : (resp as any)?.content;
+  const text = typeof resp === &quot;string&quot; ? resp : Array.isArray(blocks) ? blocks.find((b: any) =&gt; b?.type === &quot;text&quot;)?.text : undefined;
+  try {
+    return typeof text === &quot;string&quot; ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Trả lại đúng &quot;hình dạng&quot; đã nhận, chỉ thay nội dung
+function writePayload(resp: unknown, data: Row): unknown {
+  const text = JSON.stringify(data);
+  if (typeof resp === &quot;string&quot;) return text;
+  if (Array.isArray(resp)) return [{ type: &quot;text&quot;, text }];
+  return { ...(resp as object), content: [{ type: &quot;text&quot;, text }] };
+}
+
+const shortName = (full: string) =&gt; full.replace(`mcp__${SERVER}__`, &quot;&quot;);
+
+export const normalizeHook: HookCallback = async (input): Promise&lt;HookJSONOutput&gt; =&gt; {
+  const post = input as PostToolUseHookInput;
+  const normalize = NORMALIZERS[shortName(post.tool_name)];
+  const raw = readPayload(post.tool_response);
+  if (!normalize || !raw) return {};
+  return {
+    hookSpecificOutput: {
+      hookEventName: &quot;PostToolUse&quot;,
+      // updatedToolOutput: thay output trước khi model nhìn thấy (dùng được cho mọi tool;
+      // updatedMCPToolOutput là trường cũ, chỉ cho MCP tool)
+      updatedToolOutput: writePayload(post.tool_response, normalize(raw)),
+    },
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Bước 4: PreToolUse chặn refund &gt; $500 → chuyển người duyệt
+// ---------------------------------------------------------------------------
+const deny = (reason: string): HookJSONOutput =&gt; ({
+  hookSpecificOutput: { hookEventName: &quot;PreToolUse&quot;, permissionDecision: &quot;deny&quot;, permissionDecisionReason: reason },
+});
+
+export const refundLimitHook: HookCallback = async (input) =&gt; {
+  const pre = input as PreToolUseHookInput;
+  if (pre.tool_name !== toolName(&quot;process_refund&quot;)) return {};
+  const args = pre.tool_input as { order_id?: string; amount_usd?: number };
+  const amount = Number(args.amount_usd);
+  if (!(amount &lt;= REFUND_LIMIT_USD)) { // NaN cũng bị chặn
+    const reason = `Refund $${args.amount_usd} vượt hạn mức $${REFUND_LIMIT_USD}. Không tự xử lý; đã chuyển cho nhân viên duyệt (escalation). Hãy báo khách là yêu cầu đang chờ duyệt.`;
+    ESCALATIONS.push({ tool: pre.tool_name, input: args, reason });
+    return deny(reason);
+  }
+  return {};
+};
+
+// ---------------------------------------------------------------------------
+// Bước 5: AML — 2 hook phối hợp: PostToolUse(aml_check) ghi state, PreToolUse(transfer_funds) kiểm tra
+// ---------------------------------------------------------------------------
+export const amlRecordHook: HookCallback = async (input) =&gt; {
+  const post = input as PostToolUseHookInput;
+  const r = readPayload(post.tool_response);
+  if (r?.aml === &quot;pass&quot;) amlPassed.add(`${post.session_id}:${r.customer_id}`);
+  return {};
+};
+
+export const amlGateHook: HookCallback = async (input) =&gt; {
+  const pre = input as PreToolUseHookInput;
+  const { customer_id } = pre.tool_input as { customer_id?: string };
+  if (!amlPassed.has(`${pre.session_id}:${customer_id}`)) {
+    return deny(`Chưa có aml_check PASS cho khách ${customer_id} trong phiên này. Gọi aml_check trước; nếu AML fail thì không được chuyển tiền.`);
+  }
+  return {};
+};
+
+export const hooks: Partial&lt;Record&lt;HookEvent, HookCallbackMatcher[]&gt;&gt; = {
+  PreToolUse: [
+    { matcher: toolName(&quot;process_refund&quot;), hooks: [refundLimitHook] },
+    { matcher: toolName(&quot;transfer_funds&quot;), hooks: [amlGateHook] },
+  ],
+  PostToolUse: [
+    { matcher: `^mcp__${SERVER}__get_`, hooks: [normalizeHook] },
+    { matcher: toolName(&quot;aml_check&quot;), hooks: [amlRecordHook] },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Chạy thật (cần ANTHROPIC_API_KEY)
+// ---------------------------------------------------------------------------
+async function main(): Promise&lt;void&gt; {
+  const prompts = [
+    &quot;Đơn ORD-1001: cho tôi biết ngày tạo đơn, ngày gửi hàng, ngày thanh toán và trạng thái của từng thứ.&quot;,
+    &quot;Hoàn tiền $750 cho đơn ORD-1001 ngay.&quot;,
+    &quot;Chuyển $200 cho khách CUS-42.&quot;,
+  ];
+  for (const prompt of prompts) {
+    console.log(`\n=== ${prompt}`);
+    for await (const msg of query({
+      prompt,
+      options: {
+        mcpServers: { [SERVER]: opsServer },
+        allowedTools: Object.keys(handlers).map(toolName),
+        hooks,
+        maxTurns: 10,
+      },
+    })) {
+      if (msg.type === &quot;result&quot;) console.log(msg.subtype === &quot;success&quot; ? msg.result : `[${msg.subtype}]`);
+    }
+  }
+  console.log(&quot;\nLEDGER:&quot;, LEDGER, &quot;\nESCALATIONS:&quot;, ESCALATIONS.length);
+}
+
+if (process.argv.includes(&quot;--run&quot;) &amp;&amp; import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) =&gt; {
+    console.error(e);
+    process.exit(1);
+  });
+}
+</code></pre>
+
+<h2>6. Kiểm thử</h2>
+<div class="card ok"><b>Đã chạy:</b>
+<ul>
+<li><code>tsc --noEmit --strict</code> với type thật của <code>@anthropic-ai/claude-agent-sdk</code> 0.3.293: <b>0 lỗi</b>.</li>
+<li>Test mô phỏng đúng thứ tự của SDK: PreToolUse → (nếu không deny) handler thật của tool → PostToolUse → output đưa cho model. Hook và handler đều là code thật trong file nộp, chỉ phần “Claude quyết định gọi tool nào” là giả lập.</li>
+</ul>
+<pre><code>[get_order] raw   {&quot;order_id&quot;:&quot;ORD-1001&quot;,&quot;created_ts&quot;:1790845200,&quot;status_code&quot;:2}
+            model {&quot;source&quot;:&quot;order&quot;,&quot;id&quot;:&quot;ORD-1001&quot;,&quot;date&quot;:&quot;2026-10-01T09:00:00.000Z&quot;,&quot;status&quot;:&quot;shipped&quot;}
+[get_shipment] raw   {&quot;tracking_no&quot;:&quot;SHP-ORD-1001&quot;,&quot;shipped_at&quot;:&quot;2026-10-03T09:30:00+09:00&quot;,&quot;state&quot;:&quot;IN_TRANSIT&quot;}
+               model {&quot;source&quot;:&quot;shipment&quot;,&quot;id&quot;:&quot;SHP-ORD-1001&quot;,&quot;date&quot;:&quot;2026-10-03T00:30:00.000Z&quot;,&quot;status&quot;:&quot;in transit&quot;}
+[get_payment] raw   {&quot;payment_id&quot;:&quot;PAY-ORD-1001&quot;,&quot;paid_on&quot;:&quot;02/10/2026&quot;,&quot;st&quot;:&quot;P&quot;}
+              model {&quot;source&quot;:&quot;payment&quot;,&quot;id&quot;:&quot;PAY-ORD-1001&quot;,&quot;date&quot;:&quot;2026-10-02T00:00:00.000Z&quot;,&quot;status&quot;:&quot;paid&quot;}
+✓ 3 tool → cùng schema {source,id,date ISO 8601 UTC,status tiếng Anh}
+✓ refund $300 → chạy. LEDGER=[&quot;refund ORD-1001 $300&quot;]
+✓ refund $750 → DENIED: Refund $750 vượt hạn mức $500. Không tự xử lý; đã chuyển cho nhân viên duyệt (escalation). Hãy báo khách là yêu cầu đang chờ duyệt.
+  LEDGER không đổi=[&quot;refund ORD-1001 $300&quot;], ESCALATIONS=1
+✓ refund $500 (đúng ngưỡng) → chạy
+✓ transfer trước AML → DENIED: Chưa có aml_check PASS cho khách CUS-42 trong phiên này. Gọi aml_check trước; nếu AML fail thì không được chuyển tiền.
+✓ sau aml_check PASS → transfer chạy. LEDGER=[&quot;transfer CUS-42 $200&quot;]
+✓ AML pass của CUS-42 không mở khoá cho CUS-99
+✓ session khác (S3) chưa AML → vẫn chặn
+✓ aml_check FAIL → transfer vẫn bị chặn
+LEDGER cuối: [&quot;transfer CUS-42 $200&quot;] (chỉ 1 giao dịch hợp lệ)
+
+ALL PASS</code></pre></div>
+<div class="card warn"><b>Chưa chạy: với API thật.</b> Chưa có key Claude API hợp lệ, nên chưa chạy <code>query()</code>. Điểm chưa kiểm chứng được: dạng chính xác của <code>tool_response</code> mà SDK đưa vào PostToolUse cho MCP tool. Code đã xử lý cả 3 dạng (chuỗi, mảng content block, <code>{content: [...]}</code>) và trả lại đúng dạng đã nhận.</div>
+
+<h2>7. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>3 tool trả về 3 định dạng ngày/status khác nhau</li>
+<li>PostToolUse chạy sau tool, trả <code>updatedToolOutput</code>, cả 3 về cùng schema</li>
+<li>Refund &gt; $500 không bao giờ chạy, kèm <code>permissionDecisionReason</code> và chuyển người duyệt</li>
+<li>Transfer bị chặn đến khi <code>aml_check</code> pass trong cùng session, cho đúng khách đó</li>
+<li>AML fail thì vẫn chặn. Lời gọi bị deny không để lại tác dụng phụ (LEDGER không đổi)</li>
+</ul>
+
+<h2>8. Bài học rút ra</h2>
+<ul>
+<li><b>Hook là tất định, prompt là xác suất.</b> Quy tắc tài chính / pháp lý / compliance (cần 100%) thì dùng hook. Sở thích định dạng câu trả lời thì dùng prompt là đủ.</li>
+<li><b>Đúng chiều hook:</b> PreToolUse = trước khi chạy, dùng để chặn / sửa input. PostToolUse = sau khi chạy, dùng để biến đổi output / ghi state. Dùng PostToolUse để chặn là sai, vì hành động đã xảy ra.</li>
+<li><b>Chuẩn hoá ở hook, không bắt model tự quy đổi.</b> Model đọc <code>1790845200</code> hay <code>02/10/2026</code> (2/10 hay 10/2?) sẽ có lúc sai. Hook làm một lần, đúng mọi lần.</li>
+<li><b>State của gate nằm trong code</b> (theo <code>session_id</code> + <code>customer_id</code>), không nằm trong lời dặn ở system prompt.</li>
+<li><b>Lý do deny phải viết cho model đọc:</b> nói rõ vì sao bị chặn và bước tiếp theo (gọi aml_check, hoặc báo khách đang chờ duyệt) để model không thử lại vô ích.</li>
+<li>Bẫy thi hay gặp: “thêm chỉ dẫn vào system prompt” hay “thêm few-shot” để đạt 100% compliance → <b>sai</b>, đáp án đúng là hook / gate bằng code.</li>
+</ul>
+
+<h2>9. Bản chạy không cần API key</h2>
+<p>Có hai cách, cả hai đều dùng phiên đăng nhập claude.ai của Claude Code CLI:</p>
+<div class="tw"><table><tr><th></th><th>A. Agent SDK qua CLI đã đăng nhập</th><th>B. Thuần CLI: shell hook + MCP server Ruby</th></tr>
+<tr><td>Lệnh</td><td><code>./run_cli.sh</code></td><td><code>./run_cli_hooks.sh</code></td></tr>
+<tr><td>Code hook</td><td>Giữ nguyên <code>bai_1_5_sdk_hooks.ts</code> (callback TypeScript chạy trong tiến trình Node)</td><td><code>cli/hooks/*.rb</code>: mỗi hook là <b>một tiến trình riêng</b>, nhận JSON qua stdin</td></tr>
+<tr><td>Tool</td><td>SDK MCP server trong tiến trình (<code>createSdkMcpServer</code>)</td><td><code>cli/ops_mcp_server.rb</code> (stdio, 6 tool như bản SDK)</td></tr>
+<tr><td>State AML / escalation</td><td>Biến trong bộ nhớ (<code>Set</code>, mảng)</td><td>File JSONL trong <code>cli/state/</code>: tiến trình hook không giữ được bộ nhớ giữa các lần gọi</td></tr>
+<tr><td>Cần cài</td><td>Node 22 + <code>@anthropic-ai/claude-agent-sdk</code>, <code>zod</code></td><td>Chỉ Ruby + <code>claude</code></td></tr>
+</table></div>
+<div class="card"><b>Kết luận: Agent SDK không tự gọi API.</b> <code>query()</code> spawn một tiến trình Claude Code rồi trao đổi với nó qua stdin/stdout dạng stream-json. Tiến trình đó đọc cùng thông tin đăng nhập với lệnh <code>claude</code>, nên khi <b>không có</b> <code>ANTHROPIC_API_KEY</code> nó dùng phiên đăng nhập claude.ai (trừ vào hạn mức gói, không cần key). Đối chiếu trong mã SDK 0.3.293 đã cài (<code>@anthropic-ai/claude-agent-sdk/sdk.mjs</code> là file đã minify, chỉ 148 dòng rất dài):
+<ul>
+<li><b>Binary mặc định là bản đóng gói, không phải <code>claude</code> trên PATH.</b> <code>sdk.mjs</code> dòng 142: khi không có <code>pathToClaudeCodeExecutable</code>, SDK tìm binary trong gói phụ thuộc theo nền tảng, nếu không thấy thì báo lỗi <i>"Native CLI binary for linux-x64 not found … or set options.pathToClaudeCodeExecutable"</i>. Trên máy này đó là <code>@anthropic-ai/claude-agent-sdk-linux-x64/claude</code>, phiên bản <b>2.1.293</b>, còn <code>claude</code> đã đăng nhập là <b>2.1.296</b>. Ở <code>sdk.d.ts</code> dòng 1978–1980: <i>"Uses the built-in executable if not specified."</i></li>
+<li><b>Env được kế thừa nguyên vẹn.</b> <code>sdk.mjs</code> dòng 142 (<code>St=O?{...O}:{...process.env}</code>) và dòng 136 (<code>env:c={...process.env}</code>): nếu shell có <code>ANTHROPIC_API_KEY</code> thì tiến trình con cũng có, và key sẽ được ưu tiên. Vì vậy <code>run_cli.sh</code> <code>unset</code> biến này trước khi chạy.</li>
+<li><b>Đăng nhập dùng chung.</b> <code>sdk.mjs</code> dòng 142 đọc <code>~/.claude/.credentials.json</code> (hoặc <code>$CLAUDE_CONFIG_DIR</code>) khi không có <code>ANTHROPIC_API_KEY</code> hay <code>CLAUDE_CODE_OAUTH_TOKEN</code>. Đây cũng là file của <code>claude</code> đã đăng nhập (<code>claude auth status</code> → <code>"authMethod": "claude.ai"</code>).</li>
+</ul>
+Để chắc chắn chạy đúng bản CLI đã đăng nhập, code nhận biến <code>CLAUDE_BIN</code> và truyền vào <code>pathToClaudeCodeExecutable</code>. <code>run_cli.sh</code> mặc định đặt <code>CLAUDE_BIN=$(command -v claude)</code>; đặt <code>CLAUDE_BIN=</code> (rỗng) để quay về bản đóng gói. Đã kiểm lại <code>tsc --strict</code> với SDK thật: sạch.</div>
+
+<h3>Biến thể B: shell hook</h3>
+<p>Chặn bằng <code>exit 0</code> + JSON <code>permissionDecision: "deny"</code>; lý do được đưa cho Claude. Cách khác là in lý do ra stderr rồi <code>exit 2</code>; <code>exit 1</code> <b>không</b> chặn. PostToolUse trả <code>updatedToolOutput</code>. Trường này đã đối chiếu trong schema hook output của chính binary Claude Code 2.1.296: <i>"updatedToolOutput: Replaces the tool output before it is sent to the model"</i>, còn <i>"updatedMCPToolOutput: Replaces the output for MCP tools only. Prefer updatedToolOutput"</i>. Điểm chưa kiểm chứng: <code>tool_response</code> của MCP tool mà CLI đưa vào hook có dạng chuỗi, mảng content block hay <code>{content: [...]}</code>. Hook đọc được cả 3 dạng và trả lại đúng dạng đã nhận.</p>
+<pre><code>{
+  &quot;hooks&quot;: {
+    &quot;PreToolUse&quot;: [
+      { &quot;matcher&quot;: &quot;mcp__ops__process_refund&quot;,
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/pre_refund_limit.rb\&quot;&quot; }] },
+      { &quot;matcher&quot;: &quot;mcp__ops__transfer_funds&quot;,
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/pre_aml_gate.rb\&quot;&quot; }] }
+    ],
+    &quot;PostToolUse&quot;: [
+      { &quot;matcher&quot;: &quot;mcp__ops__get_.*&quot;,
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/post_normalize.rb\&quot;&quot; }] },
+      { &quot;matcher&quot;: &quot;mcp__ops__aml_check&quot;,
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/post_aml_record.rb\&quot;&quot; }] }
+    ]
+  }
+}</code></pre>
+<pre><code>#!/usr/bin/env ruby
+# frozen_string_literal: true
+# PreToolUse(mcp__ops__process_refund): refund &gt; $500 (hoặc số tiền không hợp lệ) → deny + ghi hàng đợi người duyệt.
+require_relative &quot;lib&quot;
+
+inp = hook_input
+amount = Float(inp.dig(&quot;tool_input&quot;, &quot;amount_usd&quot;), exception: false)
+unless amount &amp;&amp; amount &lt;= REFUND_LIMIT_USD
+  reason = &quot;Refund $#{inp.dig(&#x27;tool_input&#x27;, &#x27;amount_usd&#x27;)} vượt hạn mức $#{REFUND_LIMIT_USD}. Không tự xử lý; &quot; \
+           &quot;đã chuyển cho nhân viên duyệt (escalation). Hãy báo khách là yêu cầu đang chờ duyệt.&quot;
+  append_jsonl(&quot;escalations.jsonl&quot;, { session_id: inp[&quot;session_id&quot;], tool: inp[&quot;tool_name&quot;], input: inp[&quot;tool_input&quot;], reason: reason })
+  deny!(reason)
+end</code></pre>
+<h3>Lệnh chạy</h3>
+<pre><code>cd ~/Downloads/claude-cert/1.5
+./run_cli.sh          # A: SDK → CLI đã đăng nhập (CLAUDE_BIN mặc định = $(command -v claude))
+./run_cli_hooks.sh    # B: claude -p --settings cli/settings.cli.json --mcp-config … --tools "" --model haiku
+./run_cli_hooks.sh clean
+ruby test/run_tests.rb   # thêm SDK_NODE_MODULES=… để chạy cả phần A</code></pre>
+<h3>Kiểm thử</h3>
+<ul>
+<li><b>THẬT, không cần model:</b> 4 shell hook được bơm JSON qua stdin giống Claude Code (hạn mức đúng 500, số tiền không hợp lệ, AML khoá theo <code>session_id</code> + khách, AML fail, 3 dạng <code>tool_response</code>). MCP server được bơm JSON-RPC.</li>
+<li><b>Đầu-cuối với Claude GIẢ:</b>
+  <ul>
+  <li><code>test/bin/claude</code> đọc <code>--settings</code>/<code>--mcp-config</code> như CLI, chạy đúng lệnh hook và MCP server thật.</li>
+  <li><code>test/bin/claude-sdk-fake</code> nói giao thức stream-json để Agent SDK <b>thật</b> gọi callback hook và SDK MCP server trong tiến trình Node.</li>
+  <li>Việc chọn tool nào, theo thứ tự nào, là <b>kịch bản GIẢ</b>.</li>
+  </ul></li>
+</ul>
+<pre><code>== Hook (THẬT, bơm JSON stdin)
+PASS  refund 750 → deny (exit 0 + JSON)  → {&quot;hookSpecificOutput&quot;=&gt;{&quot;hookEventName&quot;=&gt;&quot;PreToolUse&quot;, &quot;permissionDecision&quot;=&gt;&quot;deny&quot;, &quot;perm
+PASS  refund 500 (đúng hạn mức) → không chặn
+PASS  refund số tiền không hợp lệ → deny
+PASS  mỗi lần deny refund ghi 1 escalation  → 2 dòng
+PASS  transfer khi chưa AML → deny
+PASS  AML pass rồi → transfer được
+PASS  AML pass ở phiên khác KHÔNG có hiệu lực (khoá theo session_id)
+PASS  AML pass của khách khác KHÔNG có hiệu lực
+PASS  AML fail → vẫn chặn
+PASS  normalize get_order, tool_response dạng mảng content block, giữ nguyên hình dạng
+PASS  normalize get_order, tool_response dạng {content: [...]}, giữ nguyên hình dạng
+PASS  normalize get_order, tool_response dạng chuỗi, giữ nguyên hình dạng
+PASS  normalize get_shipment: +09:00 → UTC, IN_TRANSIT → in transit
+PASS  normalize get_payment: DD/MM/YYYY → ISO, P → paid
+PASS  normalize bỏ qua tool không phải get_*
+
+== MCP server (THẬT, bơm JSON-RPC)
+PASS  server trả 4 phản hồi (notification không có phản hồi)
+PASS  tools/list có đủ 6 tool
+PASS  tool tiền tệ ghi LEDGER khi thực sự chạy
+PASS  tool lạ → JSON-RPC error (lỗi giao thức)
+
+== Đầu-cuối run_cli_hooks.sh với claude GIẢ (hook + server THẬT, chọn tool GIẢ)
+PASS  run_cli_hooks.sh chạy xong
+PASS  LEDGER chỉ có 1 giao dịch hợp lệ (refund 750 không chạy)  → &quot;transfer CUS-42 $200\n&quot;
+PASS  output ra model đã chuẩn hoá (date ISO, status chữ)
+PASS  mỗi prompt một lệnh claude -p riêng
+PASS  cờ đúng: --settings, --strict-mcp-config, --tools &quot;&quot;, --permission-mode dontAsk
+
+== Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake nói giao thức stream-json)
+PASS  run_cli.sh chạy xong qua SDK
+PASS  SDK spawn đúng binary trỏ bởi CLAUDE_BIN
+PASS  tiến trình con KHÔNG có ANTHROPIC_API_KEY
+PASS  SDK đăng ký 4 hook callback + SDK MCP server ops
+PASS  refund 750 bị hook TS chặn, không thực thi
+PASS  LEDGER trong tiến trình Node chỉ có transfer hợp lệ  → LEDGER: [ &#x27;transfer CUS-42 $200&#x27; ]
+
+30 PASS, 0 FAIL</code></pre>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> Lệnh thật sẽ tính vào hạn mức gói claude.ai. Ước tính:
+<ul>
+<li>A: 3 prompt, mỗi prompt 2–6 lượt, model mặc định, tương đương <b>~0,2–0,6 USD</b> giá API.</li>
+<li>B: 3 lệnh haiku, mỗi lệnh có trần <code>--max-budget-usd 0.2</code>, tương đương <b>~0,05–0,2 USD</b>.</li>
+</ul>
+Hai giả định chỉ kiểm chứng được khi chạy thật: <code>--tools ""</code> chỉ tắt tool built-in chứ không tắt tool MCP; và CLAUDE.md, hook SessionStart của bạn vẫn được nạp kèm. Hook trong <code>--settings</code> chạy cùng với hook sẵn có, nhưng các hook sẵn có không khớp tool <code>mcp__ops__*</code>.</div>
+
+<h2>10. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/1-agentic-architecture/1-5-agent-sdk-hooks">Lesson 1.5 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/agent-sdk/hooks">Intercept and control agent behavior with hooks – Agent SDK docs</a></li>
+<li><a href="https://code.claude.com/docs/en/agent-sdk/custom-tools">Custom tools (createSdkMcpServer) – Agent SDK docs</a></li>
+</ul>
+</main></body></html>

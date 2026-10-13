@@ -1,0 +1,39 @@
+PASS  notification không được trả lời (11 message, 10 có id → 10 response)
+PASS  tools/list có 2 tool
+PASS  customer_id không khai báo pattern trong schema
+PASS  transient: isError=true, đúng 3 field, isRetryable=true
+PASS  validation: isError=true, đúng 3 field, isRetryable=false
+PASS  business: isError=true, đúng 3 field, isRetryable=false
+PASS  permission: isError=true, đúng 3 field, isRetryable=false
+PASS  rỗng hợp lệ: isError=false, resultCount=0, không có errorCategory
+PASS  rỗng hợp lệ ≠ access failure (khác isError và khác key)
+PASS  tool không tồn tại → JSON-RPC error -32602, không có result
+PASS  thiếu tham số bắt buộc → JSON-RPC error
+PASS  method lạ → -32601
+PASS  flaky:2: lần 1,2 transient, lần 3 thành công
+PASS  ERROR_STYLE=bad: rỗng và business đều chỉ là "Error", không metadata
+PASS  structured #1 Tra khách bình thường: success sau 1 lần gọi
+PASS  structured #2 Khách không tồn tại (rỗng hợp lệ): not_found sau 1 lần gọi
+PASS  structured #3 DB chập chờn: timeout 2 lần rồi được: success sau 3 lần gọi
+PASS  structured #4 DB sập: timeout mãi: gave_up sau 4 lần gọi
+PASS  structured #5 Mã khách gõ sai nhưng sửa được: success sau 2 lần gọi
+PASS  structured #6 Mã khách sai không đoán được: ask_user sau 1 lần gọi
+PASS  structured #7 Hoàn 750 USD (vượt hạn mức 500): escalated sau 1 lần gọi
+PASS  structured #8 Hồ sơ tài chính bị hạn chế: need_credentials sau 1 lần gọi
+PASS  structured #9 Hoàn 49.5 USD (trong hạn mức): success sau 1 lần gọi
+PASS  structured #10 Gọi tool không tồn tại (lớp giao thức): protocol_error sau 1 lần gọi
+PASS  business / permission / rỗng: gọi đúng 1 lần, không retry
+PASS  timeout: dừng sau 3 retry (1 + 3 = 4 lần gọi)
+PASS  backoff tăng dần ×2 (0.2 → 0.4 → 0.8, đã scale)
+PASS  flaky:2 thành công ở lần gọi thứ 3 với 2 delay
+PASS  validation sửa được: lần 2 dùng CUS-0012
+PASS  handoff business có mã khách, số tiền, lý do
+PASS  fix_customer_id
+PASS  lan truyền: báo cáo có kết quả 1 phần + khách lỗi + khách rỗng tách riêng
+PASS  bad: rỗng hợp lệ bị retry vô ích rồi escalate (4 lần)
+PASS  bad: business bị retry (4 lần gọi hoàn tiền)
+PASS  bad: validation sửa được nhưng không sửa (escalate)
+PASS  bad: tổng số lần gọi nhiều hơn structured
+PASS  bad: lan truyền lẫn khách không tồn tại vào nhóm lỗi
+
+37 PASS, 0 FAIL

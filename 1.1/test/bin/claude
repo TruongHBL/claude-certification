@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+# CLAUDE GIẢ cho test bài 1.1 (bản CLI). KHÔNG gọi model.
+# Kịch bản viết tay: lượt 1 gọi 2 web_search, lượt 2 gọi 2 calculator, lượt 3 end_turn.
+# Tool được chạy THẬT qua MCP server (stdio) để kiểm tra server + parser đầu-cuối.
+# Lượt 1 cố ý tách thành 2 dòng assistant cùng message.id (giống stream-json thật) để test việc gom.
+require "json"
+require "open3"
+args = ARGV.dup
+File.open(ENV.fetch("FAKE_ARGV_LOG", "/dev/null"), "a") { |f| f.puts JSON.generate(args) }
+opt = ->(name) { i = args.index(name); i && args[i + 1] }
+cfg = JSON.parse(File.read(opt.("--mcp-config")))
+srv = cfg["mcpServers"]["loop"]
+Open3.popen2(srv["env"], srv["command"], *srv["args"]) do |sin, sout, _|
+  rpc = lambda do |id, method, params = {}|
+    sin.puts JSON.generate({ jsonrpc: "2.0", id: id, method: method, params: params }); JSON.parse(sout.gets)["result"]
+  end
+  rpc.(1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
+  sin.puts JSON.generate({ jsonrpc: "2.0", method: "notifications/initialized" })
+  tools = rpc.(2, "tools/list")["tools"]
+  out = ->(h) { puts JSON.generate(h.merge(parent_tool_use_id: nil)) }
+  out.({ type: "system", subtype: "init", tools: tools.map { "mcp__loop__#{_1['name']}" }, model: "fake" })
+  rid = 10
+  call = lambda do |tid, name, input|
+    r = rpc.(rid += 1, "tools/call", { name: name, arguments: input })
+    { type: "tool_result", tool_use_id: tid, content: r["content"], is_error: r["isError"] ? true : false }
+  end
+  # Lượt 1: 2 tool_use song song, tách 2 dòng cùng id; dòng đầu stop_reason null.
+  u1 = { type: "tool_use", id: "toolu_a1", name: "mcp__loop__web_search", input: { query: "dân số Hà Nội 2024" } }
+  u2 = { type: "tool_use", id: "toolu_a2", name: "mcp__loop__web_search", input: { query: "dân số TP. Hồ Chí Minh 2024" } }
+  out.({ type: "assistant", message: { id: "msg_fake_1", content: [{ type: "text", text: "Mình tra dân số hai thành phố." }, u1], stop_reason: nil } })
+  out.({ type: "assistant", message: { id: "msg_fake_1", content: [u2], stop_reason: ENV["FAKE_NO_STOP_REASON"] ? nil : "tool_use" } })
+  out.({ type: "user", message: { content: [call.("toolu_a1", "web_search", u1[:input]), call.("toolu_a2", "web_search", u2[:input])] } })
+  # Lượt 2: 2 calculator.
+  c1 = { type: "tool_use", id: "toolu_b1", name: "mcp__loop__calculator", input: { expression: "8.7 + 9.5" } }
+  c2 = { type: "tool_use", id: "toolu_b2", name: "mcp__loop__calculator", input: { expression: "(9.5 - 8.7) / 8.7 * 100" } }
+  out.({ type: "assistant", message: { id: "msg_fake_2", content: [c1, c2], stop_reason: ENV["FAKE_NO_STOP_REASON"] ? nil : "tool_use" } })
+  results = [call.("toolu_b1", "calculator", c1[:input])]
+  results << call.("toolu_b2", "calculator", c2[:input]) unless ENV["FAKE_DROP_RESULT"]
+  out.({ type: "user", message: { content: results } })
+  # Lượt 3: kết thúc.
+  out.({ type: "assistant", message: { id: "msg_fake_3", content: [{ type: "text", text: "(GIẢ) Tổng 18,2 triệu; HCM đông hơn khoảng 9,2%." }], stop_reason: ENV["FAKE_NO_STOP_REASON"] ? nil : "end_turn" } })
+  out.({ type: "result", subtype: "success", num_turns: 3, total_cost_usd: 0, result: "(GIẢ) Tổng 18,2 triệu; HCM đông hơn khoảng 9,2%." })
+end

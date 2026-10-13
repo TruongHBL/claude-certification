@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# CLAUDE GIẢ cho test bản CLI bài 1.6. KHÔNG gọi model.
+# Kết quả review được DỰNG TỪ ANSWER_KEY.json (single-pass cố tình bỏ sót vài lỗi) chỉ để kiểm tra
+# đường chạy run_cli.sh → review_cli.rb → parser → compare. Không nói gì về hành vi của Claude.
+# Để kiểm parser, mỗi file trả output qua một "kênh" khác nhau:
+#   số thứ tự file chia 3 dư 0 → result.structured_output; dư 1 → tool_use StructuredOutput; dư 2 → JSON trong result.result
+require "json"
+
+args = ARGV.dup
+log = ENV["FAKE_ARGV_LOG"]
+File.open(log, "a") { |f| f.puts JSON.generate(args) } if log
+opt = ->(name) { i = args.index(name); i && args[i + 1] }
+prompt = opt.("-p").to_s
+schema = JSON.parse(opt.("--json-schema"))
+key = JSON.parse(File.read(File.expand_path("../../bai_1_6_sample/ANSWER_KEY.json", __dir__)))["bugs"]
+issue = ->(b) { { "line" => b["line"], "severity" => b["severity"], "type" => b["type"], "description" => "(GIẢ) #{b['description']}" } }
+cross = ->(b) { { "files" => b["files"], "severity" => b["severity"], "type" => b["type"], "description" => "(GIẢ) #{b['description']}" } }
+props = schema["properties"].keys
+
+data, channel =
+  if props.include?("exports") # per-file
+    name = prompt[/=== (\S+) ===/, 1]
+    idx = name.to_i
+    [{ "file" => name, "issues" => key.select { _1["scope"] == "per_file" && _1["file"] == name }.map(&issue),
+       "exports" => [{ "name" => "f#{idx}", "signature" => "f#{idx}()", "returns" => "object" }],
+       "imports_used" => [], "summary" => "(GIẢ) tóm tắt #{name}" }, idx % 3]
+  elsif props.include?("files") # single-pass: bỏ sót lỗi ở nửa sau, không thấy lỗi chéo file
+    seen = key.select { _1["scope"] == "per_file" && _1["file"].to_i <= 7 }
+    files = seen.group_by { _1["file"] }.map { |f, bs| { "file" => f, "issues" => bs.map(&issue) } }
+    [{ "files" => files, "cross_file_issues" => [] }, 0]
+  else # integration
+    [{ "cross_file_issues" => key.select { _1["scope"] == "cross_file" }.map(&cross) }, 1]
+  end
+
+puts JSON.generate({ type: "system", subtype: "init", tools: channel == 1 ? ["StructuredOutput"] : [] })
+if channel == 1
+  puts JSON.generate({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "StructuredOutput", input: data }] } })
+  puts JSON.generate({ type: "result", subtype: "success", result: "", total_cost_usd: 0 })
+elsif channel == 2
+  puts JSON.generate({ type: "result", subtype: "success", result: "```json\n#{JSON.pretty_generate(data)}\n```", total_cost_usd: 0 })
+else
+  puts JSON.generate({ type: "result", subtype: "success", result: "", structured_output: data, total_cost_usd: 0 })
+end

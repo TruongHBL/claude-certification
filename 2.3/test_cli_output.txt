@@ -1,0 +1,61 @@
+== hook PreToolUse (guard_hook.rb, chạy thật) ==
+PASS  coordinator (luồng chính, --agent coordinator) gọi Agent → cho qua
+PASS  luồng chính không có agent_type vẫn được coi là coordinator
+PASS  coordinator gọi search_web → deny
+PASS  coordinator gọi review_output → cho qua
+PASS  web-search gọi load_document → cho qua
+PASS  synthesis gọi search_web → deny
+PASS  synthesis gọi verify_fact (scoped) → cho qua
+PASS  agent lạ (general-purpose) → deny mọi tool
+PASS  subagent gọi Agent (lồng) → deny
+PASS  doc-analysis: extract_data_points trước metadata → deny (cổng)
+PASS  doc-analysis: extract_metadata → cho qua
+PASS  doc-analysis: sau metadata, extract_data_points → cho qua
+PASS  doc-analysis phiên mới (agent_id khác) → cổng đóng lại
+PASS  doc-analysis: tool ngoài bộ (compile_report) → deny dù đã qua cổng
+PASS  dự phòng thiếu agent_id: cổng theo session + agent_type
+PASS  hook ghi log mọi lệnh (17 dòng) với agent, tool, decision, rule
+PASS  log phân biệt luật: outside_allowlist / metadata_gate / unknown_agent
+PASS  hook không bao giờ thoát mã 2 (chặn bằng JSON deny, có lý do)
+
+== MCP server (JSON-RPC thật qua stdio) ==
+PASS  initialize trả serverInfo research
+PASS  notification không được trả lời
+PASS  tools/list: 14 tool (12 nghiệp vụ + review_output, request_revision), không có Agent
+PASS  tools/list: mỗi tool có inputSchema object
+PASS  không có fetch_url trên server
+PASS  verify_fact đơn giản thấy trích đoạn đã lưu trong cùng tiến trình
+PASS  verify_fact nhận định phức tạp → isError + business (chuyển coordinator)
+PASS  load_document http://169.254… → isError validation (chặn ngay ở bước https)
+PASS  tool không tồn tại → lỗi giao thức JSON-RPC -32602 (không phải isError)
+PASS  method lạ → -32601
+PASS  server log 4 lệnh thực thi
+
+== cấu hình CLI sinh từ tool_config.rb ==
+PASS  agents.json có 4 agent (coordinator + 3 subagent, tên gạch nối)
+PASS  tools của từng agent = đúng tên mcp__research__<tool> của role
+PASS  subagent có 4–5 tool, coordinator chỉ Agent + 2 tool điều phối
+PASS  subagent đặt omitClaudeMd + background false; mọi agent model haiku
+PASS  không tool nào trùng giữa 3 subagent
+PASS  --allowedTools phủ mọi tool của mọi agent
+PASS  settings.json: PreToolUse matcher * gọi guard_hook.rb
+PASS  mcp.json: server research stdio, file server tồn tại
+PASS  cấu hình --misuse chỉ thêm search_web cho synthesis
+
+== audit_cli.rb trên log dựng tay ==
+PASS  log đúng → mọi kiểm tra đạt
+PASS  doc-analysis chạy summarize trước metadata → audit TRƯỢT
+PASS  server thực thi lệnh không qua hook → audit TRƯỢT
+PASS  có vi phạm bị chặn → chế độ thường TRƯỢT 'không có vi phạm'
+PASS  … và chế độ --misuse ĐẠT
+PASS  không có log hook (hook không chạy) → audit TRƯỢT
+
+== end-to-end: run_cli.sh với `claude` GIẢ (kịch bản cố định) ==
+PASS  run_cli.sh run → thoát 0, audit 10/10
+PASS  log ghi rõ là claude GIẢ
+PASS  cổng extract_metadata chặn đúng 1 lệnh sai thứ tự
+PASS  run_cli.sh misuse → hook chặn synthesis→search_web, audit đạt
+PASS  search_web chỉ được thực thi 1 lần (của web-search), lệnh của synthesis không tới server
+PASS  claude giả từ chối khi thiếu cờ bắt buộc (kiểm chính run_cli.sh truyền đủ cờ)
+
+50 PASS, 0 FAIL

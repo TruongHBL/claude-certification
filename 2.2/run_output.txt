@@ -1,0 +1,166 @@
+
+================ ERROR_STYLE=structured ================
+
+[1] Tra khách bình thường  (get_customer {"customer_id":"CUS-0012"})
+  ✓ thành công: {"results":[{"customer_id":"CUS-0012","name":"Nguyễn Thị Lan","tier":"Vàng","balance_usd":120.0,"orders":["#12
+  → kết cục: success sau 1 lần gọi
+
+[2] Khách không tồn tại (rỗng hợp lệ)  (get_customer {"customer_id":"CUS-9999"})
+  ○ rỗng hợp lệ (isError=false, resultCount=0) → trả lời khách: không tìm thấy, KHÔNG gọi lại
+  → kết cục: not_found sau 1 lần gọi
+
+[3] DB chập chờn: timeout 2 lần rồi được  (get_customer {"customer_id":"CUS-0042","simulate":"flaky:2"})
+  ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
+    ↻ retry 1/3 sau 0.20s
+  ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
+    ↻ retry 2/3 sau 0.40s
+  ✓ thành công: {"results":[{"customer_id":"CUS-0042","name":"Trần Văn Minh","tier":"Bạc","balance_usd":0.0,"orders":["#20871"
+  → kết cục: success sau 3 lần gọi
+
+[4] DB sập: timeout mãi  (get_customer {"customer_id":"CUS-0012","simulate":"timeout"})
+  ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
+    ↻ retry 1/3 sau 0.20s
+  ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
+    ↻ retry 2/3 sau 0.40s
+  ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
+    ↻ retry 3/3 sau 0.80s
+  ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
+  ✗ hết 3 lần retry → báo lên: đã thử 4 lần, lỗi transient, chưa có dữ liệu
+  → kết cục: gave_up sau 4 lần gọi
+
+[5] Mã khách gõ sai nhưng sửa được  (get_customer {"customer_id":"cus 12"})
+  ! validation (isRetryable=false): customer_id 'cus 12' sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS-00…
+    ✎ sửa input customer_id 'cus 12' → 'CUS-0012' rồi gọi lại (lần gọi mới, không phải retry)
+  ✓ thành công: {"results":[{"customer_id":"CUS-0012","name":"Nguyễn Thị Lan","tier":"Vàng","balance_usd":120.0,"orders":["#12
+  → kết cục: success sau 2 lần gọi
+
+[6] Mã khách sai không đoán được  (get_customer {"customer_id":"order-abc"})
+  ! validation (isRetryable=false): customer_id 'order-abc' sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS…
+  ? không tự sửa được → hỏi lại khách mã đúng (dạng CUS-NNNN)
+  → kết cục: ask_user sau 1 lần gọi
+
+[7] Hoàn 750 USD (vượt hạn mức 500)  (process_refund {"customer_id":"CUS-0012","amount":750})
+  ! business (isRetryable=false): Khoản hoàn 750.00 USD vượt hạn mức tự động 500 USD, cần quản lý duyệt. KHÔNG gọi lại: tạo …
+  ⇧ escalate cho quản lý, KHÔNG retry. Handoff: {"customer_id":"CUS-0012","amount_usd":750,"reason":"Khoản hoàn 750.00 USD vượt hạn mức tự động 500 USD, cần quản lý duy…
+  → kết cục: escalated sau 1 lần gọi
+
+[8] Hồ sơ tài chính bị hạn chế  (get_customer {"customer_id":"CUS-0777"})
+  ! permission (isRetryable=false): Service account support-bot không có quyền đọc hồ sơ tài chính của CUS-0777. Gọi lại với c…
+  🔑 xin quyền finance-read / chuyển nhân viên cấp cao, KHÔNG retry với cùng tài khoản
+  → kết cục: need_credentials sau 1 lần gọi
+
+[9] Hoàn 49.5 USD (trong hạn mức)  (process_refund {"customer_id":"CUS-0012","amount":49.5})
+  ✓ thành công: {"refund_id":"RF-0012-4950","customer_id":"CUS-0012","amount_usd":49.5,"status":"approved"}
+  → kết cục: success sau 1 lần gọi
+
+[10] Gọi tool không tồn tại (lớp giao thức)  (get_custmer {"customer_id":"CUS-0012"})
+  ✗ lớp giao thức -32602: Unknown tool: get_custmer → tool không chạy, báo dev sửa schema/client
+  → kết cục: protocol_error sau 1 lần gọi
+
+================ ERROR_STYLE=bad ================
+
+[1] Tra khách bình thường  (get_customer {"customer_id":"CUS-0012"})
+  ✓ thành công
+  → kết cục: success sau 1 lần gọi
+
+[2] Khách không tồn tại (rỗng hợp lệ)  (get_customer {"customer_id":"CUS-9999"})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 3/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+  ⇧ thử 4 lần vẫn lỗi → chuyển người xử lý
+  → kết cục: escalated sau 4 lần gọi
+
+[3] DB chập chờn: timeout 2 lần rồi được  (get_customer {"customer_id":"CUS-0042","simulate":"flaky:2"})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ✓ thành công
+  → kết cục: success sau 3 lần gọi
+
+[4] DB sập: timeout mãi  (get_customer {"customer_id":"CUS-0012","simulate":"timeout"})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 3/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+  ⇧ thử 4 lần vẫn lỗi → chuyển người xử lý
+  → kết cục: escalated sau 4 lần gọi
+
+[5] Mã khách gõ sai nhưng sửa được  (get_customer {"customer_id":"cus 12"})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 3/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+  ⇧ thử 4 lần vẫn lỗi → chuyển người xử lý
+  → kết cục: escalated sau 4 lần gọi
+
+[6] Mã khách sai không đoán được  (get_customer {"customer_id":"order-abc"})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 3/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+  ⇧ thử 4 lần vẫn lỗi → chuyển người xử lý
+  → kết cục: escalated sau 4 lần gọi
+
+[7] Hoàn 750 USD (vượt hạn mức 500)  (process_refund {"customer_id":"CUS-0012","amount":750})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 3/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+  ⇧ thử 4 lần vẫn lỗi → chuyển người xử lý
+  → kết cục: escalated sau 4 lần gọi
+
+[8] Hồ sơ tài chính bị hạn chế  (get_customer {"customer_id":"CUS-0777"})
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 1/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 2/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+    ↻ đoán là lỗi tạm thời, thử lại 3/3
+  ! "Error" (không biết loại lỗi, không biết có nên thử lại)
+  ⇧ thử 4 lần vẫn lỗi → chuyển người xử lý
+  → kết cục: escalated sau 4 lần gọi
+
+[9] Hoàn 49.5 USD (trong hạn mức)  (process_refund {"customer_id":"CUS-0012","amount":49.5})
+  ✓ thành công
+  → kết cục: success sau 1 lần gọi
+
+[10] Gọi tool không tồn tại (lớp giao thức)  (get_custmer {"customer_id":"CUS-0012"})
+  ✗ lớp giao thức: Unknown tool: get_custmer
+  → kết cục: protocol_error sau 1 lần gọi
+
+[Lan truyền lỗi, structured] tra 3 khách, CUS-0042 bị timeout mãi:
+  Báo cáo gửi coordinator: {"searched":3,"found":["CUS-0012"],"not_found":["CUS-9999"],"failed":[{"customer_id":"CUS-0042","outcome":"gave_up"}],"total_calls":6}
+
+[Lan truyền lỗi, bad] tra 3 khách, CUS-0042 bị timeout mãi:
+  Báo cáo gửi coordinator: {"searched":3,"found":["CUS-0012"],"not_found":[],"failed":[{"customer_id":"CUS-0042","outcome":"escalated"},{"customer_id":"CUS-9999","outcome":"escalated"}],"total_calls":9}
+
+================ SO SÁNH ================
+#    Kịch bản                                 structured                 bad                       
+1    Tra khách bình thường                    success (1 lần)            success (1 lần)           
+2    Khách không tồn tại (rỗng hợp lệ)        not_found (1 lần)          escalated (4 lần)         
+3    DB chập chờn: timeout 2 lần rồi được     success (3 lần)            success (3 lần)           
+4    DB sập: timeout mãi                      gave_up (4 lần)            escalated (4 lần)         
+5    Mã khách gõ sai nhưng sửa được           success (2 lần)            escalated (4 lần)         
+6    Mã khách sai không đoán được             ask_user (1 lần)           escalated (4 lần)         
+7    Hoàn 750 USD (vượt hạn mức 500)          escalated (1 lần)          escalated (4 lần)         
+8    Hồ sơ tài chính bị hạn chế               need_credentials (1 lần)   escalated (4 lần)         
+9    Hoàn 49.5 USD (trong hạn mức)            success (1 lần)            success (1 lần)           
+10   Gọi tool không tồn tại (lớp giao thức)   protocol_error (1 lần)     protocol_error (1 lần)    
+Tổng số lần gọi tool: structured 16, bad 30

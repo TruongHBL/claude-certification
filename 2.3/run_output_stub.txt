@@ -1,0 +1,43 @@
+== Chạy với client GIẢ LẬP (kịch bản cố định, không phải Claude) ==
+
+-- Log từng lượt --
+  coordinator#1          lượt 1  tool_choice=auto                   Agent
+  web_search#1           lượt 1  tool_choice=auto                   search_web
+  web_search#1           lượt 2  tool_choice=auto                   load_document, load_document, load_document
+     ↳ load_document trả lỗi validation: '.png' không phải tài liệu. Chỉ nhận .pdf .docx .md .txt .html .htm. Dùng search_web để tìm bản tài liệu.
+  web_search#1           lượt 3  tool_choice=auto                   save_snippet, save_snippet
+  web_search#1           lượt 4  tool_choice=auto                   (end_turn)
+  coordinator#1          lượt 2  tool_choice=auto                   Agent
+  doc_analysis#1         lượt 1  tool_choice=tool:extract_metadata  extract_metadata
+  doc_analysis#1         lượt 2  tool_choice=auto                   extract_metadata, extract_data_points, extract_data_points
+  doc_analysis#1         lượt 3  tool_choice=auto                   summarize_content, summarize_content
+  doc_analysis#1         lượt 4  tool_choice=auto                   (end_turn)
+  coordinator#1          lượt 3  tool_choice=auto                   Agent
+  synthesis#1            lượt 1  tool_choice=any                    verify_fact, verify_fact
+     ↳ verify_fact trả lỗi business: Ngoài phạm vi verify_fact (nhận định so sánh/nhân quả cần nhiều nguồn). Đưa vào needs_coordinator_verification.
+  synthesis#1            lượt 2  tool_choice=any                    format_citation, format_citation
+  synthesis#1            lượt 3  tool_choice=any                    assess_coverage
+  synthesis#1            lượt 4  tool_choice=any                    compile_report
+  coordinator#1          lượt 4  tool_choice=auto                   Agent
+  doc_analysis#2-verify  lượt 1  tool_choice=tool:extract_metadata  extract_metadata
+  doc_analysis#2-verify  lượt 2  tool_choice=auto                   verify_claim
+  doc_analysis#2-verify  lượt 3  tool_choice=auto                   (end_turn)
+  coordinator#1          lượt 5  tool_choice=auto                   review_output
+  coordinator#1          lượt 6  tool_choice=auto                   (end_turn)
+
+-- Tool đã dùng theo agent --
+  coordinator   Agent×4, review_output
+  web_search    search_web, load_document×3, save_snippet×2
+  doc_analysis  extract_metadata×3, extract_data_points×2, summarize_content×2, verify_claim
+  synthesis     verify_fact×2, format_citation×2, assess_coverage, compile_report
+
+-- Kiểm tra --
+  PASS  mỗi agent chỉ dùng tool trong bộ của mình  [OK]
+  PASS  doc_analysis: lượt 1 forced extract_metadata, các lượt sau auto (2 phiên)
+  PASS  synthesis dùng compile_report + verify_fact  [verify_fact×2, format_citation×2, assess_coverage×1, compile_report×1]
+  PASS  synthesis luôn chạy với tool_choice any
+  PASS  nhận định phức tạp được chuyển coordinator → doc_analysis verify_claim
+  PASS  không có vi phạm audit  [0 vi phạm]
+
+Trả lời cuối: Báo cáo hoàn tất: 62% doanh nghiệp áp dụng hybrid (GSO 2026). Con số năng suất +4–7% là tự đánh giá, mẫu khu vực (ILO 2025), không phải số đo riêng của Việt Nam.
+Log: ~/Downloads/claude-cert/2.3/logs/stub.jsonl
