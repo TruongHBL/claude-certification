@@ -8,7 +8,7 @@
 # Dùng:  ./run_cli.sh ["câu hỏi"]
 #   CLAUDE_BIN=...        binary Claude Code (mặc định: `command -v claude`, tức bản CLI bạn đã đăng nhập).
 #                         Để trống hẳn (CLAUDE_BIN=) thì SDK dùng binary đóng gói trong node_modules.
-#   SDK_NODE_MODULES=...  thư mục node_modules có sẵn @anthropic-ai/claude-agent-sdk → tạo symlink thay vì npm i.
+#   Thư viện: dùng node_modules ở thư mục gốc repo (Node tự tìm ngược lên thư mục cha). Chưa có thì tự chạy npm install ở gốc.
 #
 # Chi phí ước tính: 1 coordinator + 3 subagent (có WebSearch/WebFetch), model mặc định của tài khoản.
 # Tương đương ~0,5–2 USD giá API (code đặt maxBudgetUsd: 2); với gói claude.ai thì trừ vào hạn mức sử dụng.
@@ -21,19 +21,14 @@ export CLAUDE_BIN
 
 AUTH_BIN="${CLAUDE_BIN:-$(command -v claude || true)}"
 [ -n "$AUTH_BIN" ] || { echo "Không tìm thấy claude CLI. Cài Claude Code rồi chạy: claude  (đăng nhập /login)"; exit 1; }
-if ! "$AUTH_BIN" auth status 2>/dev/null | ruby -rjson -e 'exit(JSON.parse($stdin.read)["loggedIn"] == true ? 0 : 1)'; then
+if ! "$AUTH_BIN" auth status 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.exit(JSON.parse(s).loggedIn===true?0:1)}catch{process.exit(1)}})'; then
   echo "Claude Code chưa đăng nhập. Chạy: claude  rồi gõ /login"; exit 1
 fi
 
-NM="$ROOT/node_modules"
-[ -L "$NM" ] && [ ! -e "$NM" ] && rm -f "$NM"      # symlink hỏng (vd trỏ vào thư mục tạm đã xoá)
-if [ ! -d "$NM/@anthropic-ai/claude-agent-sdk" ]; then
-  if [ -n "${SDK_NODE_MODULES:-}" ]; then
-    ln -s "$SDK_NODE_MODULES" "$NM"
-  else
-    echo "Cài @anthropic-ai/claude-agent-sdk vào $NM ..."
-    (cd "$ROOT" && npm i --no-save --no-audit --no-fund --no-package-lock @anthropic-ai/claude-agent-sdk@0.3.293)
-  fi
+REPO="$(cd "$ROOT/.." && pwd)"   # gốc repo: package.json + node_modules dùng chung cho mọi bài
+if [ ! -d "$REPO/node_modules/@anthropic-ai/claude-agent-sdk" ]; then
+  echo "Cài @anthropic-ai/claude-agent-sdk vào $REPO/node_modules ..."
+  (cd "$REPO" && npm install --no-audit --no-fund)
 fi
 
 echo "Claude Code binary: ${CLAUDE_BIN:-<bản đóng gói trong SDK>}"

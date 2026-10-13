@@ -8,9 +8,9 @@ Tool theo agent (lệnh được cho qua):
   synthesis     verify_fact×2, format_citation×1, compile_report×1
 
 Cổng extract_metadata đã chặn:
-  doc-analysis (agent_91f8de) → extract_data_points
+  doc-analysis (agent_c25589) → extract_data_points
 
-Chi phí: 0.0 USD · số lượt: 23
+Chi phí: 0 USD · số lượt: 23
 
 Kiểm tra:
   ĐẠT  có log hook (hook PreToolUse thực sự chạy) — 23 lệnh gọi tool

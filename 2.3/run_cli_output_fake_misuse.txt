@@ -8,12 +8,12 @@ Tool theo agent (lệnh được cho qua):
   synthesis     verify_fact×2, format_citation×1, compile_report×1
 
 Cổng extract_metadata đã chặn:
-  doc-analysis (agent_2adaba) → extract_data_points
+  doc-analysis (agent_7fa0fc) → extract_data_points
 
 Vi phạm bị hook chặn:
   synthesis → search_web [outside_allowlist]
 
-Chi phí: 0.0 USD · số lượt: 24
+Chi phí: 0 USD · số lượt: 24
 
 Kiểm tra:
   ĐẠT  có log hook (hook PreToolUse thực sự chạy) — 24 lệnh gọi tool

@@ -1,8 +1,9 @@
+
 == Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake)
 PASS  run_cli.sh chạy xong, exit 0
 PASS  SDK spawn đúng binary trỏ bởi CLAUDE_BIN
 PASS  tiến trình con KHÔNG có ANTHROPIC_API_KEY (run_cli.sh đã unset)
-PASS  --allowedTools có Agent (thiếu là không spawn được subagent)  → Agent,WebSearch,WebFetch,Read,Grep,Glob
+PASS  --allowedTools có Agent (thiếu là không spawn được subagent)
 PASS  outputFormat json_schema → cờ --json-schema
 PASS  --max-budget-usd 2 được truyền xuống CLI
 PASS  SDK gửi đủ 3 AgentDefinition trong initialize
@@ -11,6 +12,6 @@ PASS  verify(): synthesizer nhận findings đủ metadata
 PASS  verify(): không có claim mồ côi
 
 == Test hàm thuần có sẵn (bai_1_3_test_stub.ts)
-PASS  bai_1_3_test_stub.ts  → 10 pass, 0 fail
+PASS  bai_1_3_test_stub.ts
 
 11 PASS, 0 FAIL

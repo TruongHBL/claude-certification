@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Bài 1.1 – bản CLI (không cần API key, dùng phiên đăng nhập claude.ai của `claude`).
 #
-# Claude Code TỰ chạy vòng lặp agent; mình chỉ cung cấp tool (MCP server loop_mcp_server.rb)
-# rồi QUAN SÁT vòng lặp qua stream-json bằng parse_loop.rb.
+# Claude Code TỰ chạy vòng lặp agent; mình chỉ cung cấp tool (MCP server loop_mcp_server.ts)
+# rồi QUAN SÁT vòng lặp qua stream-json bằng parse_loop.ts.
 #
 # Dùng:  ./run_cli.sh ["câu hỏi"]        chạy 1 lần, lưu vào cli_runs/<thời điểm>/
 #        ./run_cli.sh --parse <thư mục>   chỉ phân tích lại một lần chạy cũ
@@ -15,19 +15,23 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODEL="${MODEL:-haiku}"
 BUDGET="${BUDGET:-0.3}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+NODE=(node --experimental-strip-types --no-warnings)
 DEFAULT_Q="Tổng dân số Hà Nội và TP. Hồ Chí Minh năm 2024 là bao nhiêu? TP. Hồ Chí Minh đông hơn Hà Nội bao nhiêu phần trăm?"
 SYSTEM="Bạn là trợ lý trả lời câu hỏi số liệu. Dùng web_search để lấy dữ kiện và calculator cho MỌI phép tính, không tự tính nhẩm. Trả lời ngắn gọn bằng tiếng Việt."
 
 if [[ "${1:-}" == "--parse" ]]; then
-  ruby "$ROOT/parse_loop.rb" "$2/loop.jsonl" "$2/tools.log"
+  "${NODE[@]}" "$ROOT/parse_loop.ts" "$2/loop.jsonl" "$2/tools.log"
   exit 0
 fi
 
 Q="${1:-$DEFAULT_Q}"
 RUN="$ROOT/cli_runs/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RUN"
-ruby -rjson -e 'puts JSON.pretty_generate({ mcpServers: { loop: { type: "stdio", command: "ruby", args: [ARGV[0]],
-                  env: { LOOP_LOG: ARGV[1] } } } })' "$ROOT/loop_mcp_server.rb" "$RUN/tools.log" > "$RUN/mcp.json"
+"${NODE[@]}" -e '
+  const [server, log] = process.argv.slice(1);
+  console.log(JSON.stringify({ mcpServers: { loop: { type: "stdio", command: process.execPath,
+    args: ["--experimental-strip-types", "--no-warnings", server], env: { LOOP_LOG: log } } } }, null, 2));
+' "$ROOT/loop_mcp_server.ts" "$RUN/tools.log" > "$RUN/mcp.json"
 printf '%s\n' "$Q" > "$RUN/question.txt"
 echo "== Câu hỏi: $Q"
 echo "== Lưu tại: $RUN"
@@ -44,4 +48,4 @@ echo "== Lưu tại: $RUN"
   --no-session-persistence \
   --output-format stream-json --verbose \
   > "$RUN/loop.jsonl" 2> "$RUN/stderr.txt") || echo "(lệnh trả mã lỗi, xem $RUN/stderr.txt)"
-ruby "$ROOT/parse_loop.rb" "$RUN/loop.jsonl" "$RUN/tools.log" | tee "$RUN/report.txt"
+"${NODE[@]}" "$ROOT/parse_loop.ts" "$RUN/loop.jsonl" "$RUN/tools.log" | tee "$RUN/report.txt"

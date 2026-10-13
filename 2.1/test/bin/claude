@@ -1,30 +1,3 @@
-#!/usr/bin/env ruby
-# CLAUDE GIẢ cho test bài 2.1. KHÔNG gọi model. Chọn tool bằng heuristic GIẢ ĐỊNH để kiểm tra pipeline.
-require "json"
-require "open3"
-args = ARGV.dup
-File.open(ENV.fetch("FAKE_ARGV_LOG", "/dev/null"), "a") { |f| f.puts JSON.generate(args) }
-opt = ->(name) { i = args.index(name); i && args[i + 1] }
-prompt = opt.("-p"); sys = opt.("--system-prompt").to_s; cfg = JSON.parse(File.read(opt.("--mcp-config")))
-srv = cfg["mcpServers"]["shop"]
-Open3.popen2(srv["env"], srv["command"], *srv["args"]) do |sin, sout, _|
-  rpc = lambda do |id, method, params = {}|
-    sin.puts JSON.generate({ jsonrpc: "2.0", id: id, method: method, params: params }); JSON.parse(sout.gets)["result"]
-  end
-  rpc.(1, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } })
-  sin.puts JSON.generate({ jsonrpc: "2.0", method: "notifications/initialized" })
-  tools = rpc.(2, "tools/list")["tools"]
-  vague = tools.all? { |t| t["description"].length < 60 }
-  has_order_id = prompt =~ /#\d{5}|GHN-|GHTK-/
-  name =
-    if sys.include?("Luôn kiểm tra thông tin khách hàng") && prompt.include?("khách") then "get_customer"
-    elsif vague then (prompt =~ /khách|địa chỉ|Lan/ ? "get_customer" : "lookup_order")
-    else (has_order_id ? "lookup_order" : "get_customer")
-    end
-  argsx = vague ? { query: prompt } : (has_order_id && name == "lookup_order" ? (prompt[/#\d{5}/] ? { order_number: prompt[/#\d{5}/] } : { tracking_id: prompt[/(GHN|GHTK)-\d+/] }) : { email: prompt[/\S+@\S+\.vn/], phone: prompt[/0\d{9}/], customer_id: prompt[/CUS-\d{4}/] }.compact)
-  res = rpc.(3, "tools/call", { name: name, arguments: argsx })
-  puts JSON.generate({ type: "system", subtype: "init", tools: tools.map { "mcp__shop__#{_1['name']}" } })
-  puts JSON.generate({ type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__shop__#{name}", input: argsx }] } })
-  puts JSON.generate({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: res["content"] }] } })
-  puts JSON.generate({ type: "result", subtype: "success", result: "(GIẢ) đã trả lời", total_cost_usd: 0 })
-end
+#!/usr/bin/env bash
+# CLAUDE GIẢ cho test bài 2.1: chạy test/fake_claude.ts (node chỉ strip type với file đuôi .ts).
+exec node --experimental-strip-types --no-warnings "$(dirname "$0")/../fake_claude.ts" "$@"

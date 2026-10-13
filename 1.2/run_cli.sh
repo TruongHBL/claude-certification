@@ -5,8 +5,8 @@
 #   - coordinator = phiên chính (--system-prompt coordinator_prompt.txt), chỉ có tool Agent
 #   - 3 subagent khai báo bằng --agents agents.json: search-agent (chỉ có tool search),
 #     analysis-agent và synthesis-agent (không có tool nào, không spawn được ai)
-#   - tool search GIẢ LẬP qua MCP server research_mcp_server.rb
-# Sau khi chạy, parse_hub.rb kiểm tra: subagent chỉ do coordinator spawn, subagent không gọi nhau,
+#   - tool search GIẢ LẬP qua MCP server research_mcp_server.ts
+# Sau khi chạy, parse_hub.ts kiểm tra: subagent chỉ do coordinator spawn, subagent không gọi nhau,
 # search chỉ chạy trong search-agent, và liệt kê prompt giao việc.
 #
 # Dùng:  ./run_cli.sh ["chủ đề"]          chạy 1 lần, lưu vào cli_runs/<thời điểm>/
@@ -21,17 +21,21 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODEL="${MODEL:-haiku}"
 BUDGET="${BUDGET:-1.5}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+NODE=(node --experimental-strip-types --no-warnings)
 
 if [[ "${1:-}" == "--parse" ]]; then
-  ruby "$ROOT/parse_hub.rb" "$2/hub.jsonl" "$2/tools.log"
+  "${NODE[@]}" "$ROOT/parse_hub.ts" "$2/hub.jsonl" "$2/tools.log"
   exit 0
 fi
 
 TOPIC="${1:-Renewable energy technologies}"
 RUN="$ROOT/cli_runs/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RUN"
-ruby -rjson -e 'puts JSON.pretty_generate({ mcpServers: { research: { type: "stdio", command: "ruby", args: [ARGV[0]],
-                  env: { RESEARCH_LOG: ARGV[1] } } } })' "$ROOT/research_mcp_server.rb" "$RUN/tools.log" > "$RUN/mcp.json"
+"${NODE[@]}" -e '
+  const [server, log] = process.argv.slice(1);
+  console.log(JSON.stringify({ mcpServers: { research: { type: "stdio", command: process.execPath,
+    args: ["--experimental-strip-types", "--no-warnings", server], env: { RESEARCH_LOG: log } } } }, null, 2));
+' "$ROOT/research_mcp_server.ts" "$RUN/tools.log" > "$RUN/mcp.json"
 cp "$ROOT/agents.json" "$RUN/agents.json"
 echo "== Chủ đề: $TOPIC"
 echo "== Lưu tại: $RUN"
@@ -49,4 +53,4 @@ echo "== Lưu tại: $RUN"
   --no-session-persistence \
   --output-format stream-json --verbose \
   > "$RUN/hub.jsonl" 2> "$RUN/stderr.txt") || echo "(lệnh trả mã lỗi, xem $RUN/stderr.txt)"
-ruby "$ROOT/parse_hub.rb" "$RUN/hub.jsonl" "$RUN/tools.log" | tee "$RUN/report.txt"
+"${NODE[@]}" "$ROOT/parse_hub.ts" "$RUN/hub.jsonl" "$RUN/tools.log" | tee "$RUN/report.txt"

@@ -31,128 +31,127 @@ ul{padding-left:20px}li{margin:3px 0}
 <path class="ln" d="M380 52 V86"/>
 <rect class="hub" x="220" y="88" width="320" height="70" rx="10"/>
 <text x="380" y="112" text-anchor="middle" font-weight="600">Coordinator (hub)</text>
-<text x="380" y="132" text-anchor="middle">decompose → giao việc → gom → find_gaps → lặp</text>
+<text x="380" y="132" text-anchor="middle">decompose → giao việc → gom → findGaps → lặp</text>
 <text x="380" y="149" text-anchor="middle">→ viết báo cáo cuối</text>
 <path class="ln" d="M300 158 L170 228"/><path class="ln" d="M460 158 L590 228"/>
-<rect class="box" x="70" y="230" width="200" height="54" rx="8"/><text x="170" y="253" text-anchor="middle" font-weight="600">search_subagent</text><text x="170" y="272" text-anchor="middle">web_search, context riêng</text>
-<rect class="box" x="490" y="230" width="200" height="54" rx="8"/><text x="590" y="253" text-anchor="middle" font-weight="600">analysis_subagent</text><text x="590" y="272" text-anchor="middle">chỉ dùng dữ liệu được chuyển</text>
+<rect class="box" x="70" y="230" width="200" height="54" rx="8"/><text x="170" y="253" text-anchor="middle" font-weight="600">searchSubagent</text><text x="170" y="272" text-anchor="middle">web_search, context riêng</text>
+<rect class="box" x="490" y="230" width="200" height="54" rx="8"/><text x="590" y="253" text-anchor="middle" font-weight="600">analysisSubagent</text><text x="590" y="272" text-anchor="middle">chỉ dùng dữ liệu được chuyển</text>
 <path class="x" d="M270 257 H490"/><text class="xt" x="380" y="250" text-anchor="middle">✗ không gọi trực tiếp</text>
 </svg>
-<p style="margin:6px 0 0;color:var(--muted);font-size:13px">Kết quả của search_subagent chỉ tới analysis_subagent <b>thông qua coordinator</b>. Mỗi lần gọi subagent là một context mới, nên mọi thông tin cần thiết đều được ghi trong prompt giao việc (bối cảnh, nhiệm vụ, ranh giới, format output).</p></div>
+<p style="margin:6px 0 0;color:var(--muted);font-size:13px">Kết quả của searchSubagent chỉ tới analysisSubagent <b>thông qua coordinator</b>. Mỗi lần gọi subagent là một context mới, nên mọi thông tin cần thiết đều được ghi trong prompt giao việc (bối cảnh, nhiệm vụ, ranh giới, format output).</p></div>
 
 <h2>3. Sáu bước yêu cầu ↔ cách hiện thực</h2>
 <div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực trong code</th><th>Nguyên tắc</th></tr>
 <tr><td>1</td><td>Coordinator nhận chủ đề, trả báo cáo có cấu trúc</td><td><code>coordinator(topic)</code></td><td>Vai trò hub</td></tr>
 <tr><td>2</td><td>Phân rã ≥ 5 nhánh phủ toàn bộ phạm vi</td><td><code>decompose()</code> yêu cầu “bao phủ TOÀN BỘ, tối thiểu 5, không trùng”</td><td>Tránh phân rã quá hẹp</td></tr>
-<tr><td>3</td><td>2 subagent, truyền context tường minh</td><td><code>search_subagent</code>, <code>analysis_subagent</code>; mỗi lần gọi <code>run_agent</code> là context mới</td><td>Cô lập context</td></tr>
-<tr><td>4</td><td>Gom kết quả, đánh giá độ phủ</td><td>Hash <code>sections</code> + <code>find_gaps()</code></td><td>Giao tiếp tập trung</td></tr>
-<tr><td>5</td><td>Vòng tinh chỉnh tới khi đủ</td><td>Vòng <code>max_rounds.times</code>: giao thêm các nhánh còn thiếu; dừng khi <code>find_gaps</code> trả <code>[]</code>; <code>max_rounds</code> chỉ là lưới an toàn có cảnh báo</td><td>Iterative refinement</td></tr>
+<tr><td>3</td><td>2 subagent, truyền context tường minh</td><td><code>searchSubagent</code>, <code>analysisSubagent</code>; mỗi lần gọi <code>runAgent</code> là context mới</td><td>Cô lập context</td></tr>
+<tr><td>4</td><td>Gom kết quả, đánh giá độ phủ</td><td>Map <code>sections</code> + <code>findGaps()</code></td><td>Giao tiếp tập trung</td></tr>
+<tr><td>5</td><td>Vòng tinh chỉnh tới khi đủ</td><td>Vòng <code>for (rnd &lt; maxRounds)</code>: giao thêm các nhánh còn thiếu; dừng khi <code>findGaps</code> trả <code>[]</code>; <code>maxRounds</code> chỉ là lưới an toàn có cảnh báo</td><td>Iterative refinement</td></tr>
 <tr><td>6</td><td>Kiểm tra đủ 6 loại năng lượng</td><td>Mục 5 bên dưới</td><td>Kiểm chứng</td></tr></table></div>
 
 <h2>4. Mã nguồn</h2>
-<p>File đi kèm: <code>bai_1_2_hub_and_spoke.rb</code> (Ruby 3.2, gem <code>anthropic</code>). Chạy: <code>gem install anthropic &amp;&amp; ruby bai_1_2_hub_and_spoke.rb</code>.</p>
-<pre><code># frozen_string_literal: true
+<p>File đi kèm: <code>bai_1_2_hub_and_spoke.ts</code> (TypeScript, Node ≥ 22.6, không cần thư viện ngoài; Messages API gọi bằng <code>fetch</code> qua <code>lib/anthropic.ts</code>). Chạy: <code>export ANTHROPIC_API_KEY=… &amp;&amp; node --experimental-strip-types bai_1_2_hub_and_spoke.ts</code>. Bản qua proxy OpenAI-compatible: <code>bai_1_2_hub_and_spoke_proxy.ts</code>.</p>
+<pre><code>// Bài 1.2 – Build Exercise: Hub-and-Spoke Research Coordinator.
+//
+// Coordinator (hub) phân rã chủ đề, giao việc cho 2 subagent (spoke): tìm kiếm và phân tích,
+// gom kết quả, chạy vòng tinh chỉnh tìm nhánh còn thiếu rồi viết báo cáo cuối.
+//
+// Chạy:  export ANTHROPIC_API_KEY=...
+//        node --experimental-strip-types bai_1_2_hub_and_spoke.ts ["chủ đề"]
+// Không có API key: dùng bản CLI (./run_cli.sh).
 
-# Bài 1.2 – Build Exercise: Hub-and-Spoke Research Coordinator.
-#
-# Coordinator (hub) phân rã chủ đề, giao việc cho 2 subagent (spoke): tìm kiếm và phân tích,
-# gom kết quả, chạy vòng tinh chỉnh tìm nhánh còn thiếu rồi viết báo cáo cuối.
-#
-# Chạy:  gem install anthropic &amp;&amp; export ANTHROPIC_API_KEY=...
-#        ruby bai_1_2_hub_and_spoke.rb [&quot;chủ đề&quot;]
+import { pathToFileURL } from "node:url";
+import { httpTransport, type Message, type Tool, type Transport } from "../lib/anthropic.ts";
 
-require &quot;json&quot;
-require &quot;anthropic&quot;
+const MODEL = "claude-sonnet-5-5";
+// Server tool của Anthropic (chạy phía API, không cần mình thực thi). Không có input_schema
+// như tool thường, nên ép kiểu khi đưa vào `tools`.
+const WEB_SEARCH = { type: "web_search_20260209", name: "web_search", max_uses: 3 } as unknown as Tool;
 
-CLIENT = Anthropic::Client.new
-MODEL = &quot;claude-sonnet-5-5&quot;
-WEB_SEARCH = { type: &quot;web_search_20260209&quot;, name: &quot;web_search&quot;, max_uses: 3 }.freeze
+export function hub(send: Transport, log: (s: string) =&gt; void = console.log) {
+  // Mỗi lần gọi = context MỚI. Subagent chỉ biết những gì nằm trong `task`.
+  async function runAgent(system: string, task: string, tools?: Tool[]): Promise&lt;string&gt; {
+    const messages: Message[] = [{ role: "user", content: task }];
+    for (;;) {
+      const r = await send({ model: MODEL, max_tokens: 4000, system, messages, ...(tools ? { tools } : {}) });
+      if (r.stop_reason === "pause_turn") {
+        // server tool chạy chưa xong → gửi lại để chạy tiếp
+        messages.push({ role: "assistant", content: r.content });
+        continue;
+      }
+      // nối các block text (web search tách text quanh citation)
+      return r.content.flatMap((b) =&gt; (b.type === "text" ? [b.text] : [])).join("");
+    }
+  }
 
-# Mỗi lần gọi = context MỚI. Subagent chỉ biết những gì nằm trong `task`.
-def run_agent(system, task, tools: nil)
-  messages = [{ role: &quot;user&quot;, content: task }]
-  params = { model: MODEL, max_tokens: 4000, system_: system, messages: messages }
-  params[:tools] = tools if tools
-  loop do
-    r = CLIENT.messages.create(**params)
-    if r.stop_reason.to_s == &quot;pause_turn&quot; # server tool chạy chưa xong → gửi lại để chạy tiếp
-      messages &lt;&lt; { role: &quot;assistant&quot;, content: r.content }
-      next
-    end
-    return r.content.select { |b| b.type.to_s == &quot;text&quot; }.map(&amp;:text).join
-  end
-end
+  async function askJson(system: string, task: string): Promise&lt;string[]&gt; {
+    const text = await runAgent(system, `${task}\nChỉ trả về một JSON array các chuỗi, không giải thích.`);
+    return JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1)) as string[];
+  }
 
-def ask_json(system, task)
-  text = run_agent(system, &quot;#{task}\nChỉ trả về một JSON array các chuỗi, không giải thích.&quot;)
-  JSON.parse(text[text.index(&quot;[&quot;)..text.rindex(&quot;]&quot;)])
-end
+  // ---------- Subagents (spoke) ----------
+  const searchSubagent = (topic: string, sub: string) =&gt;
+    runAgent(
+      "Bạn là subagent tìm kiếm thông tin.",
+      `Bối cảnh: team đang viết báo cáo về '${topic}'.\n` +
+        `Nhiệm vụ: tìm thông tin mới, đáng tin cậy về '${sub}'.\n` +
+        `Ranh giới: CHỈ viết về '${sub}', không lấn sang nhánh khác.\n` +
+        "Output: 5–8 gạch đầu dòng, mỗi dòng kèm URL nguồn.",
+      [WEB_SEARCH],
+    );
 
-# ---------- Subagents (spoke) ----------
-def search_subagent(topic, sub)
-  run_agent(
-    &quot;Bạn là subagent tìm kiếm thông tin.&quot;,
-    &quot;Bối cảnh: team đang viết báo cáo về &#x27;#{topic}&#x27;.\n&quot; \
-    &quot;Nhiệm vụ: tìm thông tin mới, đáng tin cậy về &#x27;#{sub}&#x27;.\n&quot; \
-    &quot;Ranh giới: CHỈ viết về &#x27;#{sub}&#x27;, không lấn sang nhánh khác.\n&quot; \
-    &quot;Output: 5–8 gạch đầu dòng, mỗi dòng kèm URL nguồn.&quot;,
-    tools: [WEB_SEARCH]
-  )
-end
+  const analysisSubagent = (topic: string, sub: string, findings: string) =&gt;
+    runAgent(
+      "Bạn là subagent phân tích tài liệu.",
+      `Báo cáo về '${topic}', phần '${sub}'.\n` +
+        `Dữ liệu (do coordinator chuyển, chỉ được dùng dữ liệu này):\n${findings}\n` +
+        "Output: 1 đoạn gồm hiện trạng, ưu điểm, hạn chế, triển vọng.",
+    );
 
-def analysis_subagent(topic, sub, findings)
-  run_agent(
-    &quot;Bạn là subagent phân tích tài liệu.&quot;,
-    &quot;Báo cáo về &#x27;#{topic}&#x27;, phần &#x27;#{sub}&#x27;.\n&quot; \
-    &quot;Dữ liệu (do coordinator chuyển, chỉ được dùng dữ liệu này):\n#{findings}\n&quot; \
-    &quot;Output: 1 đoạn gồm hiện trạng, ưu điểm, hạn chế, triển vọng.&quot;
-  )
-end
+  // ---------- Coordinator (hub) ----------
+  const decompose = (topic: string) =&gt;
+    askJson(
+      "Bạn là coordinator của hệ thống research.",
+      `Chia chủ đề '${topic}' thành các nhánh con bao phủ TOÀN BỘ phạm vi (tối thiểu 5), không trùng lặp nhau.`,
+    );
 
-# ---------- Coordinator (hub) ----------
-def decompose(topic)
-  ask_json(
-    &quot;Bạn là coordinator của hệ thống research.&quot;,
-    &quot;Chia chủ đề &#x27;#{topic}&#x27; thành các nhánh con bao phủ TOÀN BỘ phạm vi &quot; \
-    &quot;(tối thiểu 5), không trùng lặp nhau.&quot;
-  )
-end
+  const findGaps = (topic: string, covered: string[]) =&gt;
+    askJson(
+      "Bạn là coordinator, đang kiểm tra độ phủ của báo cáo.",
+      `Chủ đề: '${topic}'. Các nhánh đã có: ${JSON.stringify(covered)}.\n` +
+        "Liệt kê các nhánh QUAN TRỌNG còn thiếu. Trả [] nếu đã đủ.",
+    );
 
-def find_gaps(topic, covered)
-  ask_json(
-    &quot;Bạn là coordinator, đang kiểm tra độ phủ của báo cáo.&quot;,
-    &quot;Chủ đề: &#x27;#{topic}&#x27;. Các nhánh đã có: #{covered}.\n&quot; \
-    &quot;Liệt kê các nhánh QUAN TRỌNG còn thiếu. Trả [] nếu đã đủ.&quot;
-  )
-end
+  async function coordinator(topic: string, maxRounds = 3): Promise&lt;string&gt; {
+    const sections = new Map&lt;string, string&gt;();
+    let todo = await decompose(topic);
+    log(`Phân rã: ${JSON.stringify(todo)}`);
+    for (let rnd = 0; rnd &lt; maxRounds; rnd++) {
+      // lưới an toàn, không phải điều kiện dừng chính
+      for (const sub of todo) {
+        const findings = await searchSubagent(topic, sub); // spoke 1
+        sections.set(sub, await analysisSubagent(topic, sub, findings)); // coordinator chuyển dữ liệu sang spoke 2
+        log(`[round ${rnd}] xong nhánh: ${sub}`);
+      }
+      todo = (await findGaps(topic, [...sections.keys()])).filter((g) =&gt; !sections.has(g));
+      if (todo.length === 0) break; // đủ phạm vi → dừng
+      log(`[round ${rnd}] còn thiếu: ${JSON.stringify(todo)}`);
+    }
+    if (todo.length) console.warn(`CẢNH BÁO: hết số vòng mà vẫn còn nhánh thiếu: ${JSON.stringify(todo)}`);
+    const body = [...sections].map(([k, v]) =&gt; `## ${k}\n${v}`).join("\n\n");
+    return runAgent("Bạn là người viết báo cáo.", `Viết báo cáo tổng hợp về '${topic}' từ các phần sau, giữ nguyên nguồn:\n${body}`);
+  }
 
-def coordinator(topic, max_rounds: 3)
-  sections = {}
-  todo = decompose(topic)
-  puts &quot;Phân rã: #{todo}&quot;
-  max_rounds.times do |rnd| # lưới an toàn, không phải điều kiện dừng chính
-    todo.each do |sub|
-      findings = search_subagent(topic, sub)                   # spoke 1
-      sections[sub] = analysis_subagent(topic, sub, findings)  # coordinator chuyển dữ liệu sang spoke 2
-      puts &quot;[round #{rnd}] xong nhánh: #{sub}&quot;
-    end
-    todo = find_gaps(topic, sections.keys).reject { |g| sections.key?(g) }
-    break if todo.empty? # đủ phạm vi → dừng
-    puts &quot;[round #{rnd}] còn thiếu: #{todo}&quot;
-  end
-  warn &quot;CẢNH BÁO: hết số vòng mà vẫn còn nhánh thiếu: #{todo}&quot; unless todo.empty?
-  body = sections.map { |k, v| &quot;## #{k}\n#{v}&quot; }.join(&quot;\n\n&quot;)
-  run_agent(
-    &quot;Bạn là người viết báo cáo.&quot;,
-    &quot;Viết báo cáo tổng hợp về &#x27;#{topic}&#x27; từ các phần sau, giữ nguyên nguồn:\n#{body}&quot;
-  )
-end
+  return { runAgent, askJson, decompose, findGaps, coordinator };
+}
 
-puts coordinator(ARGV[0] || &quot;Renewable energy technologies&quot;) if $PROGRAM_NAME == __FILE__
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  console.log(await hub(httpTransport()).coordinator(process.argv[2] ?? "Renewable energy technologies"));
+}
 </code></pre>
 
 <h2>5. Kiểm thử và kết quả</h2>
-<div class="card ok"><b>Đã chạy: kiểm thử logic với API giả lập.</b> Thay client Anthropic bằng stub. Stub <b>cố tình phân rã hẹp</b> (<code>[&quot;solar&quot;,&quot;wind&quot;]</code>) và giả lập 1 lần <code>pause_turn</code> của web search:
+<div class="card ok"><b>Đã chạy: kiểm thử logic với API giả lập</b> (<code>test/run_tests.test.ts</code>, phần “Bản API”, 8 test). Thay transport bằng stub. Stub <b>cố tình phân rã hẹp</b> (<code>[&quot;solar&quot;,&quot;wind&quot;]</code>) và giả lập 1 lần <code>pause_turn</code> của web search:
 <pre><code>Phân rã: [&quot;solar&quot;, &quot;wind&quot;]
 [round 0] xong nhánh: solar
 [round 0] xong nhánh: wind
@@ -161,15 +160,15 @@ puts coordinator(ARGV[0] || &quot;Renewable energy technologies&quot;) if $PROGR
 [round 1] xong nhánh: tidal
 [round 1] xong nhánh: biomass
 [round 1] xong nhánh: fusion</code></pre>
-Kết quả: vòng <code>find_gaps</code> phát hiện và bù đủ 4 nhánh còn thiếu, báo cáo cuối có đủ 6 loại năng lượng. Nhánh xử lý <code>pause_turn</code> chạy đúng.</div>
+Kết quả: vòng <code>findGaps</code> phát hiện và bù đủ 4 nhánh còn thiếu, báo cáo cuối có đủ 6 loại năng lượng. Nhánh xử lý <code>pause_turn</code> chạy đúng (gửi lại kèm lượt assistant), và các block text của web search được nối lại.</div>
 <div class="card warn"><b>Chưa chạy: với API thật.</b> Cần <code>ANTHROPIC_API_KEY</code>. Web search tính phí theo lượt, đã giới hạn <code>max_uses: 3</code> cho mỗi subagent. Khi chạy xong, dán log vào đây.</div>
 
 <h2>6. Bài học rút ra</h2>
 <ul>
-<li><b>Thiếu phạm vi là lỗi của bước phân rã</b>, không phải lỗi của subagent. Trong test, từng subagent đều “làm tốt” phần được giao, nhưng nếu không có vòng <code>find_gaps</code> thì báo cáo chỉ có solar và wind. Thêm subagent cũng không sửa được lỗi này.</li>
+<li><b>Thiếu phạm vi là lỗi của bước phân rã</b>, không phải lỗi của subagent. Trong test, từng subagent đều “làm tốt” phần được giao, nhưng nếu không có vòng <code>findGaps</code> thì báo cáo chỉ có solar và wind. Thêm subagent cũng không sửa được lỗi này.</li>
 <li><b>Subagent không tự biết bối cảnh.</b> Prompt giao việc phải có đủ 4 phần: mục tiêu, bối cảnh, ranh giới, format output.</li>
 <li><b>Không cho subagent gọi nhau.</b> Dữ liệu đi qua coordinator thì log, xử lý lỗi và kiểm soát thông tin nằm ở một chỗ.</li>
-<li><b>Điều kiện dừng chính là “không còn nhánh thiếu”.</b> <code>max_rounds</code> chỉ để chống chạy vô hạn, giống nguyên tắc <code>stop_reason</code> ở bài 1.1.</li>
+<li><b>Điều kiện dừng chính là “không còn nhánh thiếu”.</b> <code>maxRounds</code> chỉ để chống chạy vô hạn, giống nguyên tắc <code>stop_reason</code> ở bài 1.1.</li>
 </ul>
 
 <h2>7. Bản chạy bằng CLI (không cần API key)</h2>
@@ -177,16 +176,16 @@ Kết quả: vòng <code>find_gaps</code> phát hiện và bù đủ 4 nhánh c�
 <div class="tw"><table><tr><th>File mới</th><th>Vai trò</th></tr>
 <tr><td><code>agents.json</code></td><td>3 subagent: <code>search-agent</code> (chỉ có tool <code>mcp__research__search</code>), <code>analysis-agent</code> và <code>synthesis-agent</code> (cấm <code>Agent</code>, <code>Task</code>, <code>search</code>, nên không tự tìm và không spawn được ai). Cả ba dùng haiku</td></tr>
 <tr><td><code>coordinator_prompt.txt</code></td><td>System prompt của coordinator: phân rã ≥5 nhánh, spawn search song song trong một lượt, dán nguyên kết quả kèm URL cho analysis, kiểm độ phủ, cuối cùng giao synthesis</td></tr>
-<tr><td><code>research_mcp_server.rb</code></td><td>MCP server stdio có tool <code>search</code> GIẢ LẬP (thay server tool web_search của bản API, tránh phí và để kết quả lặp lại được), mỗi kết quả có URL nguồn</td></tr>
+<tr><td><code>research_mcp_server.ts</code></td><td>MCP server stdio (dùng <code>lib/mcp_server.ts</code>) có tool <code>search</code> GIẢ LẬP (thay server tool web_search của bản API, tránh phí và để kết quả lặp lại được), mỗi kết quả có URL nguồn</td></tr>
 <tr><td><code>run_cli.sh</code></td><td>Chạy <code>claude -p</code>, lưu <code>hub.jsonl</code> vào <code>cli_runs/&lt;thời điểm&gt;/</code>, rồi gọi parser</td></tr>
-<tr><td><code>parse_hub.rb</code></td><td>Liệt kê mọi prompt giao việc (nhóm theo lượt để thấy spawn song song) và kiểm 8 điều kiện, dựa trên <code>parent_tool_use_id</code> của từng sự kiện</td></tr>
-<tr><td><code>test/bin/claude</code>, <code>test/run_tests.rb</code></td><td><code>claude</code> GIẢ (kịch bản viết tay, search chạy thật qua server) và bộ test, gồm 2 kịch bản vi phạm</td></tr></table></div>
+<tr><td><code>parse_hub.ts</code></td><td>Liệt kê mọi prompt giao việc (nhóm theo lượt để thấy spawn song song) và kiểm 8 điều kiện, dựa trên <code>parent_tool_use_id</code> của từng sự kiện</td></tr>
+<tr><td><code>test/bin/claude</code> → <code>test/fake_claude.ts</code>, <code>test/run_tests.test.ts</code></td><td><code>claude</code> GIẢ (kịch bản viết tay, search chạy thật qua server; <code>bin/claude</code> chỉ là wrapper bash) và bộ test cho bản API, bản proxy và bản CLI, gồm 2 kịch bản vi phạm</td></tr></table></div>
 <p><b>Lệnh chạy</b></p>
 <pre><code>cd ~/Downloads/claude-cert/1.2
 ./run_cli.sh                                 # chủ đề mặc định "Renewable energy technologies"
 ./run_cli.sh "Ứng dụng AI trong CRM bất động sản"
 ./run_cli.sh --parse cli_runs/&lt;thời điểm&gt;      # phân tích lại lần chạy cũ
-ruby test/run_tests.rb                        # test bằng claude giả</code></pre>
+node --experimental-strip-types test/run_tests.test.ts   # test bằng transport giả + claude giả</code></pre>
 <p>Cờ dùng: <code>-p --model haiku --system-prompt "$(cat coordinator_prompt.txt)" --agents agents.json --mcp-config … --strict-mcp-config --tools "Agent" --allowedTools Agent mcp__research__search --permission-mode dontAsk --max-budget-usd 1.5 --no-session-persistence --output-format stream-json --verbose</code>.</p>
 <p><b>Cách parser nhận ra hub-and-spoke trong stream-json</b></p>
 <ul>
@@ -195,38 +194,38 @@ ruby test/run_tests.rb                        # test bằng claude giả</code><
 <li>Kết quả subagent quay về coordinator là <code>tool_result</code> có cùng <code>tool_use_id</code>. Spawn cùng <code>message.id</code> là chạy song song.</li>
 </ul>
 <p><b>Khác biệt so với bản API</b></p>
-<div class="tw"><table><tr><th></th><th>Bản API (<code>bai_1_2_hub_and_spoke.rb</code>)</th><th>Bản CLI</th></tr>
-<tr><td>Ai điều phối</td><td>Code Ruby: <code>decompose</code> → vòng <code>todo.each</code> → <code>find_gaps</code>. Thứ tự cố định bằng code</td><td>Model coordinator tự quyết theo <code>coordinator_prompt.txt</code>. Thứ tự và số nhánh là do model, nên parser phải kiểm lại sau</td></tr>
-<tr><td>Subagent</td><td>Mỗi <code>run_agent</code> là một lần gọi API với context mới</td><td>Subagent của Claude Code, khai báo bằng <code>--agents</code>, context riêng</td></tr>
+<div class="tw"><table><tr><th></th><th>Bản API (<code>bai_1_2_hub_and_spoke.ts</code>)</th><th>Bản CLI</th></tr>
+<tr><td>Ai điều phối</td><td>Code TypeScript: <code>decompose</code> → vòng <code>for (const sub of todo)</code> → <code>findGaps</code>. Thứ tự cố định bằng code</td><td>Model coordinator tự quyết theo <code>coordinator_prompt.txt</code>. Thứ tự và số nhánh là do model, nên parser phải kiểm lại sau</td></tr>
+<tr><td>Subagent</td><td>Mỗi <code>runAgent</code> là một lần gọi API với context mới</td><td>Subagent của Claude Code, khai báo bằng <code>--agents</code>, context riêng</td></tr>
 <tr><td>Cô lập tool</td><td>Chỉ truyền <code>tools: [WEB_SEARCH]</code> cho subagent tìm kiếm</td><td><code>tools</code> / <code>disallowedTools</code> trong <code>agents.json</code></td></tr>
 <tr><td>Tìm kiếm</td><td>Server tool <code>web_search</code> thật (tính phí)</td><td>Tool <code>search</code> giả lập qua MCP</td></tr>
 <tr><td>Song song</td><td>Tuần tự từng nhánh</td><td>Coordinator có thể spawn nhiều subagent trong một lượt</td></tr>
 <tr><td>Xác thực</td><td><code>ANTHROPIC_API_KEY</code></td><td>Phiên đăng nhập <code>claude</code> (claude.ai)</td></tr></table></div>
 <p><b>Kiểm thử</b></p>
-<div class="card ok"><b>Đã chạy: 21/21 PASS với <code>claude</code> GIẢ.</b> 4 test cho <code>agents.json</code> (đủ 3 agent, search-agent chỉ có search, analysis/synthesis cấm Agent/Task/search). 6 test cho MCP server (search trả 3 URL, query rỗng và tool lạ → <code>isError</code>, method lạ → -32601, ghi log). 11 test đầu-cuối: cờ của lệnh <code>claude</code>, 8/8 điều kiện ở kịch bản đúng, đếm 11 spawn trong 3 lượt, khớp log server, và parser <b>bắt được</b> 2 kịch bản vi phạm (analysis-agent tự spawn search-agent; analysis-agent tự gọi search).</div>
+<div class="card ok"><b>Đã chạy: 31/31 PASS</b> (<code>test/run_tests.test.ts</code>, không gọi model). 4 test cho <code>agents.json</code> (đủ 3 agent, search-agent chỉ có search, analysis/synthesis cấm Agent/Task/search). 6 test cho MCP server (search trả 3 URL, query rỗng → <code>isError</code>, tool lạ → lỗi giao thức -32602, method lạ → -32601, ghi log). 8 test bản API và 2 test bản proxy với transport giả (mục 5). 11 test đầu-cuối: cờ của lệnh <code>claude</code>, 8/8 điều kiện ở kịch bản đúng, đếm 11 spawn trong 3 lượt, khớp log server, và parser <b>bắt được</b> 2 kịch bản vi phạm (analysis-agent tự spawn search-agent; analysis-agent tự gọi search).</div>
 <p>Output với <code>claude</code> GIẢ, kịch bản đúng (rút gọn). Việc phân rã và spawn là <b>kịch bản viết tay</b>, chỉ kết quả search là thật (chạy qua MCP server):</p>
 <pre><code>== Chủ đề: Renewable energy technologies
-== Lưu tại: …/1.2/cli_runs/20261013-183459
+== Lưu tại: …/1.2/cli_runs/20261013-211655
 == Prompt giao việc của coordinator (11 lần spawn, 3 lượt)
 Lượt spawn 1 (msg_coord_1) · 5 subagent SONG SONG
   [search-agent] Tìm: solar photovoltaic
-     prompt: Bối cảnh: báo cáo về &#x27;Renewable energy technologies&#x27;. Nhánh: &#x27;solar photovoltaic&#x27;. Ranh giới: chỉ viết về &#x27;solar photovoltaic&#x27;. Output: 5–8 gạch đầu dòng kèm UR…
+     prompt: Bối cảnh: báo cáo về 'Renewable energy technologies'. Nhánh: 'solar photovoltaic'. Ranh giới: chỉ viết về 'solar photovoltaic'. Output: 5–8 gạch đầu dòng kèm UR…
      → trong luồng: 1 tool call (mcp__research__search×1) · trả về coordinator: 368 ký tự
   [search-agent] Tìm: wind power
-     prompt: Bối cảnh: báo cáo về &#x27;Renewable energy technologies&#x27;. Nhánh: &#x27;wind power&#x27;. Ranh giới: chỉ viết về &#x27;wind power&#x27;. Output: 5–8 gạch đầu dòng kèm URL.
+     prompt: Bối cảnh: báo cáo về 'Renewable energy technologies'. Nhánh: 'wind power'. Ranh giới: chỉ viết về 'wind power'. Output: 5–8 gạch đầu dòng kèm URL.
      → trong luồng: 1 tool call (mcp__research__search×1) · trả về coordinator: 312 ký tự
   … (3 subagent còn lại tương tự)
 Lượt spawn 2 (msg_coord_2) · 5 subagent SONG SONG
   [analysis-agent] Phân tích: solar photovoltaic
-     prompt: Báo cáo về &#x27;Renewable energy technologies&#x27;, phần &#x27;solar photovoltaic&#x27;. Dữ liệu (chỉ dùng dữ liệu này): [MOCK] 3 kết quả cho &#x27;solar photovoltaic 2026&#x27;: - Tổng qu…
+     prompt: Báo cáo về 'Renewable energy technologies', phần 'solar photovoltaic'. Dữ liệu (chỉ dùng dữ liệu này): [MOCK] 3 kết quả cho 'solar photovoltaic 2026': - Tổng qu…
      → trong luồng: 0 tool call () · trả về coordinator: 90 ký tự
   [analysis-agent] Phân tích: wind power
-     prompt: Báo cáo về &#x27;Renewable energy technologies&#x27;, phần &#x27;wind power&#x27;. Dữ liệu (chỉ dùng dữ liệu này): [MOCK] 3 kết quả cho &#x27;wind power 2026&#x27;: - Tổng quan về wind power…
+     prompt: Báo cáo về 'Renewable energy technologies', phần 'wind power'. Dữ liệu (chỉ dùng dữ liệu này): [MOCK] 3 kết quả cho 'wind power 2026': - Tổng quan về wind power…
      → trong luồng: 0 tool call () · trả về coordinator: 74 ký tự
   … (3 subagent còn lại tương tự)
 Lượt spawn 3 (msg_coord_3) · 1 subagent
   [synthesis-agent] Viết báo cáo cuối
-     prompt: Viết báo cáo về &#x27;Renewable energy technologies&#x27; từ các phần: (GIẢ) Phân tích solar photovoltaic … nguồn https://example.com/solar-photovoltaic/overview (GIẢ) Ph…
+     prompt: Viết báo cáo về 'Renewable energy technologies' từ các phần: (GIẢ) Phân tích solar photovoltaic … nguồn https://example.com/solar-photovoltaic/overview (GIẢ) Ph…
      → trong luồng: 0 tool call () · trả về coordinator: 458 ký tự
 
 == Tóm tắt
@@ -242,7 +241,7 @@ PASS  Coordinator spawn ≥5 search-agent (phân rã đủ rộng)
 PASS  Có lượt spawn ≥2 subagent song song
 PASS  Prompt của analysis-agent có dán kết quả tìm kiếm kèm URL
 PASS  synthesis-agent được spawn sau cùng
-PASS  Mọi subagent đều trả kết quả về coordinator (tool_result)</code></pre>
+PASS  Mọi subagent đều trả kết quả về coordinator (tool_result)</code></pre>>
 <p>Kịch bản vi phạm <code>FAKE_MISUSE=nested</code> (analysis-agent tự spawn search-agent):</p>
 <pre><code>
 PASS  Mọi subagent đều do coordinator spawn (Agent ở luồng chính)
@@ -253,7 +252,7 @@ PASS  Có lượt spawn ≥2 subagent song song
 PASS  Prompt của analysis-agent có dán kết quả tìm kiếm kèm URL
 PASS  synthesis-agent được spawn sau cùng
 PASS  Mọi subagent đều trả kết quả về coordinator (tool_result)
-  ↳ vi phạm: analysis-agent gọi search-agent</code></pre>
+  ↳ vi phạm: analysis-agent gọi search-agent</code></pre>>
 <div class="card warn"><b>Chưa chạy với Claude thật.</b> Chưa xác nhận: (1) <code>--tools "Agent"</code> có giữ được tool Agent không (tên trong bộ built-in có thể là <code>Agent</code> hoặc <code>Task</code>); (2) stream-json của <code>-p</code> có in sự kiện của subagent kèm <code>parent_tool_use_id</code> không (bản CLI này chạy subagent nền theo mặc định, nên có thể chỉ thấy <code>tool_result</code> cuối); (3) <code>disallowedTools</code> trong <code>--agents</code> có chặn MCP tool không. <b>Chi phí ước tính:</b> ~12–16 phiên agent với haiku ≈ 0,3–1,0 USD, chặn trần 1,5 USD.</div>
 
 <h2>8. Tài liệu tham khảo</h2>

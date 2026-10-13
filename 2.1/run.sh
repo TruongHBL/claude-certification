@@ -14,7 +14,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESULTS="$ROOT/results"
+RESULTS="${RESULTS_DIR:-$ROOT/results}"   # test đặt RESULTS_DIR riêng để không ghi đè kết quả thật
+NODE="${NODE_BIN:-node}"
+TS=(--experimental-strip-types --no-warnings)
 MODEL="${MODEL:-haiku}"
 BUDGET="${BUDGET:-0.2}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
@@ -26,18 +28,20 @@ run_config() {
   local cfg="$1" toolset prompt dir n
   toolset="$(toolset_of "$cfg")"; prompt="$(prompt_of "$cfg")"
   dir="$RESULTS/$cfg"; mkdir -p "$dir"
-  n="$(ruby -rjson -e 'puts JSON.parse(File.read(ARGV[0]))["queries"].size' "$ROOT/queries.json")"
+  n="$("$NODE" -e 'console.log(require(process.argv[1]).queries.length)' "$ROOT/queries.json")"
   echo "== Cấu hình $cfg: TOOLSET=$toolset, prompt=$(basename "$prompt"), model=$MODEL"
   for ((i = 0; i < n; i++)); do
     local id text mcp
-    id="$(ruby -rjson -e 'puts JSON.parse(File.read(ARGV[0]))["queries"][ARGV[1].to_i]["id"]' "$ROOT/queries.json" "$i")"
-    text="$(ruby -rjson -e 'puts JSON.parse(File.read(ARGV[0]))["queries"][ARGV[1].to_i]["text"]' "$ROOT/queries.json" "$i")"
+    id="$("$NODE" -e 'console.log(require(process.argv[1]).queries[+process.argv[2]].id)' "$ROOT/queries.json" "$i")"
+    text="$("$NODE" -e 'console.log(require(process.argv[1]).queries[+process.argv[2]].text)' "$ROOT/queries.json" "$i")"
     mcp="$dir/q$id.mcp.json"
     rm -f "$dir/q$id.log"
     # Mỗi query một file cấu hình MCP để log tool call tách riêng theo query.
-    ruby -rjson -e 'puts JSON.pretty_generate({ mcpServers: { shop: { type: "stdio", command: "ruby", args: [ARGV[0]],
-                      env: { TOOLSET: ARGV[1], SHOP_LOG: ARGV[2] } } } })' \
-      "$ROOT/shop_mcp_server.rb" "$toolset" "$dir/q$id.log" > "$mcp"
+    # Server chạy bằng node (đường dẫn tuyệt đối) với --experimental-strip-types.
+    "$NODE" -e 'const [srv, toolset, log, node] = process.argv.slice(1);
+      console.log(JSON.stringify({ mcpServers: { shop: { type: "stdio", command: node,
+        args: ["--experimental-strip-types", "--no-warnings", srv], env: { TOOLSET: toolset, SHOP_LOG: log } } } }, null, 2))' \
+      "$ROOT/shop_mcp_server.ts" "$toolset" "$dir/q$id.log" "$(command -v "$NODE")" > "$mcp"
     echo "  q$id: $text"
     # Chạy trong thư mục rỗng để không nạp CLAUDE.md/settings của project nào.
     (cd "$RESULTS" && "$CLAUDE_BIN" -p "$text" \
@@ -56,8 +60,8 @@ run_config() {
 
 case "${1:-}" in
   A|B|C) run_config "$1" ;;
-  all)   for c in A B C; do run_config "$c"; done; ruby "$ROOT/score.rb" "$RESULTS" "$ROOT/queries.json" ;;
-  score) ruby "$ROOT/score.rb" "$RESULTS" "$ROOT/queries.json" ;;
+  all)   for c in A B C; do run_config "$c"; done; "$NODE" "${TS[@]}" "$ROOT/score.ts" "$RESULTS" "$ROOT/queries.json" ;;
+  score) "$NODE" "${TS[@]}" "$ROOT/score.ts" "$RESULTS" "$ROOT/queries.json" ;;
   clean) rm -rf "$RESULTS" ;;
   *) echo "Dùng: $0 A|B|C|all|score|clean"; exit 1 ;;
 esac

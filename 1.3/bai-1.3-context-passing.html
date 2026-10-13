@@ -28,7 +28,7 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>1. Mục tiêu</h2>
 <p>Dùng <b>Claude Agent SDK (TypeScript)</b> dựng một coordinator spawn <b>song song</b> 2 subagent nghiên cứu có phạm vi tool hẹp, rồi chuyển kết quả cho subagent tổng hợp. Trọng tâm là <b>metadata nguồn</b> (URL, tên tài liệu, số trang, độ tin cậy): nó phải đi nguyên vẹn qua coordinator để báo cáo cuối không có khẳng định nào thiếu trích dẫn.</p>
-<p>Vì sao không dùng Ruby như bài 1.1/1.2: đề bài dùng khái niệm của Agent SDK (<code>allowedTools</code>, <code>AgentDefinition</code>), mà Agent SDK chỉ có bản TypeScript và Python. Python trên máy là 3.8, không cài được SDK, nên chọn TypeScript.</p>
+<p>Ngôn ngữ: TypeScript, giống mọi bài trong repo (chạy trực tiếp bằng <code>node --experimental-strip-types</code>, Node ≥ 22.6). Đề bài dùng khái niệm của Agent SDK (<code>allowedTools</code>, <code>AgentDefinition</code>), và Agent SDK chỉ có bản TypeScript và Python.</p>
 
 <h2>2. Sơ đồ</h2>
 <div class="card"><svg viewBox="0 0 760 380" role="img" aria-label="Coordinator spawn song song hai subagent, gộp findings rồi chuyển cho synthesizer">
@@ -373,16 +373,17 @@ PASS  F: synthesizer không nhận findings → báo lỗi
 <pre><code>cd ~/Downloads/claude-cert/1.3
 ./run_cli.sh                      # câu hỏi mặc định
 ./run_cli.sh "câu hỏi khác"
-# đã có sẵn node_modules của SDK ở chỗ khác thì không cần npm i:
-SDK_NODE_MODULES=/đường/dẫn/node_modules ./run_cli.sh</code></pre>
-<p><code>run_cli.sh</code> làm 4 việc: <code>unset ANTHROPIC_API_KEY</code>; kiểm <code>claude auth status</code> có <code>loggedIn: true</code> (lệnh này không gọi model); cài <code>@anthropic-ai/claude-agent-sdk@0.3.293</code> vào <code>node_modules</code> nếu chưa có; rồi chạy <code>bai_1_3_context_passing.ts</code> với <code>CLAUDE_BIN</code> trỏ về CLI đã đăng nhập.</p>
+# test (không gọi model):
+node --experimental-strip-types --no-warnings test/run.test.ts</code></pre>
+<p><code>run_cli.sh</code> làm 4 việc: <code>unset ANTHROPIC_API_KEY</code>; kiểm <code>claude auth status</code> có <code>loggedIn: true</code> (lệnh này không gọi model); nếu <code>node_modules</code> ở <b>gốc repo</b> chưa có SDK thì chạy <code>npm install</code> ở gốc (Node tự tìm <code>node_modules</code> ngược lên thư mục cha, nên mọi bài dùng chung một bản cài); rồi chạy <code>bai_1_3_context_passing.ts</code> với <code>CLAUDE_BIN</code> trỏ về CLI đã đăng nhập.</p>
 <h3>Kiểm thử</h3>
-<p><code>test/bin/claude-sdk-fake</code> là một <b>Claude Code giả nói đúng giao thức stream-json của SDK</b>: trả lời <code>control_request initialize</code>, nhận prompt, phát luồng message của coordinator → 2 subagent → synthesizer rồi trả <code>result</code> có <code>structured_output</code>. SDK và hàm <code>verify()</code> là <b>thật</b>; nội dung luồng message là <b>kịch bản GIẢ</b>, nên test chỉ chứng minh đường chạy và cách SDK truyền cấu hình, không chứng minh Claude sẽ spawn song song.</p>
-<pre><code>== Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake)
+<p><code>test/bin/claude-sdk-fake</code> (wrapper bash gọi <code>claude_sdk_fake.ts</code>, vì Node chỉ strip type cho file đuôi <code>.ts</code>) là một <b>Claude Code giả nói đúng giao thức stream-json của SDK</b>: trả lời <code>control_request initialize</code>, nhận prompt, phát luồng message của coordinator → 2 subagent → synthesizer rồi trả <code>result</code> có <code>structured_output</code>. SDK và hàm <code>verify()</code> là <b>thật</b>; nội dung luồng message là <b>kịch bản GIẢ</b>, nên test chỉ chứng minh đường chạy và cách SDK truyền cấu hình, không chứng minh Claude sẽ spawn song song.</p>
+<pre><code>$ node --experimental-strip-types --no-warnings test/run.test.ts
+== Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake)
 PASS  run_cli.sh chạy xong, exit 0
 PASS  SDK spawn đúng binary trỏ bởi CLAUDE_BIN
 PASS  tiến trình con KHÔNG có ANTHROPIC_API_KEY (run_cli.sh đã unset)
-PASS  --allowedTools có Agent (thiếu là không spawn được subagent)  → Agent,WebSearch,WebFetch,Read,Grep,Glob
+PASS  --allowedTools có Agent (thiếu là không spawn được subagent)
 PASS  outputFormat json_schema → cờ --json-schema
 PASS  --max-budget-usd 2 được truyền xuống CLI
 PASS  SDK gửi đủ 3 AgentDefinition trong initialize
@@ -391,9 +392,10 @@ PASS  verify(): synthesizer nhận findings đủ metadata
 PASS  verify(): không có claim mồ côi
 
 == Test hàm thuần có sẵn (bai_1_3_test_stub.ts)
-PASS  bai_1_3_test_stub.ts  → 10 pass, 0 fail
+PASS  bai_1_3_test_stub.ts
 
 11 PASS, 0 FAIL</code></pre>
+<p class="meta">Test đọc cờ CLI ở cả hai dạng <code>--flag value</code> (SDK 0.3.293) và <code>--flag=value</code> (SDK 0.3.296, bản đang cài ở gốc repo).</p>
 <div class="card warn"><b>Chưa chạy với Claude thật.</b> Lệnh thật sẽ tính vào hạn mức gói claude.ai của bạn. Ước tính: 1 coordinator + 3 subagent (có WebSearch/WebFetch), model mặc định của tài khoản, tương đương <b>~0,5–2 USD</b> giá API (code đặt <code>maxBudgetUsd: 2</code>). Lưu ý khi chạy bằng phiên đăng nhập: CLI vẫn nạp CLAUDE.md, hook và plugin của bạn; cờ <code>--bare</code> để tắt chúng lại chỉ nhận API key.</div>
 
 <h2>9. Tài liệu tham khảo</h2>

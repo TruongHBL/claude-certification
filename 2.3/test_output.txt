@@ -1,4 +1,5 @@
-== config_check ==
+
+== config_check
 PASS  config: web_search: 4–5 tool
 PASS  config: doc_analysis: 4–5 tool
 PASS  config: synthesis: 4–5 tool
@@ -13,7 +14,7 @@ PASS  config hỏng: bắt fetch_url
 PASS  config hỏng: bắt coordinator giữ tool nghiệp vụ
 PASS  config hỏng: bắt web_search 6 tool
 
-== load_document ==
+== load_document
 PASS  load_document https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf → hợp lệ
 PASS  load_document https://www.ilo.org/hybrid-work-asia-2025.pdf → hợp lệ
 PASS  load_document https://hbr.org/2026/03/hybrid.html → hợp lệ
@@ -29,7 +30,7 @@ PASS  load_document https://evil.example.com/report.pdf → permission
 PASS  load_document https://gso.gov.vn.evil.com/report.pdf → permission
 PASS  load_document không phải url → validation
 
-== payload tool_choice ==
+== payload tool_choice
 PASS  doc_analysis lượt 1: tool_choice {type: tool, name: extract_metadata}
 PASS  doc_analysis lượt 2: tool_choice auto
 PASS  synthesis: tool_choice any
@@ -39,15 +40,15 @@ PASS  forced + extended thinking bị từ chối
 PASS  any + extended thinking bị từ chối
 PASS  auto + extended thinking được phép
 
-== verify_fact (scoped) ==
+== verify_fact (scoped)
 PASS  dữ kiện đơn 1 nguồn → verified
 PASS  nhận định so sánh → lỗi business, chuyển coordinator
 
-== audit ==
+== audit
 PASS  tool ngoài bộ → is_error permission
 PASS  tool ngoài bộ → ghi vi phạm, không thực thi
 
-== end-to-end (STUB) ==
+== end-to-end (STUB)
 PASS  e2e: mỗi agent chỉ dùng tool trong bộ của mình
 PASS  e2e: doc_analysis: lượt 1 forced extract_metadata, các lượt sau auto (2 phiên)
 PASS  e2e: synthesis dùng compile_report + verify_fact
@@ -58,7 +59,7 @@ PASS  e2e: web_search bị load_document từ chối ảnh .png
 PASS  e2e: coordinator chỉ dùng Agent/review_output
 PASS  e2e: câu trả lời cuối có nguồn và giới hạn số liệu
 
-== misuse demo (STUB) ==
+== misuse demo (STUB)
 PASS  misuse: audit ghi đúng 1 vi phạm synthesis→search_web
 PASS  misuse: kiểm tra 'không vi phạm' báo FAIL
 PASS  misuse: synthesis vẫn hoàn tất compile_report sau khi bị chặn

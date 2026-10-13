@@ -1,0 +1,33 @@
+LƯU Ý: Claude ở đây là stub. Dilution của single-pass là GIẢ LẬP để kiểm thử pipeline và bộ chấm điểm.
+
+PASS  đọc được 12 file mẫu
+PASS  single-pass: đúng 1 lần gọi API cho 12 file
+PASS  multi-pass: 12 pass per-file rồi 1 pass integration
+PASS  tên file lấy từ code, không theo tên model tự đặt
+
+Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):
+  file                                 single          multi
+  01_db.js                          0 |     0       0 |     0
+  02_users_repo.js                  1 |   134       1 |   134
+  03_notify_matches.js              1 |   177       1 |   177
+  04_favorites_repo.js              0 |     0       0 |     0
+  05_api_client.js                  1 |   171       1 |   171
+  06_matching_service.js            1 |    58       1 |   153
+  07_user_profile.js                1 |    54       1 |   149
+  08_pagination.js                  0 |     0       0 |     0
+  09_favorites_controller.js        0 |     0       0 |     0
+  10_search.js                      1 |    17       1 |   136
+  11_reminder_job.js                0 |     0       1 |   139
+  12_mailer.js                      0 |     0       1 |   148
+single: lỗi trong file 5/8 ["B1","B2","B3","B4","B5"], lỗi chéo file 0/2 []
+multi : lỗi trong file 8/8 ["B1","B2","B3","B4","B5","B6","B7","B8"], lỗi chéo file 2/2 ["C1","C2"]
+Đoạn forEach y hệt ở 03 & 11 – single: {"03_notify_matches.js":true,"11_reminder_job.js":false} → KHÔNG nhất quán (dilution)
+Đoạn forEach y hệt ở 03 & 11 – multi: {"03_notify_matches.js":true,"11_reminder_job.js":true} → nhất quán
+Lỗi chéo file chỉ integration pass bắt được: ["C1","C2"]
+
+PASS  multi: 8/8 lỗi trong file, 2/2 lỗi chéo file
+PASS  single: bỏ sót lỗi ở các file cuối
+PASS  đoạn y hệt 03/11: single không nhất quán, multi nhất quán
+PASS  C1, C2 chỉ integration pass bắt được
+
+8 PASS, 0 FAIL

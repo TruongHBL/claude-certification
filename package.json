@@ -1,0 +1,19 @@
+{
+  "name": "claude-certification-exercises",
+  "private": true,
+  "type": "module",
+  "description": "Build Exercise cho Claude Certified Architect – Foundations, viết bằng TypeScript (chạy trực tiếp bằng node --experimental-strip-types)",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --no-warnings scripts/run-all-tests.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.293",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}

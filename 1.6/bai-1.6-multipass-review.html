@@ -50,11 +50,11 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>3. Sáu bước ↔ cách hiện thực</h2>
 <div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
-<tr><td>1</td><td>Agent đọc ≥ 10 file JS/TS trong một thư mục</td><td><code>bai_1_6_sample/</code>: 12 file JS mô phỏng module CRM (matching, ♡ favorites, users, API client, mailer…). Hàm <code>load_files</code> đọc theo thứ tự tên file</td></tr>
-<tr><td>2</td><td>Review single-pass, ghi kết quả</td><td><code>ruby … single</code>: một lần gọi chứa cả 12 file (có đánh số dòng), ép trả JSON qua tool <code>report_review</code> → <code>bai_1_6_results/single.json</code></td></tr>
-<tr><td>3</td><td>Pass per-file, kết quả có cấu trúc, độ sâu đồng đều</td><td><code>ruby … multi</code>: mỗi file một lần gọi, <code>tool_choice: {type:"tool", name:"report_file_review"}</code> ép schema <code>{file, issues[{line, severity, type, description}], exports, imports_used, summary}</code>. Chạy song song tối đa 4 luồng</td></tr>
-<tr><td>4</td><td>Pass integration: data flow, API consistency, pattern</td><td><code>integration_pass</code> chỉ nhận <code>summary / exports / imports_used</code> của 12 file, <b>không nhận lại code</b>, nên context nhỏ. Kết quả là <code>cross_file_issues</code></td></tr>
-<tr><td>5</td><td>So sánh: tổng lỗi, độ đồng đều, lỗi chéo file</td><td><code>ruby … compare</code> chấm với <code>ANSWER_KEY.json</code> (khớp file + loại lỗi + dòng ±3): recall từng loại, bảng số issue và độ dài mô tả theo thứ tự file</td></tr>
+<tr><td>1</td><td>Agent đọc ≥ 10 file JS/TS trong một thư mục</td><td><code>bai_1_6_sample/</code>: 12 file JS mô phỏng module CRM (matching, ♡ favorites, users, API client, mailer…). Hàm <code>loadFiles</code> đọc theo thứ tự tên file</td></tr>
+<tr><td>2</td><td>Review single-pass, ghi kết quả</td><td><code>node … single</code>: một lần gọi chứa cả 12 file (có đánh số dòng), ép trả JSON qua tool <code>report_review</code> → <code>bai_1_6_results/single.json</code></td></tr>
+<tr><td>3</td><td>Pass per-file, kết quả có cấu trúc, độ sâu đồng đều</td><td><code>node … multi</code>: mỗi file một lần gọi, <code>tool_choice: {type:"tool", name:"report_file_review"}</code> ép schema <code>{file, issues[{line, severity, type, description}], exports, imports_used, summary}</code>. Chạy song song tối đa 4 request (Promise pool)</td></tr>
+<tr><td>4</td><td>Pass integration: data flow, API consistency, pattern</td><td><code>integrationPass</code> chỉ nhận <code>summary / exports / imports_used</code> của 12 file, <b>không nhận lại code</b>, nên context nhỏ. Kết quả là <code>cross_file_issues</code></td></tr>
+<tr><td>5</td><td>So sánh: tổng lỗi, độ đồng đều, lỗi chéo file</td><td><code>node … compare</code> chấm với <code>ANSWER_KEY.json</code> (khớp file + loại lỗi + dòng ±3): recall từng loại, bảng số issue và độ dài mô tả theo thứ tự file</td></tr>
 <tr><td>6</td><td>Ghi lại chỗ cùng một đoạn code bị đánh giá khác nhau</td><td>File 03 và 11 có <b>đoạn <code>forEach(async)</code> y hệt nhau</b>. Bộ chấm kiểm tra cả hai có cùng bị bắt (hoặc cùng bị bỏ) không</td></tr>
 </table></div>
 
@@ -63,60 +63,63 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 <div class="tw"><table><tr><th>ID</th><th>File</th><th>Dòng</th><th>Loại</th><th>Phạm vi</th><th>Mô tả</th></tr><tr><td>B1</td><td><code>02_users_repo.js</code></td><td>10</td><td>SQL injection</td><td>trong file</td><td>findUserByEmail nối chuỗi email vào SQL</td></tr><tr><td>B2</td><td><code>03_notify_matches.js</code></td><td>10</td><td>forEach(async)</td><td>trong file</td><td>forEach(async) không chờ: trả { sent: 0 } trước khi gửi xong, lỗi gửi mail bị nuốt</td></tr><tr><td>B3</td><td><code>05_api_client.js</code></td><td>12</td><td>Thiếu await</td><td>trong file</td><td>fetchMatchingList thiếu await fetch → res là Promise, res.json không tồn tại</td></tr><tr><td>B4</td><td><code>06_matching_service.js</code></td><td>16</td><td>Off-by-one</td><td>trong file</td><td>topBudgets lấy n+1 phần tử (i &lt;= n), có thể push undefined</td></tr><tr><td>B5</td><td><code>07_user_profile.js</code></td><td>6</td><td>Null deref</td><td>trong file</td><td>findUserByEmail trả null khi không có user → TypeError</td></tr><tr><td>B6</td><td><code>10_search.js</code></td><td>9</td><td>SQL injection</td><td>trong file</td><td>sort từ người dùng nối thẳng vào ORDER BY</td></tr><tr><td>B7</td><td><code>11_reminder_job.js</code></td><td>10</td><td>forEach(async)</td><td>trong file</td><td>Đoạn y hệt file 03: forEach(async) không chờ</td></tr><tr><td>B8</td><td><code>12_mailer.js</code></td><td>7</td><td>Thiếu await</td><td>trong file</td><td>Không await ghi log: lỗi DB thành unhandled rejection</td></tr><tr><td>C1</td><td><code>04_favorites_repo.js ↔ 09_favorites_controller.js</code></td><td>6</td><td>Lệch chữ ký hàm</td><td><span class="tag">chéo file</span></td><td>04 đổi addFavorite sang tham số object { userId, matchingId }, nhưng 09 vẫn gọi kiểu vị trí → userId/matchingId undefined</td></tr><tr><td>C2</td><td><code>05_api_client.js ↔ 06_matching_service.js</code></td><td>8</td><td>Lệch tên field</td><td><span class="tag">chéo file</span></td><td>05 trả khoá snake_case user_id, 06 đọc matching.userId → luôn undefined, ownerName luôn &#x27;(không rõ)&#x27;</td></tr></table></div>
 
 <h2>5. Mã nguồn</h2>
-<p>File đi kèm: <code>bai_1_6_multipass_review.rb</code> (Ruby 3.2, gem <code>anthropic</code>). Chạy: <code>gem install anthropic &amp;&amp; ruby bai_1_6_multipass_review.rb all</code></p>
-<pre><code># frozen_string_literal: true
+<p>File đi kèm: <code>bai_1_6_multipass_review.ts</code> (TypeScript, gọi Messages API bằng <code>fetch</code> qua <code>lib/anthropic.ts</code>, không cần SDK). Module này cũng là phần dùng chung cho bản CLI: schema, quy tắc review, cách đánh số dòng, bộ chấm <code>compare()</code>. Chạy: <code>ANTHROPIC_API_KEY=… node --experimental-strip-types bai_1_6_multipass_review.ts all</code> (Node ≥ 22.6, không cần build)</p>
+<pre><code>// Bài 1.6 – Build Exercise: Multi-Pass Code Review Pipeline (bản Messages API).
+//
+// So sánh 2 cách review 12 file JS trong bai_1_6_sample/:
+//   single  : MỘT lần gọi chứa toàn bộ 12 file → dễ bị attention dilution (file sau review nông hơn)
+//   multi   : pass per-file (mỗi file 1 lần gọi, schema cố định) → pass integration chỉ nhận
+//             summary/exports/imports (không nhận lại code) để tìm lỗi chéo file
+//   compare : chấm cả hai bản với bai_1_6_sample/ANSWER_KEY.json
+//   all     : chạy single, multi rồi compare
+//
+// Đây là FIXED SEQUENTIAL PIPELINE (prompt chaining): các bước định sẵn, thứ tự không đổi theo kết quả.
+// Không phải dynamic decomposition (agent tự lập/sửa kế hoạch khi điều tra).
+//
+// Module này cũng là phần dùng chung cho bản CLI (review_cli.ts): schema, quy tắc review,
+// cách đánh số dòng và bộ chấm compare().
+//
+// Chạy:  export ANTHROPIC_API_KEY=...
+//        node --experimental-strip-types bai_1_6_multipass_review.ts all
+// Không có API key: dùng bản CLI (./run_cli.sh all).
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from &quot;node:fs&quot;;
+import { basename, join } from &quot;node:path&quot;;
+import { fileURLToPath } from &quot;node:url&quot;;
+import { httpTransport, type Tool, type Transport } from &quot;../lib/anthropic.ts&quot;;
 
-# Bài 1.6 – Build Exercise: Multi-Pass Code Review Pipeline.
-#
-# So sánh 2 cách review 12 file JS trong bai_1_6_sample/:
-#   single  : MỘT lần gọi chứa toàn bộ 12 file → dễ bị attention dilution (file sau review nông hơn)
-#   multi   : pass per-file (mỗi file 1 lần gọi, schema cố định) → pass integration chỉ nhận
-#             summary/exports/imports (không nhận lại code) để tìm lỗi chéo file
-#   compare : chấm cả hai bản với bai_1_6_sample/ANSWER_KEY.json
-#   all     : chạy single, multi rồi compare
-#
-# Đây là FIXED SEQUENTIAL PIPELINE (prompt chaining): các bước định sẵn, thứ tự không đổi theo kết quả.
-# Không phải dynamic decomposition (agent tự lập/sửa kế hoạch khi điều tra).
-#
-# Chạy:  gem install anthropic &amp;&amp; export ANTHROPIC_API_KEY=...
-#        ruby bai_1_6_multipass_review.rb all
+const MODEL = process.env.ANTHROPIC_MODEL ?? &quot;claude-sonnet-5-5&quot;;
+export const SAMPLE_DIR = join(import.meta.dirname, &quot;bai_1_6_sample&quot;);
+const OUT_DIR = join(import.meta.dirname, &quot;bai_1_6_results&quot;);
+const PARALLEL = 4; // số pass per-file chạy cùng lúc
+const LINE_TOLERANCE = 3;
 
-require &quot;json&quot;
-require &quot;anthropic&quot;
+const ISSUE_TYPES = [&quot;sql_injection&quot;, &quot;null_deref&quot;, &quot;async_foreach&quot;, &quot;missing_await&quot;, &quot;off_by_one&quot;,
+  &quot;signature_mismatch&quot;, &quot;field_mismatch&quot;, &quot;other&quot;];
 
-MODEL = &quot;claude-sonnet-5-5&quot;
-SAMPLE_DIR = File.join(__dir__, &quot;bai_1_6_sample&quot;)
-OUT_DIR = File.join(__dir__, &quot;bai_1_6_results&quot;)
-PARALLEL = 4 # số pass per-file chạy cùng lúc
-LINE_TOLERANCE = 3
-
-ISSUE_TYPES = %w[sql_injection null_deref async_foreach missing_await off_by_one
-                 signature_mismatch field_mismatch other].freeze
-
-ISSUE_SCHEMA = {
+const ISSUE_SCHEMA = {
   type: &quot;object&quot;,
   properties: {
     line: { type: &quot;integer&quot;, description: &quot;Số dòng (theo số đánh ở đầu dòng)&quot; },
-    severity: { type: &quot;string&quot;, enum: %w[critical high medium low] },
+    severity: { type: &quot;string&quot;, enum: [&quot;critical&quot;, &quot;high&quot;, &quot;medium&quot;, &quot;low&quot;] },
     type: { type: &quot;string&quot;, enum: ISSUE_TYPES },
-    description: { type: &quot;string&quot; }
+    description: { type: &quot;string&quot; },
   },
-  required: %w[line severity type description]
-}.freeze
+  required: [&quot;line&quot;, &quot;severity&quot;, &quot;type&quot;, &quot;description&quot;],
+};
 
-CROSS_ISSUE_SCHEMA = {
+const CROSS_ISSUE_SCHEMA = {
   type: &quot;object&quot;,
   properties: {
     files: { type: &quot;array&quot;, items: { type: &quot;string&quot; }, description: &quot;Các file liên quan (≥ 2)&quot; },
-    severity: { type: &quot;string&quot;, enum: %w[critical high medium low] },
+    severity: { type: &quot;string&quot;, enum: [&quot;critical&quot;, &quot;high&quot;, &quot;medium&quot;, &quot;low&quot;] },
     type: { type: &quot;string&quot;, enum: ISSUE_TYPES },
-    description: { type: &quot;string&quot; }
+    description: { type: &quot;string&quot; },
   },
-  required: %w[files severity type description]
-}.freeze
+  required: [&quot;files&quot;, &quot;severity&quot;, &quot;type&quot;, &quot;description&quot;],
+};
 
-# Pass per-file: ép đúng schema bằng tool bắt buộc (tool_choice type &quot;tool&quot;).
-FILE_REVIEW_TOOL = {
+// Pass per-file: ép đúng schema bằng tool bắt buộc (tool_choice type &quot;tool&quot;).
+export const FILE_REVIEW_TOOL: Tool = {
   name: &quot;report_file_review&quot;,
   description: &quot;Nộp kết quả review cho ĐÚNG MỘT file.&quot;,
   input_schema: {
@@ -130,8 +133,8 @@ FILE_REVIEW_TOOL = {
         items: {
           type: &quot;object&quot;,
           properties: { name: { type: &quot;string&quot; }, signature: { type: &quot;string&quot; }, returns: { type: &quot;string&quot; } },
-          required: %w[name signature returns]
-        }
+          required: [&quot;name&quot;, &quot;signature&quot;, &quot;returns&quot;],
+        },
       },
       imports_used: {
         type: &quot;array&quot;,
@@ -140,18 +143,18 @@ FILE_REVIEW_TOOL = {
           type: &quot;object&quot;,
           properties: {
             from: { type: &quot;string&quot; }, name: { type: &quot;string&quot; }, call: { type: &quot;string&quot; },
-            fields_used: { type: &quot;array&quot;, items: { type: &quot;string&quot; } }
+            fields_used: { type: &quot;array&quot;, items: { type: &quot;string&quot; } },
           },
-          required: %w[from name call fields_used]
-        }
+          required: [&quot;from&quot;, &quot;name&quot;, &quot;call&quot;, &quot;fields_used&quot;],
+        },
       },
-      summary: { type: &quot;string&quot;, description: &quot;1–3 câu: file làm gì&quot; }
+      summary: { type: &quot;string&quot;, description: &quot;1–3 câu: file làm gì&quot; },
     },
-    required: %w[file issues exports imports_used summary]
-  }
-}.freeze
+    required: [&quot;file&quot;, &quot;issues&quot;, &quot;exports&quot;, &quot;imports_used&quot;, &quot;summary&quot;],
+  },
+};
 
-SINGLE_TOOL = {
+export const SINGLE_TOOL: Tool = {
   name: &quot;report_review&quot;,
   description: &quot;Nộp kết quả review cho TẤT CẢ các file.&quot;,
   input_schema: {
@@ -162,184 +165,226 @@ SINGLE_TOOL = {
         items: {
           type: &quot;object&quot;,
           properties: { file: { type: &quot;string&quot; }, issues: { type: &quot;array&quot;, items: ISSUE_SCHEMA } },
-          required: %w[file issues]
-        }
+          required: [&quot;file&quot;, &quot;issues&quot;],
+        },
       },
-      cross_file_issues: { type: &quot;array&quot;, items: CROSS_ISSUE_SCHEMA }
+      cross_file_issues: { type: &quot;array&quot;, items: CROSS_ISSUE_SCHEMA },
     },
-    required: %w[files cross_file_issues]
-  }
-}.freeze
+    required: [&quot;files&quot;, &quot;cross_file_issues&quot;],
+  },
+};
 
-INTEGRATION_TOOL = {
+export const INTEGRATION_TOOL: Tool = {
   name: &quot;report_integration&quot;,
   description: &quot;Nộp các lỗi chỉ thấy được khi đối chiếu nhiều file.&quot;,
   input_schema: {
     type: &quot;object&quot;,
     properties: { cross_file_issues: { type: &quot;array&quot;, items: CROSS_ISSUE_SCHEMA } },
-    required: %w[cross_file_issues]
+    required: [&quot;cross_file_issues&quot;],
+  },
+};
+
+export const REVIEW_RULES =
+  &quot;Tìm lỗi thật (bảo mật, crash, sai logic, async), không bắt lỗi văn phong.\n&quot; +
+  &quot;Ghi đúng số dòng theo số đánh ở đầu mỗi dòng. Dùng type trong danh sách cho sẵn.\n&quot;;
+
+export const SINGLE_SYSTEM = `Bạn là reviewer JS. ${REVIEW_RULES}`;
+export const PER_FILE_SYSTEM =
+  `Bạn là reviewer JS. Chỉ review ĐÚNG MỘT file được đưa. ${REVIEW_RULES}` +
+  &quot;Liệt kê đủ exports (chữ ký, hình dạng giá trị trả về) và imports_used (cách gọi, field đọc từ kết quả): &quot; +
+  &quot;pass sau dùng chúng để đối chiếu chéo file mà không đọc lại code.&quot;;
+export const INTEGRATION_SYSTEM =
+  &quot;Bạn kiểm tra tích hợp giữa các module. Chỉ có bản tóm tắt từng file (không có code). &quot; +
+  &quot;Tìm chỗ export và nơi dùng không khớp: chữ ký hàm, tên field, kiểu trả về, luồng dữ liệu. &quot; +
+  &quot;Không lặp lại lỗi nội bộ một file.&quot;;
+
+// ---------- Kiểu kết quả ----------
+export interface Issue { line: number; severity: string; type: string; description: string }
+export interface CrossIssue { files: string[]; severity: string; type: string; description: string }
+export interface FileReview {
+  file: string;
+  issues: Issue[];
+  exports?: unknown[];
+  imports_used?: unknown[];
+  summary?: string;
+}
+export interface ReviewResult { files: FileReview[]; cross_file_issues: CrossIssue[] }
+interface Bug { id: string; scope: &quot;per_file&quot; | &quot;cross_file&quot;; file: string; line: number; type: string; files: string[] }
+
+export type SourceFile = [name: string, code: string];
+
+export function loadFiles(): SourceFile[] {
+  return readdirSync(SAMPLE_DIR)
+    .filter((f) =&gt; f.endsWith(&quot;.js&quot;))
+    .sort()
+    .map((f) =&gt; [f, readFileSync(join(SAMPLE_DIR, f), &quot;utf8&quot;)]);
+}
+
+export function numbered(name: string, code: string): string {
+  const lines = code.split(/(?&lt;=\n)/); // giữ ký tự xuống dòng ở cuối mỗi dòng
+  const body = lines.map((l, i) =&gt; `${String(i + 1).padStart(3)}| ${l}`).join(&quot;&quot;);
+  return `=== ${name} ===\n${body}`;
+}
+
+/** Digest gửi cho integration pass: chỉ summary/exports/imports, KHÔNG gửi lại code. */
+export const digestOf = (reviews: FileReview[]) =&gt;
+  reviews.map(({ file, summary, exports, imports_used }) =&gt; ({ file, summary, exports, imports_used }));
+
+export const singlePrompt = (files: SourceFile[]) =&gt;
+  `Review toàn bộ ${files.length} file sau.\n\n` + files.map(([n, c]) =&gt; numbered(n, c)).join(&quot;\n\n&quot;);
+
+// Một lần gọi bắt buộc dùng tool → trả về input của tool.
+async function forcedToolCall&lt;T&gt;(transport: Transport, system: string, tool: Tool, userText: string, maxTokens = 8192): Promise&lt;T&gt; {
+  const r = await transport({
+    model: MODEL, max_tokens: maxTokens, system,
+    tools: [tool], tool_choice: { type: &quot;tool&quot;, name: tool.name },
+    messages: [{ role: &quot;user&quot;, content: userText }],
+  });
+  if (r.stop_reason === &quot;max_tokens&quot;) throw new Error(`Output bị cắt (max_tokens) ở ${tool.name}`);
+
+  const blk = r.content.find((b) =&gt; b.type === &quot;tool_use&quot; &amp;&amp; b.name === tool.name);
+  if (!blk || blk.type !== &quot;tool_use&quot;) throw new Error(`Không có tool_use ${tool.name}`);
+  return structuredClone(blk.input) as T;
+}
+
+// ---------- Cách 1: single-pass ----------
+export const singlePass = (files: SourceFile[], transport: Transport) =&gt;
+  forcedToolCall&lt;ReviewResult&gt;(transport, SINGLE_SYSTEM, SINGLE_TOOL, singlePrompt(files), 16_000);
+
+// ---------- Cách 2: multi-pass ----------
+async function perFilePass(transport: Transport, name: string, code: string): Promise&lt;FileReview&gt; {
+  const r = await forcedToolCall&lt;FileReview&gt;(transport, PER_FILE_SYSTEM, FILE_REVIEW_TOOL, numbered(name, code));
+  return { ...r, file: name }; // tên file lấy từ code, không tin model
+}
+
+const integrationPass = (transport: Transport, reviews: FileReview[]) =&gt;
+  forcedToolCall&lt;{ cross_file_issues: CrossIssue[] }&gt;(
+    transport, INTEGRATION_SYSTEM, INTEGRATION_TOOL, JSON.stringify(digestOf(reviews), null, 2),
+  );
+
+/** Chạy fn trên từng phần tử, tối đa `limit` cái cùng lúc (Promise pool). */
+async function pool&lt;T, R&gt;(items: T[], limit: number, fn: (x: T) =&gt; Promise&lt;R&gt;): Promise&lt;R[]&gt; {
+  const out: R[] = [];
+  let next = 0;
+  const worker = async () =&gt; {
+    while (next &lt; items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+export async function multiPass(files: SourceFile[], transport: Transport): Promise&lt;ReviewResult&gt; {
+  const reviews = (await pool(files, PARALLEL, ([name, code]) =&gt; perFilePass(transport, name, code)))
+    .sort((a, b) =&gt; a.file.localeCompare(b.file));
+  return { files: reviews, cross_file_issues: (await integrationPass(transport, reviews)).cross_file_issues };
+}
+
+// ---------- Chấm điểm ----------
+function foundPerFile(result: ReviewResult, bug: Bug): boolean {
+  const entry = result.files.find((f) =&gt; f.file === bug.file) ?? { issues: [] };
+  return entry.issues.some((i) =&gt; i.type === bug.type &amp;&amp; Math.abs(Number(i.line) - bug.line) &lt;= LINE_TOLERANCE);
+}
+
+const foundCross = (result: ReviewResult, bug: Bug) =&gt;
+  result.cross_file_issues.some((c) =&gt; c.type === bug.type &amp;&amp; bug.files.every((f) =&gt; c.files.includes(f)));
+
+function score(result: ReviewResult, key: Bug[], files: SourceFile[]) {
+  const per = key.filter((b) =&gt; b.scope === &quot;per_file&quot;);
+  const cross = key.filter((b) =&gt; b.scope === &quot;cross_file&quot;);
+  const depth = files.map(([name]) =&gt; {
+    const issues = (result.files.find((f) =&gt; f.file === name) ?? { issues: [] }).issues;
+    const avg = issues.length ? Math.floor(issues.reduce((s, i) =&gt; s + String(i.description ?? &quot;&quot;).length, 0) / issues.length) : 0;
+    return { file: name, issues: issues.length, avg_desc_chars: avg };
+  });
+  return {
+    per_file_found: per.filter((b) =&gt; foundPerFile(result, b)).map((b) =&gt; b.id),
+    cross_file_found: cross.filter((b) =&gt; foundCross(result, b)).map((b) =&gt; b.id),
+    per_file_total: per.length,
+    cross_file_total: cross.length,
+    depth,
+  };
+}
+
+export type Report = ReturnType&lt;typeof compare&gt;;
+
+export function compare(single: ReviewResult, multi: ReviewResult) {
+  const key = (JSON.parse(readFileSync(join(SAMPLE_DIR, &quot;ANSWER_KEY.json&quot;), &quot;utf8&quot;)) as { bugs: Bug[] }).bugs;
+  const files = loadFiles();
+  const s = score(single, key, files);
+  const m = score(multi, key, files);
+  const twins = key.filter((b) =&gt; b.type === &quot;async_foreach&quot;);
+  const consistencyOf = (res: ReviewResult) =&gt; {
+    const flags = twins.map((b) =&gt; foundPerFile(res, b));
+    return { flags: Object.fromEntries(twins.map((b, i) =&gt; [b.file, flags[i]])), consistent: new Set(flags).size === 1 };
+  };
+  const report = {
+    single: s,
+    multi: m,
+    identical_code_03_11: { single: consistencyOf(single), multi: consistencyOf(multi) },
+    cross_file_only_by_integration: m.cross_file_found.filter((id) =&gt; !s.cross_file_found.includes(id)),
+  };
+  printReport(report);
+  return report;
+}
+
+function printReport(rep: {
+  single: ReturnType&lt;typeof score&gt;; multi: ReturnType&lt;typeof score&gt;;
+  identical_code_03_11: Record&lt;string, { flags: Record&lt;string, boolean&gt;; consistent: boolean }&gt;;
+  cross_file_only_by_integration: string[];
+}) {
+  console.log(&quot;Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):&quot;);
+  console.log(`  ${&quot;file&quot;.padEnd(28)} ${&quot;single&quot;.padStart(14)} ${&quot;multi&quot;.padStart(14)}`);
+  rep.single.depth.forEach((s, i) =&gt; {
+    const m = rep.multi.depth[i];
+    console.log(
+      `  ${s.file.padEnd(28)} ${String(s.issues).padStart(6)} | ${String(s.avg_desc_chars).padStart(5)}  ` +
+        `${String(m.issues).padStart(6)} | ${String(m.avg_desc_chars).padStart(5)}`,
+    );
+  });
+  for (const k of [&quot;single&quot;, &quot;multi&quot;] as const) {
+    const r = rep[k];
+    console.log(
+      `${k.padEnd(6)}: lỗi trong file ${r.per_file_found.length}/${r.per_file_total} ${JSON.stringify(r.per_file_found)}, ` +
+        `lỗi chéo file ${r.cross_file_found.length}/${r.cross_file_total} ${JSON.stringify(r.cross_file_found)}`,
+    );
   }
-}.freeze
+  for (const [k, v] of Object.entries(rep.identical_code_03_11))
+    console.log(`Đoạn forEach y hệt ở 03 &amp; 11 – ${k}: ${JSON.stringify(v.flags)} → ${v.consistent ? &quot;nhất quán&quot; : &quot;KHÔNG nhất quán (dilution)&quot;}`);
+  console.log(`Lỗi chéo file chỉ integration pass bắt được: ${JSON.stringify(rep.cross_file_only_by_integration)}`);
+}
 
-REVIEW_RULES = &lt;&lt;~TXT
-  Tìm lỗi thật (bảo mật, crash, sai logic, async), không bắt lỗi văn phong.
-  Ghi đúng số dòng theo số đánh ở đầu mỗi dòng. Dùng type trong danh sách cho sẵn.
-TXT
+function save(name: string, data: unknown) {
+  if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR);
+  writeFileSync(join(OUT_DIR, `${name}.json`), JSON.stringify(data, null, 2));
+}
 
-def load_files
-  Dir[File.join(SAMPLE_DIR, &quot;*.js&quot;)].sort.map { |p| [File.basename(p), File.read(p)] }
-end
+const loadResult = (name: string) =&gt; JSON.parse(readFileSync(join(OUT_DIR, `${name}.json`), &quot;utf8&quot;)) as ReviewResult;
 
-def numbered(name, code)
-  body = code.lines.each_with_index.map { |l, i| format(&quot;%3d| %s&quot;, i + 1, l) }.join
-  &quot;=== #{name} ===\n#{body}&quot;
-end
-
-# Một lần gọi bắt buộc dùng tool → trả về input của tool dưới dạng Hash (khoá string).
-def forced_tool_call(client, system, tool, user_text, max_tokens: 8192)
-  r = client.messages.create(
-    model: MODEL, max_tokens: max_tokens, system_: system,
-    tools: [tool], tool_choice: { type: &quot;tool&quot;, name: tool[:name] },
-    messages: [{ role: &quot;user&quot;, content: user_text }]
-  )
-  raise &quot;Output bị cắt (max_tokens) ở #{tool[:name]}&quot; if r.stop_reason.to_s == &quot;max_tokens&quot;
-
-  blk = r.content.find { |b| b.type.to_s == &quot;tool_use&quot; &amp;&amp; b.name.to_s == tool[:name] }
-  raise &quot;Không có tool_use #{tool[:name]}&quot; unless blk
-
-  JSON.parse(JSON.generate(blk.input))
-end
-
-# ---------- Cách 1: single-pass ----------
-def single_pass(files)
-  prompt = &quot;Review toàn bộ #{files.size} file sau.\n\n&quot; + files.map { |n, c| numbered(n, c) }.join(&quot;\n\n&quot;)
-  forced_tool_call(Anthropic::Client.new, &quot;Bạn là reviewer JS. #{REVIEW_RULES}&quot;, SINGLE_TOOL, prompt,
-                   max_tokens: 16_000)
-end
-
-# ---------- Cách 2: multi-pass ----------
-def per_file_pass(client, name, code)
-  system = &quot;Bạn là reviewer JS. Chỉ review ĐÚNG MỘT file được đưa. #{REVIEW_RULES}&quot; \
-           &quot;Liệt kê đủ exports (chữ ký, hình dạng giá trị trả về) và imports_used (cách gọi, field đọc từ kết quả): &quot; \
-           &quot;pass sau dùng chúng để đối chiếu chéo file mà không đọc lại code.&quot;
-  r = forced_tool_call(client, system, FILE_REVIEW_TOOL, numbered(name, code))
-  r.merge(&quot;file&quot; =&gt; name) # tên file lấy từ code, không tin model
-end
-
-def integration_pass(reviews)
-  digest = reviews.map { |r| r.slice(&quot;file&quot;, &quot;summary&quot;, &quot;exports&quot;, &quot;imports_used&quot;) }
-  system = &quot;Bạn kiểm tra tích hợp giữa các module. Chỉ có bản tóm tắt từng file (không có code). &quot; \
-           &quot;Tìm chỗ export và nơi dùng không khớp: chữ ký hàm, tên field, kiểu trả về, luồng dữ liệu. &quot; \
-           &quot;Không lặp lại lỗi nội bộ một file.&quot;
-  forced_tool_call(Anthropic::Client.new, system, INTEGRATION_TOOL, JSON.pretty_generate(digest))
-end
-
-def multi_pass(files)
-  queue = Queue.new
-  files.each { |f| queue &lt;&lt; f }
-  results = Queue.new
-  workers = Array.new([PARALLEL, files.size].min) do
-    Thread.new do
-      client = Anthropic::Client.new
-      until queue.empty?
-        name, code = begin
-          queue.pop(true)
-        rescue ThreadError
-          break
-        end
-        results &lt;&lt; per_file_pass(client, name, code)
-      end
-    end
-  end
-  workers.each(&amp;:join)
-  reviews = Array.new(results.size) { results.pop }.sort_by { |r| r[&quot;file&quot;] }
-  { &quot;files&quot; =&gt; reviews, &quot;cross_file_issues&quot; =&gt; integration_pass(reviews)[&quot;cross_file_issues&quot;] }
-end
-
-# ---------- Chấm điểm ----------
-def found_per_file?(result, bug)
-  entry = result[&quot;files&quot;].find { |f| f[&quot;file&quot;] == bug[&quot;file&quot;] } || { &quot;issues&quot; =&gt; [] }
-  entry[&quot;issues&quot;].any? { |i| i[&quot;type&quot;] == bug[&quot;type&quot;] &amp;&amp; (i[&quot;line&quot;].to_i - bug[&quot;line&quot;]).abs &lt;= LINE_TOLERANCE }
-end
-
-def found_cross?(result, bug)
-  result[&quot;cross_file_issues&quot;].any? { |c| c[&quot;type&quot;] == bug[&quot;type&quot;] &amp;&amp; (bug[&quot;files&quot;] - c[&quot;files&quot;]).empty? }
-end
-
-def score(result, key, files)
-  per = key.select { |b| b[&quot;scope&quot;] == &quot;per_file&quot; }
-  cross = key.select { |b| b[&quot;scope&quot;] == &quot;cross_file&quot; }
-  depth = files.map do |name, _|
-    issues = (result[&quot;files&quot;].find { |f| f[&quot;file&quot;] == name } || { &quot;issues&quot; =&gt; [] })[&quot;issues&quot;]
-    avg = issues.empty? ? 0 : issues.sum { |i| i[&quot;description&quot;].to_s.size } / issues.size
-    { &quot;file&quot; =&gt; name, &quot;issues&quot; =&gt; issues.size, &quot;avg_desc_chars&quot; =&gt; avg }
-  end
-  {
-    &quot;per_file_found&quot; =&gt; per.select { |b| found_per_file?(result, b) }.map { |b| b[&quot;id&quot;] },
-    &quot;cross_file_found&quot; =&gt; cross.select { |b| found_cross?(result, b) }.map { |b| b[&quot;id&quot;] },
-    &quot;per_file_total&quot; =&gt; per.size, &quot;cross_file_total&quot; =&gt; cross.size, &quot;depth&quot; =&gt; depth
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const cmd = process.argv[2];
+  if (cmd === &quot;single&quot;) save(&quot;single&quot;, await singlePass(loadFiles(), httpTransport()));
+  else if (cmd === &quot;multi&quot;) save(&quot;multi&quot;, await multiPass(loadFiles(), httpTransport()));
+  else if (cmd === &quot;compare&quot;) save(&quot;compare&quot;, compare(loadResult(&quot;single&quot;), loadResult(&quot;multi&quot;)));
+  else if (cmd === &quot;all&quot;) {
+    const files = loadFiles();
+    const transport = httpTransport();
+    const single = await singlePass(files, transport);
+    save(&quot;single&quot;, single);
+    const multi = await multiPass(files, transport);
+    save(&quot;multi&quot;, multi);
+    save(&quot;compare&quot;, compare(single, multi));
+  } else {
+    console.error(`Dùng: node --experimental-strip-types ${basename(fileURLToPath(import.meta.url))} single|multi|compare|all`);
+    process.exitCode = 1;
   }
-end
-
-def compare(single, multi)
-  key = JSON.parse(File.read(File.join(SAMPLE_DIR, &quot;ANSWER_KEY.json&quot;)))[&quot;bugs&quot;]
-  files = load_files
-  s = score(single, key, files)
-  m = score(multi, key, files)
-  twins = key.select { |b| b[&quot;type&quot;] == &quot;async_foreach&quot; }
-  consistency = { &quot;single&quot; =&gt; single, &quot;multi&quot; =&gt; multi }.transform_values do |res|
-    flags = twins.map { |b| found_per_file?(res, b) }
-    { &quot;flags&quot; =&gt; twins.map { |b| b[&quot;file&quot;] }.zip(flags).to_h, &quot;consistent&quot; =&gt; flags.uniq.size == 1 }
-  end
-  report = {
-    &quot;single&quot; =&gt; s, &quot;multi&quot; =&gt; m, &quot;identical_code_03_11&quot; =&gt; consistency,
-    &quot;cross_file_only_by_integration&quot; =&gt; m[&quot;cross_file_found&quot;] - s[&quot;cross_file_found&quot;]
-  }
-  print_report(report)
-  report
-end
-
-def print_report(rep)
-  puts &quot;Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):&quot;
-  puts format(&quot;  %-28s %14s %14s&quot;, &quot;file&quot;, &quot;single&quot;, &quot;multi&quot;)
-  rep[&quot;single&quot;][&quot;depth&quot;].zip(rep[&quot;multi&quot;][&quot;depth&quot;]).each do |s, m|
-    puts format(&quot;  %-28s %6d | %5d  %6d | %5d&quot;, s[&quot;file&quot;], s[&quot;issues&quot;], s[&quot;avg_desc_chars&quot;], m[&quot;issues&quot;], m[&quot;avg_desc_chars&quot;])
-  end
-  %w[single multi].each do |k|
-    r = rep[k]
-    puts &quot;#{k.ljust(6)}: lỗi trong file #{r[&#x27;per_file_found&#x27;].size}/#{r[&#x27;per_file_total&#x27;]} &quot; \
-         &quot;#{r[&#x27;per_file_found&#x27;]}, lỗi chéo file #{r[&#x27;cross_file_found&#x27;].size}/#{r[&#x27;cross_file_total&#x27;]} #{r[&#x27;cross_file_found&#x27;]}&quot;
-  end
-  rep[&quot;identical_code_03_11&quot;].each do |k, v|
-    puts &quot;Đoạn forEach y hệt ở 03 &amp; 11 – #{k}: #{v[&#x27;flags&#x27;]} → #{v[&#x27;consistent&#x27;] ? &#x27;nhất quán&#x27; : &#x27;KHÔNG nhất quán (dilution)&#x27;}&quot;
-  end
-  puts &quot;Lỗi chéo file chỉ integration pass bắt được: #{rep[&#x27;cross_file_only_by_integration&#x27;]}&quot;
-end
-
-def save(name, data)
-  Dir.mkdir(OUT_DIR) unless Dir.exist?(OUT_DIR)
-  File.write(File.join(OUT_DIR, &quot;#{name}.json&quot;), JSON.pretty_generate(data))
-end
-
-def load_result(name) = JSON.parse(File.read(File.join(OUT_DIR, &quot;#{name}.json&quot;)))
-
-if $PROGRAM_NAME == __FILE__
-  case ARGV[0]
-  when &quot;single&quot; then save(&quot;single&quot;, single_pass(load_files))
-  when &quot;multi&quot; then save(&quot;multi&quot;, multi_pass(load_files))
-  when &quot;compare&quot; then save(&quot;compare&quot;, compare(load_result(&quot;single&quot;), load_result(&quot;multi&quot;)))
-  when &quot;all&quot;
-    files = load_files
-    save(&quot;single&quot;, single = single_pass(files))
-    save(&quot;multi&quot;, multi = multi_pass(files))
-    save(&quot;compare&quot;, compare(single, multi))
-  else abort &quot;Dùng: ruby #{File.basename(__FILE__)} single|multi|compare|all&quot;
-  end
-end
+}
 </code></pre>
 
 <h2>6. Kiểm thử</h2>
-<div class="card ok"><b>Đã chạy: kiểm thử với API giả lập (stub).</b> Stub đóng vai Claude và tự kiểm tra input của từng bước:
+<div class="card ok"><b>Đã chạy: kiểm thử với API giả lập (stub)</b> (<code>node --experimental-strip-types test/api.test.ts</code>). Transport giả đóng vai Claude và tự kiểm tra input của từng bước:
 <ul>
 <li>Single-pass phải chứa đủ 12 file trong <b>một</b> lần gọi.</li>
 <li>Mỗi pass per-file chỉ chứa <b>đúng 1</b> file.</li>
@@ -349,10 +394,10 @@ end
 <p><b>Quan trọng:</b> hiện tượng suy giảm độ sâu ở single-pass trong log dưới đây là <b>GIẢ LẬP</b> (stub cố ý review kỹ file 01–05, vừa phải 06–09, bỏ sót 10–12) để kiểm thử pipeline và bộ chấm điểm. Đây <b>không phải bằng chứng</b> rằng Claude thật bị dilution trên bộ mẫu này.</p>
 <pre><code>LƯU Ý: Claude ở đây là stub. Dilution của single-pass là GIẢ LẬP để kiểm thử pipeline và bộ chấm điểm.
 
-  PASS đọc được 12 file mẫu
-  PASS single-pass: đúng 1 lần gọi API cho 12 file
-  PASS multi-pass: 12 pass per-file rồi 1 pass integration
-  PASS tên file lấy từ code, không theo tên model tự đặt
+PASS  đọc được 12 file mẫu
+PASS  single-pass: đúng 1 lần gọi API cho 12 file
+PASS  multi-pass: 12 pass per-file rồi 1 pass integration
+PASS  tên file lấy từ code, không theo tên model tự đặt
 
 Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):
   file                                 single          multi
@@ -368,17 +413,20 @@ end
   10_search.js                      1 |    17       1 |   136
   11_reminder_job.js                0 |     0       1 |   139
   12_mailer.js                      0 |     0       1 |   148
-single: lỗi trong file 5/8 [&quot;B1&quot;, &quot;B2&quot;, &quot;B3&quot;, &quot;B4&quot;, &quot;B5&quot;], lỗi chéo file 0/2 []
-multi : lỗi trong file 8/8 [&quot;B1&quot;, &quot;B2&quot;, &quot;B3&quot;, &quot;B4&quot;, &quot;B5&quot;, &quot;B6&quot;, &quot;B7&quot;, &quot;B8&quot;], lỗi chéo file 2/2 [&quot;C1&quot;, &quot;C2&quot;]
-Đoạn forEach y hệt ở 03 &amp; 11 – single: {&quot;03_notify_matches.js&quot;=&gt;true, &quot;11_reminder_job.js&quot;=&gt;false} → KHÔNG nhất quán (dilution)
-Đoạn forEach y hệt ở 03 &amp; 11 – multi: {&quot;03_notify_matches.js&quot;=&gt;true, &quot;11_reminder_job.js&quot;=&gt;true} → nhất quán
-Lỗi chéo file chỉ integration pass bắt được: [&quot;C1&quot;, &quot;C2&quot;]
+single: lỗi trong file 5/8 [&quot;B1&quot;,&quot;B2&quot;,&quot;B3&quot;,&quot;B4&quot;,&quot;B5&quot;], lỗi chéo file 0/2 []
+multi : lỗi trong file 8/8 [&quot;B1&quot;,&quot;B2&quot;,&quot;B3&quot;,&quot;B4&quot;,&quot;B5&quot;,&quot;B6&quot;,&quot;B7&quot;,&quot;B8&quot;], lỗi chéo file 2/2 [&quot;C1&quot;,&quot;C2&quot;]
+Đoạn forEach y hệt ở 03 &amp; 11 – single: {&quot;03_notify_matches.js&quot;:true,&quot;11_reminder_job.js&quot;:false} → KHÔNG nhất quán (dilution)
+Đoạn forEach y hệt ở 03 &amp; 11 – multi: {&quot;03_notify_matches.js&quot;:true,&quot;11_reminder_job.js&quot;:true} → nhất quán
+Lỗi chéo file chỉ integration pass bắt được: [&quot;C1&quot;,&quot;C2&quot;]
 
-  PASS multi: 8/8 lỗi trong file, 2/2 lỗi chéo file
-  PASS single: bỏ sót lỗi ở các file cuối
-  PASS đoạn y hệt 03/11: single không nhất quán, multi nhất quán
-  PASS C1, C2 chỉ integration pass bắt được</code></pre></div>
-<div class="card warn"><b>Chưa chạy: với API thật.</b> Chưa có key Claude API hợp lệ. Khi có key, chạy <code>ruby bai_1_6_multipass_review.rb all</code> sẽ có số liệu thật trong <code>bai_1_6_results/compare.json</code>. Với 12 file nhỏ, model mạnh có thể review single-pass vẫn khá tốt; muốn thấy rõ dilution thì tăng số file hoặc độ dài file.</div>
+PASS  multi: 8/8 lỗi trong file, 2/2 lỗi chéo file
+PASS  single: bỏ sót lỗi ở các file cuối
+PASS  đoạn y hệt 03/11: single không nhất quán, multi nhất quán
+PASS  C1, C2 chỉ integration pass bắt được
+
+8 PASS, 0 FAIL
+</code></pre></div>
+<div class="card warn"><b>Chưa chạy: với API thật.</b> Chưa có key Claude API hợp lệ. Khi có key, chạy <code>node --experimental-strip-types bai_1_6_multipass_review.ts all</code> sẽ có số liệu thật trong <code>bai_1_6_results/compare.json</code>. Với 12 file nhỏ, model mạnh có thể review single-pass vẫn khá tốt; muốn thấy rõ dilution thì tăng số file hoặc độ dài file.</div>
 
 <h2>7. Tiêu chí hoàn thành</h2>
 <ul class="chk">
@@ -398,23 +446,22 @@ Lỗi chéo file chỉ integration pass bắt được: [&quot;C1&quot;, &quot;C
 </ul>
 
 <h2>9. Bản chạy bằng CLI (không cần API key)</h2>
-<p>Bản API ở trên cần <code>ANTHROPIC_API_KEY</code>. Bản này chạy cùng pipeline bằng <b>Claude Code CLI</b> với phiên đăng nhập claude.ai sẵn có, tính vào quota gói. Các file mới, file cũ giữ nguyên:</p>
+<p>Bản API ở trên cần <code>ANTHROPIC_API_KEY</code>. Bản này chạy cùng pipeline bằng <b>Claude Code CLI</b> với phiên đăng nhập claude.ai sẵn có, tính vào quota gói. Các file:</p>
 <div class="tw"><table><tr><th>File</th><th>Vai trò</th></tr>
-<tr><td><code>review_cli.rb</code></td><td>Các pass single / per-file / integration, mỗi pass một lệnh <code>claude -p --json-schema</code>. Tái dùng schema, quy tắc review, cách đánh số dòng và bộ chấm <code>compare()</code> của bản API qua <code>require_relative</code></td></tr>
-<tr><td><code>cli_shim/anthropic.rb</code></td><td>Shim rỗng để nạp được file bản API mà không cần cài gem <code>anthropic</code></td></tr>
+<tr><td><code>review_cli.ts</code></td><td>Các pass single / per-file / integration, mỗi pass một lệnh <code>claude -p --json-schema</code>. Tái dùng schema, quy tắc review, cách đánh số dòng và bộ chấm <code>compare()</code> của bản API bằng <code>import</code> trực tiếp</td></tr>
 <tr><td><code>run_cli.sh</code></td><td>Điều phối: per-file chạy song song bằng <code>xargs -P 4</code>, kết quả vào <code>bai_1_6_results_cli/</code> (tách khỏi kết quả bản API)</td></tr>
-<tr><td><code>test/run_cli_tests.rb</code>, <code>test/bin/claude</code></td><td>Test với <code>claude</code> giả</td></tr></table></div>
+<tr><td><code>test/cli.test.ts</code>, <code>test/bin/claude</code> + <code>fake_claude.ts</code></td><td>Test với <code>claude</code> giả (file <code>claude</code> là shim bash gọi <code>fake_claude.ts</code>, vì Node chỉ bỏ type cho file đuôi <code>.ts</code>)</td></tr></table></div>
 <h3>Lệnh chạy</h3>
 <pre><code>cd ~/Downloads/claude-cert/1.6
 ./run_cli.sh all        # single → multi (12 per-file song song 4 + integration) → compare
 ./run_cli.sh single | multi | compare | clean
-ruby test/run_cli_tests.rb</code></pre>
+node --experimental-strip-types test/cli.test.ts</code></pre>
 <p>Mỗi lệnh: <code>claude -p "&lt;code đánh số dòng hoặc tóm tắt&gt;" --model haiku --system-prompt … --json-schema '&lt;schema&gt;' --tools "" --permission-mode dontAsk --max-budget-usd 0.3 --no-session-persistence --output-format stream-json --verbose</code>. <code>--tools ""</code> tắt tool built-in vì code đã nằm sẵn trong prompt.</p>
 <h3>Khác biệt với bản API</h3>
 <div class="tw"><table><tr><th></th><th>Bản API</th><th>Bản CLI</th></tr>
 <tr><td>Ép schema</td><td><code>tools: [report_file_review]</code> + <code>tool_choice: {type:"tool", name:…}</code>, đọc <code>input</code> của block <code>tool_use</code></td><td><code>--json-schema</code> với đúng <code>input_schema</code> đó; CLI kiểm output theo schema và trả về trong <code>result.structured_output</code></td></tr>
 <tr><td>Cô lập pass</td><td>Mỗi pass một request</td><td>Mỗi pass một tiến trình <code>claude -p</code> riêng, <code>--no-session-persistence</code></td></tr>
-<tr><td>Song song</td><td>4 thread Ruby</td><td><code>xargs -P 4</code></td></tr>
+<tr><td>Song song</td><td>Promise pool 4 request</td><td><code>xargs -P 4</code></td></tr>
 <tr><td>Giới hạn output</td><td><code>max_tokens</code> từng pass</td><td>Không đặt được; chặn chi phí bằng <code>--max-budget-usd</code></td></tr>
 <tr><td>Context thêm</td><td>Chỉ system prompt của bài</td><td><code>--system-prompt</code> thay system prompt mặc định; CLI vẫn có thể nạp hook/plugin của user</td></tr></table></div>
 <p><b>Output nằm ở đâu:</b> theo kiểu <code>SDKResultMessage</code> của Agent SDK và chuỗi trong binary CLI 2.1.296, kết quả <code>--json-schema</code> nằm ở field <code>structured_output</code> của message <code>result</code>; CLI hiện thực bằng một tool nội bộ tên <code>StructuredOutput</code>. <b>Chưa kiểm chứng bằng lần chạy thật</b>, nên parser chịu 3 kênh theo thứ tự: <code>result.structured_output</code> → input của <code>tool_use</code> <code>StructuredOutput</code> → JSON trong <code>result.result</code>. Cũng chưa kiểm chứng <code>--tools ""</code> có ảnh hưởng tool <code>StructuredOutput</code> nội bộ hay không.</p>
@@ -422,22 +469,8 @@ ruby test/run_cli_tests.rb</code></pre>
 <div class="stats"><div class="stat"><div class="n">15/15</div><div class="t">PASS với <code>claude</code> giả</div></div><div class="stat"><div class="n">14</div><div class="t">lệnh claude: 1 single + 12 per-file + 1 integration</div></div></div>
 <p>Kết quả review do <code>claude</code> giả dựng từ <code>ANSWER_KEY.json</code> (single-pass cố tình bỏ sót nửa sau), nên các con số 5/8 và 8/8 dưới đây <b>không phải kết quả của Claude</b>. Test chỉ chứng minh: cờ CLI đúng, mỗi lệnh per-file chứa đúng 1 file, integration không nhận code, parser đọc được cả 3 kênh, và bộ chấm của bản API chạy được trên kết quả CLI.</p>
 <pre><code>   | == single-pass
-   | [single] lấy output từ structured_output · cost 0 USD
    | == multi-pass: per-file (song song 4)
-   | [file_01_db.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_04_favorites_repo.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_02_users_repo.js] lấy output từ result text · cost 0 USD
-   | [file_03_notify_matches.js] lấy output từ structured_output · cost 0 USD
-   | [file_06_matching_service.js] lấy output từ structured_output · cost 0 USD
-   | [file_08_pagination.js] lấy output từ result text · cost 0 USD
-   | [file_07_user_profile.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_05_api_client.js] lấy output từ result text · cost 0 USD
-   | [file_09_favorites_controller.js] lấy output từ structured_output · cost 0 USD
-   | [file_12_mailer.js] lấy output từ structured_output · cost 0 USD
-   | [file_10_search.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_11_reminder_job.js] lấy output từ result text · cost 0 USD
    | == multi-pass: integration (chỉ summary/exports/imports)
-   | [integration] lấy output từ StructuredOutput tool_use · cost 0 USD
    | == compare
    | Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):
    |   file                                 single          multi
@@ -453,11 +486,26 @@ ruby test/run_cli_tests.rb</code></pre>
    |   10_search.js                      0 |     0       1 |    47
    |   11_reminder_job.js                0 |     0       1 |    50
    |   12_mailer.js                      0 |     0       1 |    59
-   | single: lỗi trong file 5/8 [&quot;B1&quot;, &quot;B2&quot;, &quot;B3&quot;, &quot;B4&quot;, &quot;B5&quot;], lỗi chéo file 0/2 []
-   | multi : lỗi trong file 8/8 [&quot;B1&quot;, &quot;B2&quot;, &quot;B3&quot;, &quot;B4&quot;, &quot;B5&quot;, &quot;B6&quot;, &quot;B7&quot;, &quot;B8&quot;], lỗi chéo file 2/2 [&quot;C1&quot;, &quot;C2&quot;]
-   | Đoạn forEach y hệt ở 03 &amp; 11 – single: {&quot;03_notify_matches.js&quot;=&gt;true, &quot;11_reminder_job.js&quot;=&gt;false} → KHÔNG nhất quán (dilution)
-   | Đoạn forEach y hệt ở 03 &amp; 11 – multi: {&quot;03_notify_matches.js&quot;=&gt;true, &quot;11_reminder_job.js&quot;=&gt;true} → nhất quán
-   | Lỗi chéo file chỉ integration pass bắt được: [&quot;C1&quot;, &quot;C2&quot;]
+   | single: lỗi trong file 5/8 [&quot;B1&quot;,&quot;B2&quot;,&quot;B3&quot;,&quot;B4&quot;,&quot;B5&quot;], lỗi chéo file 0/2 []
+   | multi : lỗi trong file 8/8 [&quot;B1&quot;,&quot;B2&quot;,&quot;B3&quot;,&quot;B4&quot;,&quot;B5&quot;,&quot;B6&quot;,&quot;B7&quot;,&quot;B8&quot;], lỗi chéo file 2/2 [&quot;C1&quot;,&quot;C2&quot;]
+   | Đoạn forEach y hệt ở 03 &amp; 11 – single: {&quot;03_notify_matches.js&quot;:true,&quot;11_reminder_job.js&quot;:false} → KHÔNG nhất quán (dilution)
+   | Đoạn forEach y hệt ở 03 &amp; 11 – multi: {&quot;03_notify_matches.js&quot;:true,&quot;11_reminder_job.js&quot;:true} → nhất quán
+   | Lỗi chéo file chỉ integration pass bắt được: [&quot;C1&quot;,&quot;C2&quot;]
+   | [single] lấy output từ structured_output · cost 0 USD
+   | [file_02_users_repo.js] lấy output từ result text · cost 0 USD
+   | [file_01_db.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_04_favorites_repo.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_03_notify_matches.js] lấy output từ structured_output · cost 0 USD
+   | [file_05_api_client.js] lấy output từ result text · cost 0 USD
+   | [file_06_matching_service.js] lấy output từ structured_output · cost 0 USD
+   | [file_08_pagination.js] lấy output từ result text · cost 0 USD
+   | [file_07_user_profile.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_10_search.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_11_reminder_job.js] lấy output từ result text · cost 0 USD
+   | [file_09_favorites_controller.js] lấy output từ structured_output · cost 0 USD
+   | [file_12_mailer.js] lấy output từ structured_output · cost 0 USD
+   | [integration] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | 
 PASS  run_cli.sh all chạy xong (mã 0)
 PASS  đúng 14 lệnh claude (1 single + 12 per-file + 1 integration)
 PASS  mọi lệnh: -p, --json-schema, --tools &quot;&quot;, dontAsk, stream-json, --no-session-persistence

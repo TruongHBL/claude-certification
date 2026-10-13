@@ -1,13 +1,41 @@
+
+== agents.json
 PASS  agents.json: đủ search/analysis/synthesis
 PASS  agents.json: search-agent chỉ có tool search
 PASS  agents.json: analysis/synthesis cấm Agent, Task và search
 PASS  agents.json: mọi agent có description + prompt
+
+== MCP server
 PASS  server: tools/list = [search]
 PASS  server: search trả 3 kết quả có URL
 PASS  server: query rỗng → isError
-PASS  server: tool lạ → isError
+PASS  server: tool lạ → lỗi giao thức -32602
 PASS  server: method lạ → -32601
 PASS  server: ghi log 3 lần
+
+== Bản API (transport giả)
+      Phân rã: ["solar","wind"]
+      [round 0] xong nhánh: solar
+      [round 0] xong nhánh: wind
+      [round 0] còn thiếu: ["geothermal","tidal","biomass","fusion"]
+      [round 1] xong nhánh: geothermal
+      [round 1] xong nhánh: tidal
+      [round 1] xong nhánh: biomass
+      [round 1] xong nhánh: fusion
+PASS  api: find_gaps bù đủ 4 nhánh, 'wind' đã có thì không làm lại → báo cáo đủ 6 loại
+PASS  api: dừng khi find_gaps trả [] (2 lần kiểm tra độ phủ)
+PASS  api: spoke tìm kiếm có server tool web_search, max_uses 3
+PASS  api: pause_turn → gửi lại kèm lượt assistant (cùng context)
+PASS  api: nối nhiều block text của web search thành một
+PASS  api: coordinator dán kết quả tìm kiếm (có URL) vào prompt spoke phân tích, 6 lần
+PASS  api: spoke phân tích không có tool, context mới (1 message)
+PASS  api: log báo nhánh còn thiếu
+
+== Bản proxy (chat giả)
+PASS  proxy: trả báo cáo
+PASS  proxy: tool_calls → nối message tool có tool_call_id + kết quả giả lập
+
+== Bản CLI (claude giả)
 PASS  e2e: --agents trỏ tới agents.json
 PASS  e2e: --tools Agent (chỉ giữ Agent trong bộ built-in)
 PASS  e2e: --allowedTools Agent + search
@@ -20,4 +48,4 @@ PASS  e2e: server ghi 5 search, khớp stream
 PASS  misuse nested: báo FAIL 'Subagent không spawn…' + chỉ ra analysis-agent
 PASS  misuse search: báo FAIL 'search chỉ chạy trong search-agent'
 
-21 PASS, 0 FAIL
+31 PASS, 0 FAIL

@@ -29,7 +29,7 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>1. Mục tiêu</h2>
 <p>Xây một MCP server có tool tra khách và hoàn tiền, trả lỗi <b>có cấu trúc</b> cho đủ 4 loại (transient, validation, business, permission), tách bạch <b>kết quả rỗng hợp lệ</b> với <b>lỗi truy cập</b>, rồi viết vòng hồi phục <b>rẽ nhánh theo metadata</b>. Cùng bộ kịch bản được chạy lại với lỗi kiểu cũ (chỉ chữ <code>"Error"</code>) để thấy agent mất phương hướng ra sao.</p>
-<div class="card ok"><b>Bài này chạy thật được không cần model.</b> Vòng hồi phục ở <code>recovery_agent.rb</code> là logic tất định bằng code, server là MCP stdio thật, nên log ở mục 7 là <b>đầu ra thật</b>. Phần để Claude tự quyết dựa vào metadata (<code>run_llm.sh</code>) là tuỳ chọn và <b>chưa chạy</b> (mục 8).</div>
+<div class="card ok"><b>Bài này chạy thật được không cần model.</b> Vòng hồi phục ở <code>recovery_agent.ts</code> là logic tất định bằng code, server là MCP stdio thật, nên log ở mục 7 là <b>đầu ra thật</b>. Phần để Claude tự quyết dựa vào metadata (<code>run_llm.sh</code>) là tuỳ chọn và <b>chưa chạy</b> (mục 8).</div>
 
 <h2>2. Sơ đồ</h2>
 <div class="card"><svg viewBox="0 0 800 400" role="img" aria-label="Hai lớp lỗi và cây quyết định hồi phục">
@@ -72,11 +72,11 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>3. Năm bước ↔ cách hiện thực</h2>
 <div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
-<tr><td>1</td><td>MCP tool tra khách trên DB giả, có tham số kích hoạt lỗi theo yêu cầu</td><td><code>support_mcp_server.rb</code> (stdio, JSON-RPC 2.0, Ruby thuần). <code>get_customer(customer_id, simulate?)</code> với <code>simulate</code> = <code>none | timeout | flaky:N | permission</code>; thêm <code>process_refund(customer_id, amount)</code> để có lỗi business. DB giả 3 khách, <code>CUS-0777</code> là hồ sơ tài chính bị hạn chế</td></tr>
-<tr><td>2</td><td>Bốn lỗi: timeout, sai định dạng, hoàn tiền vượt hạn mức, bị từ chối quyền</td><td><code>transient_timeout</code>, <code>validation_bad_id</code>, business trong <code>process_refund</code> (&gt; 500 USD), <code>permission_denied</code>. Tất cả <code>isError: true</code>, chỉ transient có <code>isRetryable: true</code></td></tr>
-<tr><td>3</td><td>Metadata đúng 3 field: category, retry, description gợi ý bước tiếp</td><td><code>tool_error</code> đặt <code>{errorCategory, isRetryable, description}</code> vào <code>structuredContent</code> và lặp lại dạng JSON trong <code>content</code> (cho client chỉ đọc text). Mỗi description nói rõ <b>vì sao</b> và <b>làm gì tiếp</b></td></tr>
-<tr><td>4</td><td>Rỗng hợp lệ khác hẳn lỗi truy cập</td><td><code>valid_empty</code>: <code>isError: false</code>, <code>resultCount: 0</code>, message "truy vấn đã chạy, không cần gọi lại". Lỗi truy cập: <code>isError: true</code>, transient, retryable. Hai bên không chung key nào (test kiểm tra)</td></tr>
-<tr><td>5</td><td>Vòng agent rẽ nhánh: transient ≤ 3 lần có backoff, validation sửa input, business escalate, permission xin quyền</td><td><code>recovery_agent.rb</code> → <code>handle_structured</code>. Backoff 0.2 → 0.4 → 0.8s. Validation chuẩn hoá <code>"cus 12"</code> → <code>CUS-0012</code>. Business tạo handoff (mã khách, số tiền, lý do). Không bao giờ gọi lại business/permission. Có thêm kịch bản <b>lan truyền lỗi</b> tra 3 khách</td></tr>
+<tr><td>1</td><td>MCP tool tra khách trên DB giả, có tham số kích hoạt lỗi theo yêu cầu</td><td><code>support_mcp_server.ts</code> (stdio, JSON-RPC 2.0, TypeScript; lớp JSON-RPC viết tay trong file để thấy rõ chỗ tách lỗi giao thức và lỗi thực thi). <code>get_customer(customer_id, simulate?)</code> với <code>simulate</code> = <code>none | timeout | flaky:N | permission</code>; thêm <code>process_refund(customer_id, amount)</code> để có lỗi business. DB giả 3 khách, <code>CUS-0777</code> là hồ sơ tài chính bị hạn chế</td></tr>
+<tr><td>2</td><td>Bốn lỗi: timeout, sai định dạng, hoàn tiền vượt hạn mức, bị từ chối quyền</td><td><code>transientTimeout</code>, <code>validationBadId</code>, business trong <code>processRefund</code> (&gt; 500 USD), <code>permissionDenied</code>. Tất cả <code>isError: true</code>, chỉ transient có <code>isRetryable: true</code></td></tr>
+<tr><td>3</td><td>Metadata đúng 3 field: category, retry, description gợi ý bước tiếp</td><td><code>toolError</code> đặt <code>{errorCategory, isRetryable, description}</code> vào <code>structuredContent</code> và lặp lại dạng JSON trong <code>content</code> (cho client chỉ đọc text). Mỗi description nói rõ <b>vì sao</b> và <b>làm gì tiếp</b></td></tr>
+<tr><td>4</td><td>Rỗng hợp lệ khác hẳn lỗi truy cập</td><td><code>validEmpty</code>: <code>isError: false</code>, <code>resultCount: 0</code>, message "truy vấn đã chạy, không cần gọi lại". Lỗi truy cập: <code>isError: true</code>, transient, retryable. Hai bên không chung key nào (test kiểm tra)</td></tr>
+<tr><td>5</td><td>Vòng agent rẽ nhánh: transient ≤ 3 lần có backoff, validation sửa input, business escalate, permission xin quyền</td><td><code>recovery_agent.ts</code> → <code>handleStructured</code>. Backoff 0.2 → 0.4 → 0.8s. Validation chuẩn hoá <code>"cus 12"</code> → <code>CUS-0012</code>. Business tạo handoff (mã khách, số tiền, lý do). Không bao giờ gọi lại business/permission. Có thêm kịch bản <b>lan truyền lỗi</b> tra 3 khách</td></tr>
 </table></div>
 <p class="meta">Quy ước đếm: 1 lần gọi đầu + tối đa 3 lần retry = tối đa 4 lần gọi cho lỗi transient. Lần gọi lại sau khi sửa input validation là <b>lần gọi mới</b>, không tính là retry.</p>
 
@@ -163,8 +163,10 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 <p><b>Tổng số lần gọi tool: structured 16, bad 30</b>. Bản bad: retry vô ích khách không tồn tại, gọi hoàn tiền 750 USD tới 4 lần (với hệ thống thật đây là rủi ro), không tự sửa được <code>"cus 12"</code>, và mọi thứ đổ về cho người. Kịch bản lan truyền lỗi: bản structured báo coordinator <code>found / not_found / failed</code> tách riêng; bản bad xếp luôn khách không tồn tại vào nhóm lỗi.</p>
 
 <h2>7. Kiểm thử</h2>
-<div class="card ok"><b>Đã chạy thật:</b> <code>ruby test/run_tests.rb</code> → <b>37 PASS, 0 FAIL</b>. Kiểm server bằng cách bơm JSON-RPC qua stdin (đủ 3 field, đúng cờ retry, rỗng ≠ lỗi, lỗi giao thức -32602/-32601, flaky hết lỗi ở lần 3) và kiểm agent (đúng kết cục + đúng số lần gọi mỗi kịch bản, business/permission/rỗng chỉ gọi 1 lần, timeout dừng sau 3 retry, backoff tăng gấp đôi, handoff đủ thông tin, bản bad có hành vi sai như mô tả).</div>
-<details><summary>Log kiểm thử</summary><pre><code>PASS  notification không được trả lời (11 message, 10 có id → 10 response)
+<div class="card ok"><b>Đã chạy thật:</b> <code>node --experimental-strip-types test/run.test.ts</code> → <b>41 PASS, 0 FAIL</b> (37 kiểm thử của bản Ruby cũ + 4 kiểm thử đường ống <code>run_llm.sh</code> với <code>claude</code> giả). Kiểm server bằng cách bơm JSON-RPC qua stdin (đủ 3 field, đúng cờ retry, rỗng ≠ lỗi, lỗi giao thức -32602/-32601, flaky hết lỗi ở lần 3) và kiểm agent (đúng kết cục + đúng số lần gọi mỗi kịch bản, business/permission/rỗng chỉ gọi 1 lần, timeout dừng sau 3 retry, backoff tăng gấp đôi, handoff đủ thông tin, bản bad có hành vi sai như mô tả).</div>
+<details><summary>Log kiểm thử</summary><pre><code>
+== Server
+PASS  notification không được trả lời (11 message, 10 có id → 10 response)
 PASS  tools/list có 2 tool
 PASS  customer_id không khai báo pattern trong schema
 PASS  transient: isError=true, đúng 3 field, isRetryable=true
@@ -178,6 +180,8 @@ PASS  thiếu tham số bắt buộc → JSON-RPC error
 PASS  method lạ → -32601
 PASS  flaky:2: lần 1,2 transient, lần 3 thành công
 PASS  ERROR_STYLE=bad: rỗng và business đều chỉ là &quot;Error&quot;, không metadata
+
+== Agent structured
 PASS  structured #1 Tra khách bình thường: success sau 1 lần gọi
 PASS  structured #2 Khách không tồn tại (rỗng hợp lệ): not_found sau 1 lần gọi
 PASS  structured #3 DB chập chờn: timeout 2 lần rồi được: success sau 3 lần gọi
@@ -194,21 +198,29 @@ PASS  backoff tăng dần ×2 (0.2 → 0.4 → 0.8, đã scale)
 PASS  flaky:2 thành công ở lần gọi thứ 3 với 2 delay
 PASS  validation sửa được: lần 2 dùng CUS-0012
 PASS  handoff business có mã khách, số tiền, lý do
-PASS  fix_customer_id
+PASS  fixCustomerId
 PASS  lan truyền: báo cáo có kết quả 1 phần + khách lỗi + khách rỗng tách riêng
+
+== Agent với lỗi kiểu cũ (ERROR_STYLE=bad)
 PASS  bad: rỗng hợp lệ bị retry vô ích rồi escalate (4 lần)
 PASS  bad: business bị retry (4 lần gọi hoàn tiền)
 PASS  bad: validation sửa được nhưng không sửa (escalate)
-PASS  bad: tổng số lần gọi nhiều hơn structured
+PASS  bad: tổng số lần gọi nhiều hơn structured (30 &gt; 16)
 PASS  bad: lan truyền lẫn khách không tồn tại vào nhóm lỗi
 
-37 PASS, 0 FAIL
+== run_llm.sh với claude GIẢ (không gọi model, chỉ kiểm đường ống)
+PASS  run_llm.sh all thoát 0
+PASS  mcp-config trỏ tới server TS chạy bằng node
+PASS  report: p0 structured gọi get_customer 1 lần, kết quả rỗng hợp lệ
+PASS  report: p1 bad hoàn tiền chỉ thấy &quot;Error&quot;
+
+41 PASS, 0 FAIL
 </code></pre></details>
-<details open><summary>Log thật của <code>ruby recovery_agent.rb</code> (delay thật 0.2/0.4/0.8s)</summary><pre><code>
+<details open><summary>Log thật của <code>node --experimental-strip-types recovery_agent.ts</code></summary><pre><code>
 ================ ERROR_STYLE=structured ================
 
 [1] Tra khách bình thường  (get_customer {&quot;customer_id&quot;:&quot;CUS-0012&quot;})
-  ✓ thành công: {&quot;results&quot;:[{&quot;customer_id&quot;:&quot;CUS-0012&quot;,&quot;name&quot;:&quot;Nguyễn Thị Lan&quot;,&quot;tier&quot;:&quot;Vàng&quot;,&quot;balance_usd&quot;:120.0,&quot;orders&quot;:[&quot;#12
+  ✓ thành công: {&quot;results&quot;:[{&quot;customer_id&quot;:&quot;CUS-0012&quot;,&quot;name&quot;:&quot;Nguyễn Thị Lan&quot;,&quot;tier&quot;:&quot;Vàng&quot;,&quot;balance_usd&quot;:120,&quot;orders&quot;:[&quot;#1234
   → kết cục: success sau 1 lần gọi
 
 [2] Khách không tồn tại (rỗng hợp lệ)  (get_customer {&quot;customer_id&quot;:&quot;CUS-9999&quot;})
@@ -220,7 +232,7 @@ PASS  bad: lan truyền lẫn khách không tồn tại vào nhóm lỗi
     ↻ retry 1/3 sau 0.20s
   ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
     ↻ retry 2/3 sau 0.40s
-  ✓ thành công: {&quot;results&quot;:[{&quot;customer_id&quot;:&quot;CUS-0042&quot;,&quot;name&quot;:&quot;Trần Văn Minh&quot;,&quot;tier&quot;:&quot;Bạc&quot;,&quot;balance_usd&quot;:0.0,&quot;orders&quot;:[&quot;#20871&quot;
+  ✓ thành công: {&quot;results&quot;:[{&quot;customer_id&quot;:&quot;CUS-0042&quot;,&quot;name&quot;:&quot;Trần Văn Minh&quot;,&quot;tier&quot;:&quot;Bạc&quot;,&quot;balance_usd&quot;:0,&quot;orders&quot;:[&quot;#20871&quot;]}
   → kết cục: success sau 3 lần gọi
 
 [4] DB sập: timeout mãi  (get_customer {&quot;customer_id&quot;:&quot;CUS-0012&quot;,&quot;simulate&quot;:&quot;timeout&quot;})
@@ -235,13 +247,13 @@ PASS  bad: lan truyền lẫn khách không tồn tại vào nhóm lỗi
   → kết cục: gave_up sau 4 lần gọi
 
 [5] Mã khách gõ sai nhưng sửa được  (get_customer {&quot;customer_id&quot;:&quot;cus 12&quot;})
-  ! validation (isRetryable=false): customer_id &#39;cus 12&#39; sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS-00…
-    ✎ sửa input customer_id &#39;cus 12&#39; → &#39;CUS-0012&#39; rồi gọi lại (lần gọi mới, không phải retry)
-  ✓ thành công: {&quot;results&quot;:[{&quot;customer_id&quot;:&quot;CUS-0012&quot;,&quot;name&quot;:&quot;Nguyễn Thị Lan&quot;,&quot;tier&quot;:&quot;Vàng&quot;,&quot;balance_usd&quot;:120.0,&quot;orders&quot;:[&quot;#12
+  ! validation (isRetryable=false): customer_id &#x27;cus 12&#x27; sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS-00…
+    ✎ sửa input customer_id &#x27;cus 12&#x27; → &#x27;CUS-0012&#x27; rồi gọi lại (lần gọi mới, không phải retry)
+  ✓ thành công: {&quot;results&quot;:[{&quot;customer_id&quot;:&quot;CUS-0012&quot;,&quot;name&quot;:&quot;Nguyễn Thị Lan&quot;,&quot;tier&quot;:&quot;Vàng&quot;,&quot;balance_usd&quot;:120,&quot;orders&quot;:[&quot;#1234
   → kết cục: success sau 2 lần gọi
 
 [6] Mã khách sai không đoán được  (get_customer {&quot;customer_id&quot;:&quot;order-abc&quot;})
-  ! validation (isRetryable=false): customer_id &#39;order-abc&#39; sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS…
+  ! validation (isRetryable=false): customer_id &#x27;order-abc&#x27; sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS…
   ? không tự sửa được → hỏi lại khách mã đúng (dạng CUS-NNNN)
   → kết cục: ask_user sau 1 lần gọi
 
@@ -378,495 +390,734 @@ Tổng số lần gọi tool: structured 16, bad 30
 <p class="meta">(Để trống, điền sau khi chạy <code>./run_llm.sh all</code>.)</p>
 
 <h2>9. Mã nguồn</h2>
-<p>Chạy: <code>cd 2.2 &amp;&amp; ruby recovery_agent.rb</code> (cả hai kiểu) · <code>ruby recovery_agent.rb structured</code> · <code>BACKOFF_SCALE=0.01 ruby recovery_agent.rb</code> (nhanh) · <code>ruby test/run_tests.rb</code>. Không cần gem.</p>
-<details><summary><code>support_mcp_server.rb</code></summary><pre><code>#!/usr/bin/env ruby
-# frozen_string_literal: true
+<p>Chạy (Node ≥ 22.6, không cần build, không cần thư viện ngoài): <code>cd 2.2 &amp;&amp; node --experimental-strip-types recovery_agent.ts</code> (cả hai kiểu) · <code>… recovery_agent.ts structured</code> · <code>BACKOFF_SCALE=0.01 node --experimental-strip-types recovery_agent.ts</code> (nhanh) · <code>node --experimental-strip-types test/run.test.ts</code>.</p>
+<p class="meta">Bài này ban đầu viết bằng Ruby; bản TypeScript cho cùng kết cục và cùng số lần gọi ở cả 10 kịch bản (structured 16, bad 30). Khác biệt duy nhất trong log: số thực in là <code>120</code> thay vì <code>120.0</code> (cách JSON của JS ghi số).</p>
+<details><summary><code>support_mcp_server.ts</code></summary><pre><code>#!/usr/bin/env -S node --experimental-strip-types --no-warnings
+// Bài 2.2 – MCP server &quot;support&quot; (stdio, JSON-RPC 2.0, TypeScript, không cần thư viện ngoài).
+//
+// Hai tool:
+//   get_customer(customer_id, simulate?)  – tra hồ sơ khách trong DB giả
+//   process_refund(customer_id, amount)   – hoàn tiền, hạn mức tự động 500 USD
+//
+// Hai lớp lỗi:
+//   1. Protocol error (JSON-RPC `error`): tool không tồn tại, thiếu tham số bắt buộc. Không có tool nào chạy,
+//      model không nhận được tool result. Sửa ở schema/client, không phải ở vòng hồi phục của agent.
+//   2. Tool execution error (`result.isError: true`): tool đã chạy nhưng thất bại. Metadata nằm trong
+//      structuredContent: { errorCategory, isRetryable, description }. Đây là QUY ƯỚC CỦA ỨNG DỤNG,
+//      MCP spec chỉ định nghĩa content / structuredContent / isError.
+//
+// Lớp JSON-RPC viết tay ngay trong file (không dùng lib/mcp_server.ts) để thấy rõ chỗ tách hai lớp lỗi:
+// kiểm tool tồn tại + tham số bắt buộc → `error`; còn lại → `result`.
+//
+// Lưu ý: customer_id KHÔNG khai báo `pattern` trong inputSchema. Nếu schema chặn định dạng thì client/SDK
+// có thể từ chối ngay ở lớp giao thức và agent không bao giờ thấy lỗi validation có hướng dẫn sửa.
+// Định dạng được kiểm trong code để trả lỗi validation có cấu trúc.
+//
+// Tham số simulate (chỉ để kích hoạt lỗi theo yêu cầu):
+//   none (mặc định) | timeout (luôn timeout) | flaky:N (N lần đầu timeout, sau đó chạy bình thường)
+//   | permission (giả lập service account bị thu quyền)
+//
+// Biến môi trường:
+//   ERROR_STYLE=structured (mặc định) | bad   – bad: mọi lỗi chỉ là chuỗi &quot;Error&quot;, kết quả rỗng cũng là &quot;Error&quot;
+//   SUPPORT_LOG=&lt;file&gt;                         – mỗi tools/call ghi 1 dòng JSON
+import { appendFileSync } from &quot;node:fs&quot;;
+import { createInterface } from &quot;node:readline&quot;;
+import type { ToolDef, ToolResult } from &quot;../lib/mcp_server.ts&quot;;
 
-# Bài 2.2 – MCP server &quot;support&quot; (stdio, JSON-RPC 2.0, Ruby thuần, không cần gem).
-#
-# Hai tool:
-#   get_customer(customer_id, simulate?)  – tra hồ sơ khách trong DB giả
-#   process_refund(customer_id, amount)   – hoàn tiền, hạn mức tự động 500 USD
-#
-# Hai lớp lỗi:
-#   1. Protocol error (JSON-RPC `error`): tool không tồn tại, thiếu tham số bắt buộc. Không có tool nào chạy,
-#      model không nhận được tool result. Sửa ở schema/client, không phải ở vòng hồi phục của agent.
-#   2. Tool execution error (`result.isError: true`): tool đã chạy nhưng thất bại. Metadata nằm trong
-#      structuredContent: { errorCategory, isRetryable, description }. Đây là QUY ƯỚC CỦA ỨNG DỤNG,
-#      MCP spec chỉ định nghĩa content / structuredContent / isError.
-#
-# Lưu ý: customer_id KHÔNG khai báo `pattern` trong inputSchema. Nếu schema chặn định dạng thì client/SDK
-# có thể từ chối ngay ở lớp giao thức và agent không bao giờ thấy lỗi validation có hướng dẫn sửa.
-# Định dạng được kiểm trong code để trả lỗi validation có cấu trúc.
-#
-# Tham số simulate (chỉ để kích hoạt lỗi theo yêu cầu):
-#   none (mặc định) | timeout (luôn timeout) | flaky:N (N lần đầu timeout, sau đó chạy bình thường)
-#   | permission (giả lập service account bị thu quyền)
-#
-# Biến môi trường:
-#   ERROR_STYLE=structured (mặc định) | bad   – bad: mọi lỗi chỉ là chuỗi &quot;Error&quot;, kết quả rỗng cũng là &quot;Error&quot;
-#   SUPPORT_LOG=&lt;file&gt;                         – mỗi tools/call ghi 1 dòng JSON
+const ERROR_STYLE = process.env.ERROR_STYLE ?? &quot;structured&quot;;
+const LOG_FILE = process.env.SUPPORT_LOG;
+const REFUND_LIMIT = 500;
 
-require &quot;json&quot;
-require &quot;time&quot;
+interface Customer {
+  customer_id: string; name: string; tier: string; balance_usd: number; orders: string[]; restricted: boolean;
+}
 
-ERROR_STYLE = ENV.fetch(&quot;ERROR_STYLE&quot;, &quot;structured&quot;)
-LOG_FILE = ENV[&quot;SUPPORT_LOG&quot;]
-REFUND_LIMIT = 500
+// Dữ liệu GIẢ.
+const CUSTOMERS: Record&lt;string, Customer&gt; = {
+  &quot;CUS-0012&quot;: { customer_id: &quot;CUS-0012&quot;, name: &quot;Nguyễn Thị Lan&quot;, tier: &quot;Vàng&quot;, balance_usd: 120.0,
+                orders: [&quot;#12345&quot;, &quot;#31007&quot;], restricted: false },
+  &quot;CUS-0042&quot;: { customer_id: &quot;CUS-0042&quot;, name: &quot;Trần Văn Minh&quot;, tier: &quot;Bạc&quot;, balance_usd: 0.0,
+                orders: [&quot;#20871&quot;], restricted: false },
+  // Hồ sơ thuộc nhóm tài chính bị hạn chế: service account của agent không có quyền đọc.
+  &quot;CUS-0777&quot;: { customer_id: &quot;CUS-0777&quot;, name: &quot;Công ty TNHH Hoà Phát Đạt&quot;, tier: &quot;Doanh nghiệp&quot;,
+                balance_usd: 15_400.0, orders: [&quot;#45210&quot;], restricted: true },
+};
 
-# Dữ liệu GIẢ.
-CUSTOMERS = {
-  &quot;CUS-0012&quot; =&gt; { customer_id: &quot;CUS-0012&quot;, name: &quot;Nguyễn Thị Lan&quot;, tier: &quot;Vàng&quot;, balance_usd: 120.0,
-                  orders: [&quot;#12345&quot;, &quot;#31007&quot;], restricted: false },
-  &quot;CUS-0042&quot; =&gt; { customer_id: &quot;CUS-0042&quot;, name: &quot;Trần Văn Minh&quot;, tier: &quot;Bạc&quot;, balance_usd: 0.0,
-                  orders: [&quot;#20871&quot;], restricted: false },
-  # Hồ sơ thuộc nhóm tài chính bị hạn chế: service account của agent không có quyền đọc.
-  &quot;CUS-0777&quot; =&gt; { customer_id: &quot;CUS-0777&quot;, name: &quot;Công ty TNHH Hoà Phát Đạt&quot;, tier: &quot;Doanh nghiệp&quot;,
-                  balance_usd: 15_400.0, orders: [&quot;#45210&quot;], restricted: true }
-}.freeze
-
-TOOLS = [
+const TOOLS: (ToolDef &amp; { inputSchema: { required: string[] } })[] = [
   { name: &quot;get_customer&quot;,
-    description: &lt;&lt;~DESC.strip,
-      Tra hồ sơ khách hàng theo mã khách dạng CUS-NNNN (vd CUS-0012): tên, hạng, số dư, danh sách mã đơn.
-      Không có khách khớp thì trả kết quả rỗng (resultCount = 0, KHÔNG phải lỗi): đừng gọi lại, hãy báo không tìm thấy.
-      Khi lỗi, structuredContent có errorCategory, isRetryable, description: làm theo description.
-    DESC
+    description: [
+      &quot;Tra hồ sơ khách hàng theo mã khách dạng CUS-NNNN (vd CUS-0012): tên, hạng, số dư, danh sách mã đơn.&quot;,
+      &quot;Không có khách khớp thì trả kết quả rỗng (resultCount = 0, KHÔNG phải lỗi): đừng gọi lại, hãy báo không tìm thấy.&quot;,
+      &quot;Khi lỗi, structuredContent có errorCategory, isRetryable, description: làm theo description.&quot;,
+    ].join(&quot;\n&quot;),
     inputSchema: { type: &quot;object&quot;,
                    properties: {
                      customer_id: { type: &quot;string&quot;, description: &quot;Mã khách dạng CUS-NNNN, vd CUS-0012&quot; },
-                     simulate: { type: &quot;string&quot;, description: &quot;Chỉ dùng khi test: none | timeout | flaky:N | permission&quot; }
+                     simulate: { type: &quot;string&quot;, description: &quot;Chỉ dùng khi test: none | timeout | flaky:N | permission&quot; },
                    },
                    required: [&quot;customer_id&quot;] } },
   { name: &quot;process_refund&quot;,
-    description: &lt;&lt;~DESC.strip,
-      Hoàn tiền cho khách (USD). Tự động duyệt tối đa #{REFUND_LIMIT} USD; vượt hạn mức trả lỗi business, không gọi lại mà chuyển quản lý duyệt.
-      Input: customer_id dạng CUS-NNNN, amount là số dương.
-    DESC
+    description: [
+      `Hoàn tiền cho khách (USD). Tự động duyệt tối đa ${REFUND_LIMIT} USD; vượt hạn mức trả lỗi business, không gọi lại mà chuyển quản lý duyệt.`,
+      &quot;Input: customer_id dạng CUS-NNNN, amount là số dương.&quot;,
+    ].join(&quot;\n&quot;),
     inputSchema: { type: &quot;object&quot;,
                    properties: {
                      customer_id: { type: &quot;string&quot;, description: &quot;Mã khách dạng CUS-NNNN&quot; },
-                     amount: { type: &quot;number&quot;, description: &quot;Số tiền hoàn (USD), &gt; 0&quot; }
+                     amount: { type: &quot;number&quot;, description: &quot;Số tiền hoàn (USD), &gt; 0&quot; },
                    },
-                   required: [&quot;customer_id&quot;, &quot;amount&quot;] } }
-].freeze
+                   required: [&quot;customer_id&quot;, &quot;amount&quot;] } },
+];
 
-ID_FORMAT = /\ACUS-\d{4}\z/
-$flaky_counts = Hash.new(0) # (customer_id, simulate) → số lần đã gọi, để flaky:N hết lỗi sau N lần
+const ID_FORMAT = /^CUS-\d{4}$/;
+const flakyCounts = new Map&lt;string, number&gt;(); // (customer_id, simulate) → số lần đã gọi, để flaky:N hết lỗi sau N lần
 
-def log_call(name, args)
-  return unless LOG_FILE
+type Args = Record&lt;string, unknown&gt;;
 
-  File.open(LOG_FILE, &quot;a&quot;) { |f| f.puts JSON.generate({ at: Time.now.iso8601(3), tool: name, arguments: args }) }
-end
+function logCall(name: string, args: Args): void {
+  if (LOG_FILE) appendFileSync(LOG_FILE, JSON.stringify({ at: new Date().toISOString(), tool: name, arguments: args }) + &quot;\n&quot;);
+}
 
-# ---- Hai kiểu trả lỗi -------------------------------------------------------------------------
+// ---- Hai kiểu trả lỗi -------------------------------------------------------------------------
 
-def tool_error(category, retryable, description)
-  return { content: [{ type: &quot;text&quot;, text: &quot;Error&quot; }], isError: true } if ERROR_STYLE == &quot;bad&quot;
+type Category = &quot;transient&quot; | &quot;validation&quot; | &quot;business&quot; | &quot;permission&quot;;
 
-  meta = { errorCategory: category, isRetryable: retryable, description: description }
-  { content: [{ type: &quot;text&quot;, text: JSON.generate(meta) }], structuredContent: meta, isError: true }
-end
+function toolError(category: Category, retryable: boolean, description: string): ToolResult {
+  if (ERROR_STYLE === &quot;bad&quot;) return { content: [{ type: &quot;text&quot;, text: &quot;Error&quot; }], isError: true };
 
-def tool_ok(data)
-  { content: [{ type: &quot;text&quot;, text: JSON.generate(data) }], structuredContent: data, isError: false }
-end
+  const meta = { errorCategory: category, isRetryable: retryable, description };
+  return { content: [{ type: &quot;text&quot;, text: JSON.stringify(meta) }], structuredContent: meta, isError: true };
+}
 
-def valid_empty(customer_id)
-  # Bản bad: &quot;không có kết quả&quot; trông y hệt lỗi, agent không phân biệt được.
-  return { content: [{ type: &quot;text&quot;, text: &quot;Error&quot; }], isError: true } if ERROR_STYLE == &quot;bad&quot;
+function toolOk(data: Record&lt;string, unknown&gt;): ToolResult {
+  return { content: [{ type: &quot;text&quot;, text: JSON.stringify(data) }], structuredContent: data, isError: false };
+}
 
-  tool_ok({ results: [], resultCount: 0,
-            message: &quot;Truy vấn đã chạy thành công, không có khách nào có mã #{customer_id}. Không cần gọi lại.&quot; })
-end
+function validEmpty(customerId: string): ToolResult {
+  // Bản bad: &quot;không có kết quả&quot; trông y hệt lỗi, agent không phân biệt được.
+  if (ERROR_STYLE === &quot;bad&quot;) return { content: [{ type: &quot;text&quot;, text: &quot;Error&quot; }], isError: true };
 
-# ---- Các lỗi theo 4 loại ----------------------------------------------------------------------
+  return toolOk({ results: [], resultCount: 0,
+    message: `Truy vấn đã chạy thành công, không có khách nào có mã ${customerId}. Không cần gọi lại.` });
+}
 
-def transient_timeout
-  tool_error(&quot;transient&quot;, true,
-             &quot;Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). &quot; \
-             &quot;Yêu cầu hợp lệ: gọi lại nguyên văn sau vài trăm ms.&quot;)
-end
+// ---- Các lỗi theo 4 loại ----------------------------------------------------------------------
 
-def validation_bad_id(raw)
-  tool_error(&quot;validation&quot;, false,
-             &quot;customer_id &#39;#{raw}&#39; sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS-0012. &quot; \
-             &quot;Gọi lại y nguyên sẽ lỗi tiếp: hãy sửa input rồi gọi lại, hoặc hỏi lại khách mã đúng.&quot;)
-end
+const transientTimeout = () =&gt;
+  toolError(&quot;transient&quot;, true,
+    &quot;Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). &quot; +
+    &quot;Yêu cầu hợp lệ: gọi lại nguyên văn sau vài trăm ms.&quot;);
 
-def permission_denied(customer_id)
-  tool_error(&quot;permission&quot;, false,
-             &quot;Service account support-bot không có quyền đọc hồ sơ tài chính của #{customer_id}. &quot; \
-             &quot;Gọi lại với cùng tài khoản sẽ vẫn bị từ chối: chuyển cho nhân viên cấp cao có quyền finance-read.&quot;)
-end
+const validationBadId = (raw: string) =&gt;
+  toolError(&quot;validation&quot;, false,
+    `customer_id &#x27;${raw}&#x27; sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS-0012. ` +
+    &quot;Gọi lại y nguyên sẽ lỗi tiếp: hãy sửa input rồi gọi lại, hoặc hỏi lại khách mã đúng.&quot;);
 
-def simulated_failure(customer_id, simulate)
-  case simulate
-  when nil, &quot;&quot;, &quot;none&quot; then nil
-  when &quot;timeout&quot; then transient_timeout
-  when &quot;permission&quot; then permission_denied(customer_id)
-  when /\Aflaky:(\d+)\z/
-    key = [customer_id, simulate]
-    $flaky_counts[key] += 1
-    $flaky_counts[key] &lt;= Regexp.last_match(1).to_i ? transient_timeout : nil
-  else
-    tool_error(&quot;validation&quot;, false,
-               &quot;simulate &#39;#{simulate}&#39; không hợp lệ. Giá trị cho phép: none, timeout, flaky:N, permission.&quot;)
-  end
-end
+const permissionDenied = (customerId: string) =&gt;
+  toolError(&quot;permission&quot;, false,
+    `Service account support-bot không có quyền đọc hồ sơ tài chính của ${customerId}. ` +
+    &quot;Gọi lại với cùng tài khoản sẽ vẫn bị từ chối: chuyển cho nhân viên cấp cao có quyền finance-read.&quot;);
 
-def get_customer(args)
-  id = args[&quot;customer_id&quot;].to_s
-  return validation_bad_id(id) unless id.match?(ID_FORMAT)
+function simulatedFailure(customerId: string, simulate: unknown): ToolResult | null {
+  if (simulate == null || simulate === &quot;&quot; || simulate === &quot;none&quot;) return null;
+  if (simulate === &quot;timeout&quot;) return transientTimeout();
+  if (simulate === &quot;permission&quot;) return permissionDenied(customerId);
+  const m = /^flaky:(\d+)$/.exec(String(simulate));
+  if (m) {
+    const key = `${customerId}|${simulate}`;
+    const n = (flakyCounts.get(key) ?? 0) + 1;
+    flakyCounts.set(key, n);
+    return n &lt;= Number(m[1]) ? transientTimeout() : null;
+  }
+  return toolError(&quot;validation&quot;, false,
+    `simulate &#x27;${simulate}&#x27; không hợp lệ. Giá trị cho phép: none, timeout, flaky:N, permission.`);
+}
 
-  failure = simulated_failure(id, args[&quot;simulate&quot;])
-  return failure if failure
+function getCustomer(args: Args): ToolResult {
+  const id = String(args.customer_id ?? &quot;&quot;);
+  if (!ID_FORMAT.test(id)) return validationBadId(id);
 
-  customer = CUSTOMERS[id]
-  return valid_empty(id) unless customer
-  return permission_denied(id) if customer[:restricted]
+  const failure = simulatedFailure(id, args.simulate);
+  if (failure) return failure;
 
-  tool_ok({ results: [customer.reject { |k, _| k == :restricted }], resultCount: 1 })
-end
+  const customer = CUSTOMERS[id];
+  if (!customer) return validEmpty(id);
+  if (customer.restricted) return permissionDenied(id);
 
-def process_refund(args)
-  id = args[&quot;customer_id&quot;].to_s
-  amount = args[&quot;amount&quot;]
-  return validation_bad_id(id) unless id.match?(ID_FORMAT)
-  unless amount.is_a?(Numeric) &amp;&amp; amount.positive?
-    return tool_error(&quot;validation&quot;, false, &quot;amount &#39;#{amount}&#39; không hợp lệ: phải là số dương (USD), vd 49.5.&quot;)
-  end
+  const { restricted: _, ...visible } = customer;
+  return toolOk({ results: [visible], resultCount: 1 });
+}
 
-  customer = CUSTOMERS[id]
-  unless customer
-    return tool_error(&quot;validation&quot;, false,
-                      &quot;Không có khách #{id} nên không thể hoàn tiền. Kiểm tra lại mã khách bằng get_customer trước.&quot;)
-  end
-  return permission_denied(id) if customer[:restricted]
+function processRefund(args: Args): ToolResult {
+  const id = String(args.customer_id ?? &quot;&quot;);
+  const amount = args.amount;
+  if (!ID_FORMAT.test(id)) return validationBadId(id);
+  if (typeof amount !== &quot;number&quot; || !(amount &gt; 0)) {
+    return toolError(&quot;validation&quot;, false, `amount &#x27;${amount}&#x27; không hợp lệ: phải là số dương (USD), vd 49.5.`);
+  }
 
-  if amount &gt; REFUND_LIMIT
-    return tool_error(&quot;business&quot;, false,
-                      &quot;Khoản hoàn #{format(&#39;%.2f&#39;, amount)} USD vượt hạn mức tự động #{REFUND_LIMIT} USD, cần quản lý duyệt. &quot; \
-                      &quot;KHÔNG gọi lại: tạo yêu cầu duyệt cho quản lý kèm mã khách, số tiền, lý do; &quot; \
-                      &quot;báo khách rằng yêu cầu đang chờ duyệt trong 1 ngày làm việc.&quot;)
-  end
+  const customer = CUSTOMERS[id];
+  if (!customer) {
+    return toolError(&quot;validation&quot;, false,
+      `Không có khách ${id} nên không thể hoàn tiền. Kiểm tra lại mã khách bằng get_customer trước.`);
+  }
+  if (customer.restricted) return permissionDenied(id);
 
-  tool_ok({ refund_id: &quot;RF-#{id[-4..]}-#{(amount * 100).to_i}&quot;, customer_id: id, amount_usd: amount,
-            status: &quot;approved&quot; })
-end
+  if (amount &gt; REFUND_LIMIT) {
+    return toolError(&quot;business&quot;, false,
+      `Khoản hoàn ${amount.toFixed(2)} USD vượt hạn mức tự động ${REFUND_LIMIT} USD, cần quản lý duyệt. ` +
+      &quot;KHÔNG gọi lại: tạo yêu cầu duyệt cho quản lý kèm mã khách, số tiền, lý do; &quot; +
+      &quot;báo khách rằng yêu cầu đang chờ duyệt trong 1 ngày làm việc.&quot;);
+  }
 
-def call_tool(name, args)
-  log_call(name, args)
-  case name
-  when &quot;get_customer&quot; then get_customer(args)
-  when &quot;process_refund&quot; then process_refund(args)
-  end
-end
+  return toolOk({ refund_id: `RF-${id.slice(-4)}-${Math.trunc(amount * 100)}`, customer_id: id, amount_usd: amount,
+                  status: &quot;approved&quot; });
+}
 
-# ---- JSON-RPC ---------------------------------------------------------------------------------
+const HANDLERS: Record&lt;string, (args: Args) =&gt; ToolResult&gt; = { get_customer: getCustomer, process_refund: processRefund };
 
-def respond(id, result) = $stdout.puts(JSON.generate({ jsonrpc: &quot;2.0&quot;, id: id, result: result }))
+// ---- JSON-RPC ---------------------------------------------------------------------------------
 
-def respond_error(id, code, message)
-  $stdout.puts(JSON.generate({ jsonrpc: &quot;2.0&quot;, id: id, error: { code: code, message: message } }))
-end
+type Id = number | string | null | undefined;
+const write = (msg: unknown) =&gt; process.stdout.write(JSON.stringify(msg) + &quot;\n&quot;);
+const respond = (id: Id, result: unknown) =&gt; write({ jsonrpc: &quot;2.0&quot;, id, result });
+const respondError = (id: Id, code: number, message: string) =&gt;
+  write({ jsonrpc: &quot;2.0&quot;, id: id ?? null, error: { code, message } });
 
-$stdout.sync = true
-$stdin.each_line do |line|
-  next if line.strip.empty?
-
-  begin
-    msg = JSON.parse(line)
-  rescue JSON::ParserError
-    respond_error(nil, -32_700, &quot;Parse error&quot;)
-    next
-  end
-  id = msg[&quot;id&quot;]
-  case msg[&quot;method&quot;]
-  when &quot;initialize&quot;
-    respond(id, { protocolVersion: msg.dig(&quot;params&quot;, &quot;protocolVersion&quot;) || &quot;2025-06-18&quot;,
-                  capabilities: { tools: {} }, serverInfo: { name: &quot;support&quot;, version: &quot;1.0.0&quot; } })
-  when &quot;notifications/initialized&quot;, &quot;notifications/cancelled&quot;
-    nil
-  when &quot;ping&quot;
-    respond(id, {})
-  when &quot;tools/list&quot;
-    respond(id, { tools: TOOLS })
-  when &quot;tools/call&quot;
-    name = msg.dig(&quot;params&quot;, &quot;name&quot;)
-    args = msg.dig(&quot;params&quot;, &quot;arguments&quot;) || {}
-    tool = TOOLS.find { |t| t[:name] == name }
-    # Lớp 1 – protocol error: tool không tồn tại hoặc thiếu tham số bắt buộc → tool không chạy.
-    if tool.nil?
-      respond_error(id, -32_602, &quot;Unknown tool: #{name}&quot;)
-    elsif (missing = tool[:inputSchema][:required] - args.keys).any?
-      respond_error(id, -32_602, &quot;Invalid params for #{name}: missing #{missing.join(&#39;, &#39;)}&quot;)
-    else
-      respond(id, call_tool(name, args))
-    end
-  else
-    respond_error(id, -32_601, &quot;Method not found: #{msg[&#39;method&#39;]}&quot;) unless id.nil?
-  end
-end
+createInterface({ input: process.stdin }).on(&quot;line&quot;, (line) =&gt; {
+  if (!line.trim()) return;
+  let msg: { id?: Id; method?: string; params?: Record&lt;string, any&gt; };
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    respondError(null, -32700, &quot;Parse error&quot;);
+    return;
+  }
+  const { id, method, params = {} } = msg;
+  switch (method) {
+    case &quot;initialize&quot;:
+      respond(id, { protocolVersion: params.protocolVersion ?? &quot;2025-06-18&quot;,
+                    capabilities: { tools: {} }, serverInfo: { name: &quot;support&quot;, version: &quot;1.0.0&quot; } });
+      return;
+    case &quot;notifications/initialized&quot;:
+    case &quot;notifications/cancelled&quot;:
+      return;
+    case &quot;ping&quot;:
+      respond(id, {});
+      return;
+    case &quot;tools/list&quot;:
+      respond(id, { tools: TOOLS });
+      return;
+    case &quot;tools/call&quot;: {
+      const name = String(params.name ?? &quot;&quot;);
+      const args: Args = params.arguments ?? {};
+      const tool = TOOLS.find((t) =&gt; t.name === name);
+      // Lớp 1 – protocol error: tool không tồn tại hoặc thiếu tham số bắt buộc → tool không chạy.
+      if (!tool) {
+        respondError(id, -32602, `Unknown tool: ${name}`);
+        return;
+      }
+      const missing = tool.inputSchema.required.filter((k) =&gt; !(k in args));
+      if (missing.length) {
+        respondError(id, -32602, `Invalid params for ${name}: missing ${missing.join(&quot;, &quot;)}`);
+        return;
+      }
+      // Lớp 2 – tool chạy; lỗi (nếu có) nằm trong result.isError.
+      logCall(name, args);
+      respond(id, HANDLERS[name](args));
+      return;
+    }
+    default:
+      if (id != null) respondError(id, -32601, `Method not found: ${method}`);
+  }
+});
 </code></pre></details>
-<details><summary><code>recovery_agent.rb</code></summary><pre><code>#!/usr/bin/env ruby
-# frozen_string_literal: true
+<details><summary><code>recovery_agent.ts</code></summary><pre><code>#!/usr/bin/env -S node --experimental-strip-types --no-warnings
+// Bài 2.2 – Vòng hồi phục đọc metadata lỗi và rẽ nhánh.
+//
+// Đây là logic TẤT ĐỊNH bằng code: không gọi model, nên chạy thật được ngay. Nó đóng vai phần
+// &quot;agent&quot; quyết định sau mỗi tool result. (Phần để LLM tự quyết dựa vào cùng metadata: xem run_llm.sh.)
+//
+//   isRetryable = true  (transient)  → gọi lại nguyên văn, tối đa 3 lần, backoff 0.2s → 0.4s → 0.8s
+//   validation                       → sửa input (chuẩn hoá mã khách) rồi gọi lại 1 lần; không sửa được → hỏi lại khách
+//   business                         → KHÔNG gọi lại, escalate kèm handoff (mã khách, số tiền, lý do)
+//   permission                       → KHÔNG gọi lại, xin quyền cao hơn / chuyển nhân viên có quyền
+//   isError=false, resultCount=0     → kết quả rỗng hợp lệ: trả lời &quot;không tìm thấy&quot;, KHÔNG gọi lại
+//   JSON-RPC error (lớp giao thức)    → tool không chạy: lỗi ở schema/client, báo dev, không vòng hồi phục
+//
+// Quy ước đếm: 1 lần gọi đầu + tối đa 3 lần retry = tối đa 4 lần gọi cho lỗi transient.
+//
+// Chạy:  node --experimental-strip-types recovery_agent.ts                    # structured rồi bad, in bảng so sánh
+//        node --experimental-strip-types recovery_agent.ts structured|bad     # chỉ một bản
+//        BACKOFF_SCALE=0.01 node --experimental-strip-types recovery_agent.ts # chạy nhanh (delay ×0.01)
+import { join, resolve } from &quot;node:path&quot;;
+import { fileURLToPath } from &quot;node:url&quot;;
+import { setTimeout as sleep } from &quot;node:timers/promises&quot;;
+import { McpClient, type RpcResponse } from &quot;../lib/mcp_client.ts&quot;;
 
-# Bài 2.2 – Vòng hồi phục đọc metadata lỗi và rẽ nhánh.
-#
-# Đây là logic TẤT ĐỊNH bằng code: không gọi model, nên chạy thật được ngay. Nó đóng vai phần
-# &quot;agent&quot; quyết định sau mỗi tool result. (Phần để LLM tự quyết dựa vào cùng metadata: xem run_llm.sh.)
-#
-#   isRetryable = true  (transient)  → gọi lại nguyên văn, tối đa 3 lần, backoff 0.2s → 0.4s → 0.8s
-#   validation                       → sửa input (chuẩn hoá mã khách) rồi gọi lại 1 lần; không sửa được → hỏi lại khách
-#   business                         → KHÔNG gọi lại, escalate kèm handoff (mã khách, số tiền, lý do)
-#   permission                       → KHÔNG gọi lại, xin quyền cao hơn / chuyển nhân viên có quyền
-#   isError=false, resultCount=0     → kết quả rỗng hợp lệ: trả lời &quot;không tìm thấy&quot;, KHÔNG gọi lại
-#   JSON-RPC error (lớp giao thức)    → tool không chạy: lỗi ở schema/client, báo dev, không vòng hồi phục
-#
-# Quy ước đếm: 1 lần gọi đầu + tối đa 3 lần retry = tối đa 4 lần gọi cho lỗi transient.
-#
-# Chạy:  ruby recovery_agent.rb                 # bản structured rồi bản bad, in bảng so sánh
-#        ruby recovery_agent.rb structured|bad   # chỉ một bản
-#        BACKOFF_SCALE=0.01 ruby recovery_agent.rb   # chạy nhanh (delay ×0.01)
+export const SERVER = join(import.meta.dirname, &quot;support_mcp_server.ts&quot;);
+export const MAX_RETRIES = 3;
+const BASE_DELAY = 0.2;
+const backoffScale = () =&gt; Number(process.env.BACKOFF_SCALE ?? &quot;1&quot;);
 
-require &quot;json&quot;
-require &quot;open3&quot;
+type Style = &quot;structured&quot; | &quot;bad&quot;;
+type Args = Record&lt;string, unknown&gt;;
+export type Outcome = &quot;success&quot; | &quot;not_found&quot; | &quot;gave_up&quot; | &quot;ask_user&quot; | &quot;escalated&quot; | &quot;need_credentials&quot; | &quot;protocol_error&quot;;
 
-SERVER = File.join(__dir__, &quot;support_mcp_server.rb&quot;)
-MAX_RETRIES = 3
-BASE_DELAY = 0.2
-BACKOFF_SCALE = Float(ENV.fetch(&quot;BACKOFF_SCALE&quot;, &quot;1&quot;))
+export interface Handoff { customer_id: unknown; amount_usd: unknown; reason: string; recommended_action: string }
+export interface RunResult {
+  outcome: Outcome;
+  delays: number[];
+  data?: Record&lt;string, unknown&gt;;
+  attempted?: number;
+  handoff?: Handoff;
+}
 
-class McpClient
-  attr_reader :calls
+/** Client MCP có đếm số lần tools/call. Mỗi kịch bản một server mới để bộ đếm flaky tách bạch. */
+class CountingClient {
+  calls = 0;
+  private client: McpClient;
 
-  def initialize(error_style)
-    env = { &quot;ERROR_STYLE&quot; =&gt; error_style }
-    env[&quot;SUPPORT_LOG&quot;] = ENV[&quot;SUPPORT_LOG&quot;] if ENV[&quot;SUPPORT_LOG&quot;]
-    @stdin, @stdout, @wait = Open3.popen2(env, RbConfig.ruby, SERVER)
-    @id = 0
-    @calls = 0
-    rpc(&quot;initialize&quot;, { protocolVersion: &quot;2025-06-18&quot;, capabilities: {}, clientInfo: { name: &quot;recovery-agent&quot; } })
-    @stdin.puts JSON.generate({ jsonrpc: &quot;2.0&quot;, method: &quot;notifications/initialized&quot; })
-  end
+  constructor(style: Style) {
+    const env: Record&lt;string, string&gt; = { ERROR_STYLE: style };
+    if (process.env.SUPPORT_LOG) env.SUPPORT_LOG = process.env.SUPPORT_LOG;
+    this.client = McpClient.forTsServer(SERVER, env);
+  }
 
-  def rpc(method, params)
-    @id += 1
-    @stdin.puts JSON.generate({ jsonrpc: &quot;2.0&quot;, id: @id, method: method, params: params })
-    JSON.parse(@stdout.gets)
-  end
+  init() { return this.client.initialize(); }
 
-  def call_tool(name, args)
-    @calls += 1
-    rpc(&quot;tools/call&quot;, { name: name, arguments: args })
-  end
+  callTool(name: string, args: Args): Promise&lt;RpcResponse&gt; {
+    this.calls++;
+    return this.client.callTool(name, args);
+  }
 
-  def close
-    @stdin.close
-    @wait.value
-  end
-end
+  close() { this.client.close(); }
+}
 
-# Thử sửa mã khách sai định dạng: &quot;cus 12&quot;, &quot;cus-0012&quot;, &quot;CUS12&quot; → &quot;CUS-0012&quot;. Không đoán được thì nil.
-def fix_customer_id(raw)
-  m = raw.to_s.strip.match(/\Acus[\s\-_]*(\d{1,4})\z/i)
-  m &amp;&amp; format(&quot;CUS-%04d&quot;, m[1].to_i)
-end
+/** Thử sửa mã khách sai định dạng: &quot;cus 12&quot;, &quot;cus-0012&quot;, &quot;CUS12&quot; → &quot;CUS-0012&quot;. Không đoán được thì null. */
+export function fixCustomerId(raw: unknown): string | null {
+  const m = /^cus[\s\-_]*(\d{1,4})$/i.exec(String(raw ?? &quot;&quot;).trim());
+  return m ? `CUS-${String(Number(m[1])).padStart(4, &quot;0&quot;)}` : null;
+}
 
-def metadata_of(result)
-  result[&quot;structuredContent&quot;] || (JSON.parse(result.dig(&quot;content&quot;, 0, &quot;text&quot;).to_s) rescue nil)
-end
+function metadataOf(result: any): any {
+  if (result.structuredContent) return result.structuredContent;
+  try {
+    return JSON.parse(String(result.content?.[0]?.text ?? &quot;&quot;));
+  } catch {
+    return null;
+  }
+}
 
-# ---- Agent đọc metadata -----------------------------------------------------------------------
+// ---- Agent đọc metadata -----------------------------------------------------------------------
 
-def handle_structured(client, tool, args, log)
-  retries = 0
-  fixed = false
-  delays = []
-  loop do
-    resp = client.call_tool(tool, args)
-    if resp[&quot;error&quot;]
-      log &lt;&lt; &quot;  ✗ lớp giao thức #{resp[&#39;error&#39;][&#39;code&#39;]}: #{resp[&#39;error&#39;][&#39;message&#39;]} → tool không chạy, báo dev sửa schema/client&quot;
-      return { outcome: :protocol_error, delays: delays }
-    end
+async function handleStructured(client: CountingClient, tool: string, args: Args, log: string[]): Promise&lt;RunResult&gt; {
+  let retries = 0;
+  let fixed = false;
+  const delays: number[] = [];
+  const scale = backoffScale();
+  for (;;) {
+    const resp = await client.callTool(tool, args);
+    if (resp.error) {
+      log.push(`  ✗ lớp giao thức ${resp.error.code}: ${resp.error.message} → tool không chạy, báo dev sửa schema/client`);
+      return { outcome: &quot;protocol_error&quot;, delays };
+    }
 
-    result = resp[&quot;result&quot;]
-    meta = metadata_of(result)
-    unless result[&quot;isError&quot;]
-      if meta[&quot;resultCount&quot;]&amp;.zero?
-        log &lt;&lt; &quot;  ○ rỗng hợp lệ (isError=false, resultCount=0) → trả lời khách: không tìm thấy, KHÔNG gọi lại&quot;
-        return { outcome: :not_found, delays: delays }
-      end
-      log &lt;&lt; &quot;  ✓ thành công: #{JSON.generate(meta)[0, 110]}&quot;
-      return { outcome: :success, data: meta, delays: delays }
-    end
+    const result = resp.result;
+    const meta = metadataOf(result);
+    if (!result.isError) {
+      if (meta.resultCount === 0) {
+        log.push(&quot;  ○ rỗng hợp lệ (isError=false, resultCount=0) → trả lời khách: không tìm thấy, KHÔNG gọi lại&quot;);
+        return { outcome: &quot;not_found&quot;, delays };
+      }
+      log.push(`  ✓ thành công: ${JSON.stringify(meta).slice(0, 110)}`);
+      return { outcome: &quot;success&quot;, data: meta, delays };
+    }
 
-    category = meta[&quot;errorCategory&quot;]
-    log &lt;&lt; &quot;  ! #{category} (isRetryable=#{meta[&#39;isRetryable&#39;]}): #{meta[&#39;description&#39;][0, 90]}…&quot;
-    if meta[&quot;isRetryable&quot;]
-      if retries &gt;= MAX_RETRIES
-        log &lt;&lt; &quot;  ✗ hết #{MAX_RETRIES} lần retry → báo lên: đã thử #{client.calls} lần, lỗi transient, chưa có dữ liệu&quot;
-        return { outcome: :gave_up, attempted: retries + 1, delays: delays }
-      end
-      delay = BASE_DELAY * (2**retries) * BACKOFF_SCALE
-      retries += 1
-      delays &lt;&lt; delay
-      log &lt;&lt; &quot;    ↻ retry #{retries}/#{MAX_RETRIES} sau #{format(&#39;%.2f&#39;, delay / BACKOFF_SCALE)}s&quot;
-      sleep delay
-      next
-    end
+    const category = meta.errorCategory;
+    log.push(`  ! ${category} (isRetryable=${meta.isRetryable}): ${String(meta.description).slice(0, 90)}…`);
+    if (meta.isRetryable) {
+      if (retries &gt;= MAX_RETRIES) {
+        log.push(`  ✗ hết ${MAX_RETRIES} lần retry → báo lên: đã thử ${client.calls} lần, lỗi transient, chưa có dữ liệu`);
+        return { outcome: &quot;gave_up&quot;, attempted: retries + 1, delays };
+      }
+      const delay = BASE_DELAY * 2 ** retries * scale;
+      retries++;
+      delays.push(delay);
+      log.push(`    ↻ retry ${retries}/${MAX_RETRIES} sau ${(delay / scale).toFixed(2)}s`);
+      await sleep(delay * 1000);
+      continue;
+    }
 
-    case category
-    when &quot;validation&quot;
-      candidate = fix_customer_id(args[&quot;customer_id&quot;])
-      if !fixed &amp;&amp; candidate &amp;&amp; candidate != args[&quot;customer_id&quot;]
-        log &lt;&lt; &quot;    ✎ sửa input customer_id &#39;#{args[&#39;customer_id&#39;]}&#39; → &#39;#{candidate}&#39; rồi gọi lại (lần gọi mới, không phải retry)&quot;
-        args = args.merge(&quot;customer_id&quot; =&gt; candidate)
-        fixed = true
-        next
-      end
-      log &lt;&lt; &quot;  ? không tự sửa được → hỏi lại khách mã đúng (dạng CUS-NNNN)&quot;
-      return { outcome: :ask_user, delays: delays }
-    when &quot;business&quot;
-      handoff = { customer_id: args[&quot;customer_id&quot;], amount_usd: args[&quot;amount&quot;], reason: meta[&quot;description&quot;],
-                  recommended_action: &quot;Quản lý duyệt hoàn tiền vượt hạn mức&quot; }
-      log &lt;&lt; &quot;  ⇧ escalate cho quản lý, KHÔNG retry. Handoff: #{JSON.generate(handoff)[0, 120]}…&quot;
-      return { outcome: :escalated, handoff: handoff, delays: delays }
-    when &quot;permission&quot;
-      log &lt;&lt; &quot;  🔑 xin quyền finance-read / chuyển nhân viên cấp cao, KHÔNG retry với cùng tài khoản&quot;
-      return { outcome: :need_credentials, delays: delays }
-    else
-      log &lt;&lt; &quot;  ✗ errorCategory lạ &#39;#{category}&#39; → escalate&quot;
-      return { outcome: :escalated, delays: delays }
-    end
-  end
-end
+    switch (category) {
+      case &quot;validation&quot;: {
+        const candidate = fixCustomerId(args.customer_id);
+        if (!fixed &amp;&amp; candidate &amp;&amp; candidate !== args.customer_id) {
+          log.push(`    ✎ sửa input customer_id &#x27;${args.customer_id}&#x27; → &#x27;${candidate}&#x27; rồi gọi lại (lần gọi mới, không phải retry)`);
+          args = { ...args, customer_id: candidate };
+          fixed = true;
+          continue;
+        }
+        log.push(&quot;  ? không tự sửa được → hỏi lại khách mã đúng (dạng CUS-NNNN)&quot;);
+        return { outcome: &quot;ask_user&quot;, delays };
+      }
+      case &quot;business&quot;: {
+        const handoff: Handoff = { customer_id: args.customer_id, amount_usd: args.amount, reason: meta.description,
+                                   recommended_action: &quot;Quản lý duyệt hoàn tiền vượt hạn mức&quot; };
+        log.push(`  ⇧ escalate cho quản lý, KHÔNG retry. Handoff: ${JSON.stringify(handoff).slice(0, 120)}…`);
+        return { outcome: &quot;escalated&quot;, handoff, delays };
+      }
+      case &quot;permission&quot;:
+        log.push(&quot;  🔑 xin quyền finance-read / chuyển nhân viên cấp cao, KHÔNG retry với cùng tài khoản&quot;);
+        return { outcome: &quot;need_credentials&quot;, delays };
+      default:
+        log.push(`  ✗ errorCategory lạ &#x27;${category}&#x27; → escalate`);
+        return { outcome: &quot;escalated&quot;, delays };
+    }
+  }
+}
 
-# ---- Agent &quot;ngây thơ&quot; với lỗi kiểu cũ: chỉ biết isError + chữ &quot;Error&quot; ---------------------------
-# Không có category hay isRetryable, cách duy nhất là đoán: thử lại 3 lần rồi chuyển người.
+// ---- Agent &quot;ngây thơ&quot; với lỗi kiểu cũ: chỉ biết isError + chữ &quot;Error&quot; ---------------------------
+// Không có category hay isRetryable, cách duy nhất là đoán: thử lại 3 lần rồi chuyển người.
 
-def handle_naive(client, tool, args, log)
-  retries = 0
-  delays = []
-  loop do
-    resp = client.call_tool(tool, args)
-    if resp[&quot;error&quot;]
-      log &lt;&lt; &quot;  ✗ lớp giao thức: #{resp[&#39;error&#39;][&#39;message&#39;]}&quot;
-      return { outcome: :protocol_error, delays: delays }
-    end
-    result = resp[&quot;result&quot;]
-    unless result[&quot;isError&quot;]
-      log &lt;&lt; &quot;  ✓ thành công&quot;
-      return { outcome: :success, delays: delays }
-    end
-    log &lt;&lt; &quot;  ! \&quot;#{result.dig(&#39;content&#39;, 0, &#39;text&#39;)}\&quot; (không biết loại lỗi, không biết có nên thử lại)&quot;
-    if retries &gt;= MAX_RETRIES
-      log &lt;&lt; &quot;  ⇧ thử #{client.calls} lần vẫn lỗi → chuyển người xử lý&quot;
-      return { outcome: :escalated, delays: delays }
-    end
-    delay = BASE_DELAY * (2**retries) * BACKOFF_SCALE
-    retries += 1
-    delays &lt;&lt; delay
-    log &lt;&lt; &quot;    ↻ đoán là lỗi tạm thời, thử lại #{retries}/#{MAX_RETRIES}&quot;
-    sleep delay
-  end
-end
+async function handleNaive(client: CountingClient, tool: string, args: Args, log: string[]): Promise&lt;RunResult&gt; {
+  let retries = 0;
+  const delays: number[] = [];
+  const scale = backoffScale();
+  for (;;) {
+    const resp = await client.callTool(tool, args);
+    if (resp.error) {
+      log.push(`  ✗ lớp giao thức: ${resp.error.message}`);
+      return { outcome: &quot;protocol_error&quot;, delays };
+    }
+    const result = resp.result;
+    if (!result.isError) {
+      log.push(&quot;  ✓ thành công&quot;);
+      return { outcome: &quot;success&quot;, delays };
+    }
+    log.push(`  ! &quot;${result.content?.[0]?.text}&quot; (không biết loại lỗi, không biết có nên thử lại)`);
+    if (retries &gt;= MAX_RETRIES) {
+      log.push(`  ⇧ thử ${client.calls} lần vẫn lỗi → chuyển người xử lý`);
+      return { outcome: &quot;escalated&quot;, delays };
+    }
+    const delay = BASE_DELAY * 2 ** retries * scale;
+    retries++;
+    delays.push(delay);
+    log.push(`    ↻ đoán là lỗi tạm thời, thử lại ${retries}/${MAX_RETRIES}`);
+    await sleep(delay * 1000);
+  }
+}
 
-# ---- Kịch bản ---------------------------------------------------------------------------------
+const handle = (style: Style) =&gt; (style === &quot;bad&quot; ? handleNaive : handleStructured);
 
-SCENARIOS = [
-  { id: 1, name: &quot;Tra khách bình thường&quot;, tool: &quot;get_customer&quot;, args: { &quot;customer_id&quot; =&gt; &quot;CUS-0012&quot; },
-    expect: :success, expect_calls: 1 },
-  { id: 2, name: &quot;Khách không tồn tại (rỗng hợp lệ)&quot;, tool: &quot;get_customer&quot;, args: { &quot;customer_id&quot; =&gt; &quot;CUS-9999&quot; },
-    expect: :not_found, expect_calls: 1 },
+// ---- Kịch bản ---------------------------------------------------------------------------------
+
+export interface Scenario { id: number; name: string; tool: string; args: Args; expect: Outcome; expectCalls: number }
+
+export const SCENARIOS: Scenario[] = [
+  { id: 1, name: &quot;Tra khách bình thường&quot;, tool: &quot;get_customer&quot;, args: { customer_id: &quot;CUS-0012&quot; },
+    expect: &quot;success&quot;, expectCalls: 1 },
+  { id: 2, name: &quot;Khách không tồn tại (rỗng hợp lệ)&quot;, tool: &quot;get_customer&quot;, args: { customer_id: &quot;CUS-9999&quot; },
+    expect: &quot;not_found&quot;, expectCalls: 1 },
   { id: 3, name: &quot;DB chập chờn: timeout 2 lần rồi được&quot;, tool: &quot;get_customer&quot;,
-    args: { &quot;customer_id&quot; =&gt; &quot;CUS-0042&quot;, &quot;simulate&quot; =&gt; &quot;flaky:2&quot; }, expect: :success, expect_calls: 3 },
+    args: { customer_id: &quot;CUS-0042&quot;, simulate: &quot;flaky:2&quot; }, expect: &quot;success&quot;, expectCalls: 3 },
   { id: 4, name: &quot;DB sập: timeout mãi&quot;, tool: &quot;get_customer&quot;,
-    args: { &quot;customer_id&quot; =&gt; &quot;CUS-0012&quot;, &quot;simulate&quot; =&gt; &quot;timeout&quot; }, expect: :gave_up, expect_calls: 4 },
-  { id: 5, name: &quot;Mã khách gõ sai nhưng sửa được&quot;, tool: &quot;get_customer&quot;, args: { &quot;customer_id&quot; =&gt; &quot;cus 12&quot; },
-    expect: :success, expect_calls: 2 },
-  { id: 6, name: &quot;Mã khách sai không đoán được&quot;, tool: &quot;get_customer&quot;, args: { &quot;customer_id&quot; =&gt; &quot;order-abc&quot; },
-    expect: :ask_user, expect_calls: 1 },
+    args: { customer_id: &quot;CUS-0012&quot;, simulate: &quot;timeout&quot; }, expect: &quot;gave_up&quot;, expectCalls: 4 },
+  { id: 5, name: &quot;Mã khách gõ sai nhưng sửa được&quot;, tool: &quot;get_customer&quot;, args: { customer_id: &quot;cus 12&quot; },
+    expect: &quot;success&quot;, expectCalls: 2 },
+  { id: 6, name: &quot;Mã khách sai không đoán được&quot;, tool: &quot;get_customer&quot;, args: { customer_id: &quot;order-abc&quot; },
+    expect: &quot;ask_user&quot;, expectCalls: 1 },
   { id: 7, name: &quot;Hoàn 750 USD (vượt hạn mức 500)&quot;, tool: &quot;process_refund&quot;,
-    args: { &quot;customer_id&quot; =&gt; &quot;CUS-0012&quot;, &quot;amount&quot; =&gt; 750 }, expect: :escalated, expect_calls: 1 },
-  { id: 8, name: &quot;Hồ sơ tài chính bị hạn chế&quot;, tool: &quot;get_customer&quot;, args: { &quot;customer_id&quot; =&gt; &quot;CUS-0777&quot; },
-    expect: :need_credentials, expect_calls: 1 },
+    args: { customer_id: &quot;CUS-0012&quot;, amount: 750 }, expect: &quot;escalated&quot;, expectCalls: 1 },
+  { id: 8, name: &quot;Hồ sơ tài chính bị hạn chế&quot;, tool: &quot;get_customer&quot;, args: { customer_id: &quot;CUS-0777&quot; },
+    expect: &quot;need_credentials&quot;, expectCalls: 1 },
   { id: 9, name: &quot;Hoàn 49.5 USD (trong hạn mức)&quot;, tool: &quot;process_refund&quot;,
-    args: { &quot;customer_id&quot; =&gt; &quot;CUS-0012&quot;, &quot;amount&quot; =&gt; 49.5 }, expect: :success, expect_calls: 1 },
+    args: { customer_id: &quot;CUS-0012&quot;, amount: 49.5 }, expect: &quot;success&quot;, expectCalls: 1 },
   { id: 10, name: &quot;Gọi tool không tồn tại (lớp giao thức)&quot;, tool: &quot;get_custmer&quot;,
-    args: { &quot;customer_id&quot; =&gt; &quot;CUS-0012&quot; }, expect: :protocol_error, expect_calls: 1 }
-].freeze
+    args: { customer_id: &quot;CUS-0012&quot; }, expect: &quot;protocol_error&quot;, expectCalls: 1 },
+];
 
-# Mỗi kịch bản một server mới để bộ đếm flaky và số lần gọi tách bạch.
-def run_scenario(style, sc)
-  client = McpClient.new(style)
-  log = []
-  result = style == &quot;bad&quot; ? handle_naive(client, sc[:tool], sc[:args].dup, log) : handle_structured(client, sc[:tool], sc[:args].dup, log)
-  result.merge(calls: client.calls, log: log)
-ensure
-  client&amp;.close
-end
+export async function runScenario(style: Style, sc: Scenario): Promise&lt;RunResult &amp; { calls: number; log: string[] }&gt; {
+  const client = new CountingClient(style);
+  try {
+    await client.init();
+    const log: string[] = [];
+    const r = await handle(style)(client, sc.tool, { ...sc.args }, log);
+    return { ...r, calls: client.calls, log };
+  } finally {
+    client.close();
+  }
+}
 
-# Lan truyền lỗi có chọn lọc: tra nhiều khách, khách nào lỗi hết retry thì báo lên kèm kết quả phần còn lại.
-def run_batch(style)
-  ids = [[&quot;CUS-0012&quot;, nil], [&quot;CUS-0042&quot;, &quot;timeout&quot;], [&quot;CUS-9999&quot;, nil]]
-  client = McpClient.new(style)
-  found = []
-  failed = []
-  empty = []
-  log = []
-  ids.each do |id, sim|
-    args = { &quot;customer_id&quot; =&gt; id }
-    args[&quot;simulate&quot;] = sim if sim
-    r = style == &quot;bad&quot; ? handle_naive(client, &quot;get_customer&quot;, args, log) : handle_structured(client, &quot;get_customer&quot;, args, log)
-    case r[:outcome]
-    when :success then found &lt;&lt; id
-    when :not_found then empty &lt;&lt; id
-    else failed &lt;&lt; { customer_id: id, outcome: r[:outcome] }
-    end
-  end
-  report = { searched: ids.size, found: found, not_found: empty, failed: failed, total_calls: client.calls }
-  { report: report, log: log }
-ensure
-  client&amp;.close
-end
+// Lan truyền lỗi có chọn lọc: tra nhiều khách, khách nào lỗi hết retry thì báo lên kèm kết quả phần còn lại.
+export async function runBatch(style: Style) {
+  const ids: [string, string | null][] = [[&quot;CUS-0012&quot;, null], [&quot;CUS-0042&quot;, &quot;timeout&quot;], [&quot;CUS-9999&quot;, null]];
+  const client = new CountingClient(style);
+  try {
+    await client.init();
+    const found: string[] = [];
+    const empty: string[] = [];
+    const failed: { customer_id: string; outcome: Outcome }[] = [];
+    const log: string[] = [];
+    for (const [id, sim] of ids) {
+      const args: Args = { customer_id: id };
+      if (sim) args.simulate = sim;
+      const r = await handle(style)(client, &quot;get_customer&quot;, args, log);
+      if (r.outcome === &quot;success&quot;) found.push(id);
+      else if (r.outcome === &quot;not_found&quot;) empty.push(id);
+      else failed.push({ customer_id: id, outcome: r.outcome });
+    }
+    const report = { searched: ids.length, found, not_found: empty, failed, total_calls: client.calls };
+    return { report, log };
+  } finally {
+    client.close();
+  }
+}
 
-def run_style(style)
-  puts &quot;\n================ ERROR_STYLE=#{style} ================&quot;
-  SCENARIOS.map do |sc|
-    r = run_scenario(style, sc)
-    puts &quot;\n[#{sc[:id]}] #{sc[:name]}  (#{sc[:tool]} #{JSON.generate(sc[:args])})&quot;
-    r[:log].each { |l| puts l }
-    puts &quot;  → kết cục: #{r[:outcome]} sau #{r[:calls]} lần gọi&quot;
-    [sc[:id], r]
-  end.to_h
-end
+async function runStyle(style: Style) {
+  console.log(`\n================ ERROR_STYLE=${style} ================`);
+  const out = new Map&lt;number, Awaited&lt;ReturnType&lt;typeof runScenario&gt;&gt;&gt;();
+  for (const sc of SCENARIOS) {
+    const r = await runScenario(style, sc);
+    console.log(`\n[${sc.id}] ${sc.name}  (${sc.tool} ${JSON.stringify(sc.args)})`);
+    for (const l of r.log) console.log(l);
+    console.log(`  → kết cục: ${r.outcome} sau ${r.calls} lần gọi`);
+    out.set(sc.id, r);
+  }
+  return out;
+}
 
-if $PROGRAM_NAME == __FILE__
-  styles = ARGV.empty? ? %w[structured bad] : ARGV
-  results = styles.to_h { |s| [s, run_style(s)] }
+// Chạy trực tiếp (không phải bị import từ test). import.meta.main chỉ có từ Node 24.
+if (process.argv[1] &amp;&amp; resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const argv = process.argv.slice(2) as Style[];
+  const styles: Style[] = argv.length ? argv : [&quot;structured&quot;, &quot;bad&quot;];
+  const results = new Map&lt;Style, Awaited&lt;ReturnType&lt;typeof runStyle&gt;&gt;&gt;();
+  for (const s of styles) results.set(s, await runStyle(s));
 
-  styles.each do |s|
-    b = run_batch(s)
-    puts &quot;\n[Lan truyền lỗi, #{s}] tra 3 khách, CUS-0042 bị timeout mãi:&quot;
-    puts &quot;  Báo cáo gửi coordinator: #{JSON.generate(b[:report])}&quot;
-  end
+  for (const s of styles) {
+    const b = await runBatch(s);
+    console.log(`\n[Lan truyền lỗi, ${s}] tra 3 khách, CUS-0042 bị timeout mãi:`);
+    console.log(`  Báo cáo gửi coordinator: ${JSON.stringify(b.report)}`);
+  }
 
-  if styles.size == 2
-    puts &quot;\n================ SO SÁNH ================&quot;
-    puts format(&quot;%-4s %-40s %-26s %-26s&quot;, &quot;#&quot;, &quot;Kịch bản&quot;, &quot;structured&quot;, &quot;bad&quot;)
-    SCENARIOS.each do |sc|
-      a = results[&quot;structured&quot;][sc[:id]]
-      b = results[&quot;bad&quot;][sc[:id]]
-      puts format(&quot;%-4s %-40s %-26s %-26s&quot;, sc[:id], sc[:name][0, 40], &quot;#{a[:outcome]} (#{a[:calls]} lần)&quot;,
-                  &quot;#{b[:outcome]} (#{b[:calls]} lần)&quot;)
-    end
-    total = -&gt;(s) { results[s].values.sum { |r| r[:calls] } }
-    puts &quot;Tổng số lần gọi tool: structured #{total.(&#39;structured&#39;)}, bad #{total.(&#39;bad&#39;)}&quot;
-  end
-end
+  if (styles.length === 2) {
+    console.log(&quot;\n================ SO SÁNH ================&quot;);
+    const row = (a: string, b: string, c: string, d: string) =&gt;
+      console.log(`${a.padEnd(4)} ${b.padEnd(40)} ${c.padEnd(26)} ${d.padEnd(26)}`);
+    row(&quot;#&quot;, &quot;Kịch bản&quot;, &quot;structured&quot;, &quot;bad&quot;);
+    for (const sc of SCENARIOS) {
+      const a = results.get(&quot;structured&quot;)!.get(sc.id)!;
+      const b = results.get(&quot;bad&quot;)!.get(sc.id)!;
+      row(String(sc.id), sc.name.slice(0, 40), `${a.outcome} (${a.calls} lần)`, `${b.outcome} (${b.calls} lần)`);
+    }
+    const total = (s: Style) =&gt; [...results.get(s)!.values()].reduce((n, r) =&gt; n + r.calls, 0);
+    console.log(`Tổng số lần gọi tool: structured ${total(&quot;structured&quot;)}, bad ${total(&quot;bad&quot;)}`);
+  }
+}
+</code></pre></details>
+<details><summary><code>test/run.test.ts</code></summary><pre><code>// Bài 2.2 – kiểm thử server (bơm JSON-RPC qua stdin) và vòng hồi phục. Không gọi model.
+// Chạy: node --experimental-strip-types test/run.test.ts
+import { spawnSync } from &quot;node:child_process&quot;;
+import { mkdtempSync, readFileSync, rmSync } from &quot;node:fs&quot;;
+import { tmpdir } from &quot;node:os&quot;;
+import { join } from &quot;node:path&quot;;
+import { check, section, summary } from &quot;../../lib/check.ts&quot;;
+
+process.env.BACKOFF_SCALE = &quot;0.01&quot;;
+const { SERVER, SCENARIOS, runScenario, runBatch, fixCustomerId } = await import(&quot;../recovery_agent.ts&quot;);
+const ROOT = join(import.meta.dirname, &quot;..&quot;);
+const TS = [&quot;--experimental-strip-types&quot;, &quot;--no-warnings&quot;];
+
+function rpcSession(lines: object[], env: Record&lt;string, string&gt; = {}): any[] {
+  const input = lines.map((l) =&gt; JSON.stringify(l)).join(&quot;\n&quot;) + &quot;\n&quot;;
+  const r = spawnSync(process.execPath, [...TS, SERVER], { input, encoding: &quot;utf8&quot;, env: { ...process.env, ...env } });
+  return r.stdout.trim().split(&quot;\n&quot;).filter(Boolean).map((l) =&gt; JSON.parse(l));
+}
+const call = (id: number, name: string, args: object) =&gt;
+  ({ jsonrpc: &quot;2.0&quot;, id, method: &quot;tools/call&quot;, params: { name, arguments: args } });
+
+section(&quot;Server&quot;);
+const init = { jsonrpc: &quot;2.0&quot;, id: 0, method: &quot;initialize&quot;, params: {} };
+let r = rpcSession([init, { jsonrpc: &quot;2.0&quot;, method: &quot;notifications/initialized&quot; },
+  { jsonrpc: &quot;2.0&quot;, id: 1, method: &quot;tools/list&quot; },
+  call(2, &quot;get_customer&quot;, { customer_id: &quot;CUS-0012&quot;, simulate: &quot;timeout&quot; }),
+  call(3, &quot;get_customer&quot;, { customer_id: &quot;cus-12&quot; }),
+  call(4, &quot;process_refund&quot;, { customer_id: &quot;CUS-0012&quot;, amount: 750 }),
+  call(5, &quot;get_customer&quot;, { customer_id: &quot;CUS-0777&quot; }),
+  call(6, &quot;get_customer&quot;, { customer_id: &quot;CUS-9999&quot; }),
+  call(7, &quot;get_custmer&quot;, {}),
+  call(8, &quot;process_refund&quot;, { customer_id: &quot;CUS-0012&quot; }),
+  { jsonrpc: &quot;2.0&quot;, id: 9, method: &quot;foo/bar&quot; }]);
+const byId = Object.fromEntries(r.map((m) =&gt; [m.id, m]));
+check(&quot;notification không được trả lời (11 message, 10 có id → 10 response)&quot;, r.length === 10);
+check(&quot;tools/list có 2 tool&quot;, byId[1].result.tools.map((t: any) =&gt; t.name).join() === &quot;get_customer,process_refund&quot;);
+check(&quot;customer_id không khai báo pattern trong schema&quot;,
+  byId[1].result.tools[0].inputSchema.properties.customer_id.pattern === undefined);
+for (const [id, cat, retry] of [[2, &quot;transient&quot;, true], [3, &quot;validation&quot;, false], [4, &quot;business&quot;, false], [5, &quot;permission&quot;, false]] as const) {
+  const sc = byId[id].result.structuredContent;
+  check(`${cat}: isError=true, đúng 3 field, isRetryable=${retry}`,
+    byId[id].result.isError === true &amp;&amp; Object.keys(sc).sort().join() === &quot;description,errorCategory,isRetryable&quot; &amp;&amp;
+    sc.errorCategory === cat &amp;&amp; sc.isRetryable === retry &amp;&amp; sc.description.length &gt; 40);
+}
+const empty = byId[6].result;
+check(&quot;rỗng hợp lệ: isError=false, resultCount=0, không có errorCategory&quot;,
+  empty.isError === false &amp;&amp; empty.structuredContent.resultCount === 0 &amp;&amp; !(&quot;errorCategory&quot; in empty.structuredContent));
+const accessKeys = Object.keys(byId[2].result.structuredContent);
+check(&quot;rỗng hợp lệ ≠ access failure (khác isError và khác key)&quot;,
+  empty.isError !== byId[2].result.isError &amp;&amp; Object.keys(empty.structuredContent).every((k) =&gt; !accessKeys.includes(k)));
+check(&quot;tool không tồn tại → JSON-RPC error -32602, không có result&quot;, byId[7].error?.code === -32602 &amp;&amp; !(&quot;result&quot; in byId[7]));
+check(&quot;thiếu tham số bắt buộc → JSON-RPC error&quot;, String(byId[8].error?.message).includes(&quot;missing amount&quot;));
+check(&quot;method lạ → -32601&quot;, byId[9].error?.code === -32601);
+
+r = rpcSession([init, ...[1, 2, 3].map((i) =&gt; call(i, &quot;get_customer&quot;, { customer_id: &quot;CUS-0042&quot;, simulate: &quot;flaky:2&quot; }))]);
+check(&quot;flaky:2: lần 1,2 transient, lần 3 thành công&quot;, r[1].result.isError &amp;&amp; r[2].result.isError &amp;&amp; r[3].result.isError === false);
+
+const bad = rpcSession([init, call(1, &quot;get_customer&quot;, { customer_id: &quot;CUS-9999&quot; }),
+  call(2, &quot;process_refund&quot;, { customer_id: &quot;CUS-0012&quot;, amount: 750 })], { ERROR_STYLE: &quot;bad&quot; });
+check(&quot;ERROR_STYLE=bad: rỗng và business đều chỉ là \&quot;Error\&quot;, không metadata&quot;,
+  bad.slice(1).every((m) =&gt; m.result.isError &amp;&amp; m.result.content[0].text === &quot;Error&quot; &amp;&amp; !(&quot;structuredContent&quot; in m.result)));
+
+section(&quot;Agent structured&quot;);
+const res = new Map&lt;number, Awaited&lt;ReturnType&lt;typeof runScenario&gt;&gt;&gt;();
+for (const s of SCENARIOS) res.set(s.id, await runScenario(&quot;structured&quot;, s));
+for (const s of SCENARIOS) {
+  const x = res.get(s.id)!;
+  check(`structured #${s.id} ${s.name}: ${s.expect} sau ${s.expectCalls} lần gọi`, x.outcome === s.expect &amp;&amp; x.calls === s.expectCalls,
+    `${x.outcome} sau ${x.calls}`);
+}
+check(&quot;business / permission / rỗng: gọi đúng 1 lần, không retry&quot;,
+  [2, 7, 8].every((i) =&gt; res.get(i)!.calls === 1 &amp;&amp; res.get(i)!.delays.length === 0));
+check(&quot;timeout: dừng sau 3 retry (1 + 3 = 4 lần gọi)&quot;, res.get(4)!.calls === 4 &amp;&amp; res.get(4)!.delays.length === 3);
+const d = res.get(4)!.delays;
+check(&quot;backoff tăng dần ×2 (0.2 → 0.4 → 0.8, đã scale)&quot;, d.slice(1).every((b, i) =&gt; Math.abs(b / d[i] - 2) &lt; 1e-9));
+check(&quot;flaky:2 thành công ở lần gọi thứ 3 với 2 delay&quot;, res.get(3)!.calls === 3 &amp;&amp; res.get(3)!.delays.length === 2);
+check(&quot;validation sửa được: lần 2 dùng CUS-0012&quot;, res.get(5)!.log.some((l) =&gt; l.includes(&quot;&#x27;cus 12&#x27; → &#x27;CUS-0012&#x27;&quot;)));
+const h = res.get(7)!.handoff!;
+check(&quot;handoff business có mã khách, số tiền, lý do&quot;, h.customer_id === &quot;CUS-0012&quot; &amp;&amp; h.amount_usd === 750 &amp;&amp; h.reason.includes(&quot;500&quot;));
+check(&quot;fixCustomerId&quot;, fixCustomerId(&quot;cus-0012&quot;) === &quot;CUS-0012&quot; &amp;&amp; fixCustomerId(&quot;CUS12&quot;) === &quot;CUS-0012&quot; &amp;&amp; fixCustomerId(&quot;order-abc&quot;) === null);
+
+const batch = (await runBatch(&quot;structured&quot;)).report;
+check(&quot;lan truyền: báo cáo có kết quả 1 phần + khách lỗi + khách rỗng tách riêng&quot;,
+  batch.found.join() === &quot;CUS-0012&quot; &amp;&amp; batch.not_found.join() === &quot;CUS-9999&quot; &amp;&amp; batch.failed.map((f) =&gt; f.customer_id).join() === &quot;CUS-0042&quot;);
+
+section(&quot;Agent với lỗi kiểu cũ (ERROR_STYLE=bad)&quot;);
+const badres = new Map&lt;number, Awaited&lt;ReturnType&lt;typeof runScenario&gt;&gt;&gt;();
+for (const s of SCENARIOS) badres.set(s.id, await runScenario(&quot;bad&quot;, s));
+check(&quot;bad: rỗng hợp lệ bị retry vô ích rồi escalate (4 lần)&quot;, badres.get(2)!.outcome === &quot;escalated&quot; &amp;&amp; badres.get(2)!.calls === 4);
+check(&quot;bad: business bị retry (4 lần gọi hoàn tiền)&quot;, badres.get(7)!.calls === 4);
+check(&quot;bad: validation sửa được nhưng không sửa (escalate)&quot;, badres.get(5)!.outcome === &quot;escalated&quot;);
+const sum = (m: typeof res) =&gt; [...m.values()].reduce((n, x) =&gt; n + x.calls, 0);
+check(&quot;bad: tổng số lần gọi nhiều hơn structured (30 &gt; 16)&quot;, sum(badres) === 30 &amp;&amp; sum(res) === 16, `${sum(badres)} vs ${sum(res)}`);
+const bb = (await runBatch(&quot;bad&quot;)).report;
+check(&quot;bad: lan truyền lẫn khách không tồn tại vào nhóm lỗi&quot;, bb.not_found.length === 0 &amp;&amp; bb.failed.length === 2);
+
+section(&quot;run_llm.sh với claude GIẢ (không gọi model, chỉ kiểm đường ống)&quot;);
+{
+  const dir = mkdtempSync(join(tmpdir(), &quot;llm22-&quot;));
+  const p = spawnSync(&quot;bash&quot;, [join(ROOT, &quot;run_llm.sh&quot;), &quot;all&quot;], {
+    cwd: ROOT, encoding: &quot;utf8&quot;,
+    env: { ...process.env, PATH: `${join(ROOT, &quot;test/bin&quot;)}:${process.env.PATH}`, RESULTS_DIR: dir },
+  });
+  check(&quot;run_llm.sh all thoát 0&quot;, p.status === 0, p.stderr.slice(0, 300));
+  const cfg = JSON.parse(readFileSync(join(dir, &quot;structured/p0.mcp.json&quot;), &quot;utf8&quot;)).mcpServers.support;
+  check(&quot;mcp-config trỏ tới server TS chạy bằng node&quot;, cfg.args.includes(SERVER) &amp;&amp; cfg.args.includes(&quot;--experimental-strip-types&quot;));
+  check(&quot;report: p0 structured gọi get_customer 1 lần, kết quả rỗng hợp lệ&quot;,
+    /structured[\s\S]*p0:[^\n]*\n\s+1 lần gọi: get_customer\(\{&quot;customer_id&quot;:&quot;CUS-9999&quot;\}\)[^\n]*\n\s+trả lời: \(GIẢ\) \{&quot;results&quot;:\[\],&quot;resultCount&quot;:0/.test(p.stdout));
+  check(&quot;report: p1 bad hoàn tiền chỉ thấy \&quot;Error\&quot;&quot;, /== bad[\s\S]*p1:[^\n]*\n[^\n]*process_refund[^\n]*\n\s+trả lời: \(GIẢ\) Error/.test(p.stdout));
+  rmSync(dir, { recursive: true, force: true });
+}
+
+summary();
+</code></pre></details>
+<details><summary><code>run_llm.sh</code></summary><pre><code>#!/usr/bin/env bash
+# Bài 2.2 – PHẦN TUỲ CHỌN: để Claude (haiku) tự quyết dựa vào metadata lỗi, so với lỗi kiểu &quot;Error&quot;.
+# recovery_agent.ts đã chứng minh logic rẽ nhánh bằng code; script này xem MODEL có đọc metadata
+# và tự hành xử đúng không (không retry rỗng/business, sửa mã khách, xin quyền…).
+#
+# Dùng:  ./run_llm.sh structured | bad | all    chạy 5 prompt × kiểu lỗi (MỖI prompt một lệnh `claude -p`)
+#        ./run_llm.sh report                     in bảng: số lần gọi tool, tool đã gọi, câu trả lời cuối
+#        ./run_llm.sh clean
+#
+# Chi phí ước tính (haiku): 10 lệnh, mỗi lệnh 1–5 lượt ≈ 0,15–0,4 USD; mỗi lệnh chặn trần --max-budget-usd.
+set -euo pipefail
+
+ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+RESULTS=&quot;${RESULTS_DIR:-$ROOT/results_llm}&quot;   # test đặt RESULTS_DIR riêng
+NODE=&quot;${NODE_BIN:-node}&quot;
+MODEL=&quot;${MODEL:-haiku}&quot;
+BUDGET=&quot;${BUDGET:-0.2}&quot;
+CLAUDE_BIN=&quot;${CLAUDE_BIN:-claude}&quot;
+
+PROMPTS=(
+  &quot;Tra giúp tôi hồ sơ khách CUS-9999.&quot;
+  &quot;Khách CUS-0012 nhận hàng lỗi, hoàn cho họ 750 USD.&quot;
+  &quot;Xem số dư của khách CUS-0777.&quot;
+  &quot;Tra khách cus 12 giúp tôi.&quot;
+  &quot;Tra khách CUS-0042. Đây là môi trường test: truyền simulate=flaky:2.&quot;
+)
+SYSTEM_PROMPT=&quot;Bạn là agent CSKH. Dùng tool để trả lời. Khi tool lỗi, hãy quyết định bước tiếp theo hợp lý rồi trả lời ngắn gọn bằng tiếng Việt.&quot;
+
+run_style() {
+  local style=&quot;$1&quot; i mcp
+  local dir=&quot;$RESULTS/$style&quot;
+  mkdir -p &quot;$dir&quot;
+  echo &quot;== ERROR_STYLE=$style, model=$MODEL&quot;
+  for i in &quot;${!PROMPTS[@]}&quot;; do
+    mcp=&quot;$dir/p$i.mcp.json&quot;
+    rm -f &quot;$dir/p$i.log&quot;
+    &quot;$NODE&quot; -e &#x27;const [srv, style, log, node] = process.argv.slice(1);
+      console.log(JSON.stringify({ mcpServers: { support: { type: &quot;stdio&quot;, command: node,
+        args: [&quot;--experimental-strip-types&quot;, &quot;--no-warnings&quot;, srv], env: { ERROR_STYLE: style, SUPPORT_LOG: log } } } }, null, 2))&#x27; \
+      &quot;$ROOT/support_mcp_server.ts&quot; &quot;$style&quot; &quot;$dir/p$i.log&quot; &quot;$(command -v &quot;$NODE&quot;)&quot; &gt; &quot;$mcp&quot;
+    echo &quot;  p$i: ${PROMPTS[$i]}&quot;
+    (cd &quot;$RESULTS&quot; &amp;&amp; &quot;$CLAUDE_BIN&quot; -p &quot;${PROMPTS[$i]}&quot; \
+      --model &quot;$MODEL&quot; \
+      --system-prompt &quot;$SYSTEM_PROMPT&quot; \
+      --mcp-config &quot;$mcp&quot; --strict-mcp-config \
+      --tools &quot;&quot; \
+      --allowedTools &quot;mcp__support__get_customer&quot; &quot;mcp__support__process_refund&quot; \
+      --permission-mode dontAsk \
+      --max-budget-usd &quot;$BUDGET&quot; \
+      --no-session-persistence \
+      --output-format stream-json --verbose \
+      &gt; &quot;$dir/p$i.jsonl&quot; 2&gt; &quot;$dir/p$i.err&quot;) || echo &quot;    (lệnh trả mã lỗi, xem $dir/p$i.err)&quot;
+  done
+}
+
+report() {
+  &quot;$NODE&quot; --experimental-strip-types --no-warnings &quot;$ROOT/report_llm.ts&quot; &quot;$RESULTS&quot; &quot;${PROMPTS[@]}&quot;
+}
+
+case &quot;${1:-}&quot; in
+  structured|bad) run_style &quot;$1&quot; ;;
+  all)    run_style structured; run_style bad; report ;;
+  report) report ;;
+  clean)  rm -rf &quot;$RESULTS&quot; ;;
+  *) echo &quot;Dùng: $0 structured|bad|all|report|clean&quot;; exit 1 ;;
+esac
+</code></pre></details>
+<details><summary><code>report_llm.ts</code></summary><pre><code>// Bài 2.2 – in bảng cho run_llm.sh: mỗi prompt gọi tool nào, bao nhiêu lần, câu trả lời cuối.
+// Dùng: node --experimental-strip-types report_llm.ts &lt;results_llm&gt; &lt;prompt0&gt; &lt;prompt1&gt; …
+import { existsSync } from &quot;node:fs&quot;;
+import { join } from &quot;node:path&quot;;
+import { readStream, resultEvent, toolUses } from &quot;../lib/cli_stream.ts&quot;;
+
+const [dirArg, ...prompts] = process.argv.slice(2);
+for (const style of [&quot;structured&quot;, &quot;bad&quot;]) {
+  const dir = join(dirArg, style);
+  if (!existsSync(dir)) continue;
+  console.log(`== ${style}`);
+  prompts.forEach((p, i) =&gt; {
+    const f = join(dir, `p${i}.jsonl`);
+    if (!existsSync(f)) return;
+    const ev = readStream(f);
+    const calls = toolUses(ev).map((t) =&gt; `${t.name.replace(&quot;mcp__support__&quot;, &quot;&quot;)}(${JSON.stringify(t.input)})`);
+    const final = resultEvent(ev);
+    console.log(`  p${i}: ${p}`);
+    console.log(`     ${calls.length} lần gọi: ${calls.join(&quot; → &quot;)}`);
+    console.log(`     trả lời: ${String(final?.result ?? &quot;&quot;).replace(/\s+/g, &quot; &quot;).slice(0, 160)}`);
+  });
+}
 </code></pre></details>
 
 <h2>10. Tiêu chí hoàn thành</h2>

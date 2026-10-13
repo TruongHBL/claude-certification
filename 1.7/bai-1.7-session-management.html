@@ -119,6 +119,8 @@ MODEL=&quot;${MODEL:-sonnet}&quot;
 BUDGET=&quot;${BUDGET_USD:-1}&quot;
 PROJECTS_DIR=&quot;${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}&quot;
 NAME=&quot;cca-1-7-review&quot;
+# Đọc JSON output / transcript bằng helper TypeScript lib.ts (cần Node ≥ 22.6)
+ts() { node --experimental-strip-types --no-warnings &quot;$ROOT/lib.ts&quot; &quot;$@&quot;; }
 CHANGED=(auth.rb session.rb middleware.rb)
 
 # Cờ chung: chạy không tương tác, output JSON, chỉ cho đọc file.
@@ -137,12 +139,7 @@ ask() {
   mkdir -p &quot;$OUT&quot;
   echo &quot;▶ $out: $CLAUDE ${flags[*]} $* -- \&quot;&lt;prompt&gt;\&quot;&quot;
   (cd &quot;$WORK&quot; &amp;&amp; &quot;$CLAUDE&quot; &quot;${flags[@]}&quot; &quot;$@&quot; -- &quot;$prompt&quot;) &gt; &quot;$OUT/$out.json&quot;
-  ruby -rjson -e &#x27;
-    d = JSON.parse(File.read(ARGV[0]))
-    File.write(ARGV[1], d[&quot;result&quot;].to_s)
-    printf(&quot;  session_id=%s  cost=$%.4f  turns=%s  subtype=%s\n&quot;,
-           d[&quot;session_id&quot;], d[&quot;total_cost_usd&quot;].to_f, d[&quot;num_turns&quot;], d[&quot;subtype&quot;])
-  &#x27; &quot;$OUT/$out.json&quot; &quot;$OUT/$out.md&quot;
+  ts result &quot;$OUT/$out.json&quot; &quot;$OUT/$out.md&quot;
 }
 
 need_session() {
@@ -214,7 +211,7 @@ cmd_step6() {
   ask step6 &quot;Giả sử chọn hướng thay toàn bộ Auth tự viết bằng Devise. Phác thảo kế hoạch 5 bước, không sửa file.&quot; \
     --resume &quot;$sid&quot; --fork-session
   local after; after=$(wc -l &lt; &quot;$tr&quot; 2&gt;/dev/null || echo 0)
-  local fork_sid; fork_sid=$(ruby -rjson -e &#x27;puts JSON.parse(File.read(ARGV[0]))[&quot;session_id&quot;]&#x27; &quot;$OUT/step6.json&quot;)
+  local fork_sid; fork_sid=$(ts session-id &quot;$OUT/step6.json&quot;)
   echo &quot;Phiên gốc $sid: $before → $after dòng transcript (fork không ghi vào phiên gốc)&quot;
   echo &quot;Phiên fork mới: $fork_sid ($( [[ &quot;$fork_sid&quot; != &quot;$sid&quot; ]] &amp;&amp; echo &#x27;khác ID gốc ✓&#x27; || echo &#x27;TRÙNG ID ✗&#x27;))&quot;
 }
@@ -229,16 +226,7 @@ transcript() {
 reads_of() {
   local tr; tr=&quot;$(transcript &quot;$1&quot;)&quot;
   [[ -f &quot;$tr&quot; ]] || { echo &quot;(không tìm thấy transcript $tr)&quot;; return; }
-  ruby -rjson -e &#x27;
-    skip = ARGV[1].to_i
-    files = File.readlines(ARGV[0]).drop(skip).flat_map do |l|
-      m = (JSON.parse(l)[&quot;message&quot;] rescue nil) or next []
-      c = m[&quot;content&quot;]; next [] unless c.is_a?(Array)
-      c.select { |b| b[&quot;type&quot;] == &quot;tool_use&quot; &amp;&amp; b[&quot;name&quot;] == &quot;Read&quot; }
-       .map { |b| File.basename(b.dig(&quot;input&quot;, &quot;file_path&quot;).to_s) }
-    end
-    puts files.empty? ? &quot;(không đọc file nào)&quot; : files.tally.map { |f, n| n &gt; 1 ? &quot;#{f}×#{n}&quot; : f }.join(&quot;, &quot;)
-  &#x27; &quot;$tr&quot; &quot;${2:-0}&quot;
+  ts reads &quot;$tr&quot; &quot;${2:-0}&quot;
 }
 
 cmd_compare() {
@@ -292,51 +280,91 @@ case &quot;${1:-}&quot; in
   *) sed -n &#x27;2,22p&#x27; &quot;$0&quot;; exit 1 ;;
 esac
 </code></pre>
+<p>Phần đọc JSON output và transcript nằm trong helper TypeScript <code>bai_1_7_session/lib.ts</code> (gọi qua hàm <code>ts</code> trong <code>run.sh</code>, cần Node ≥ 22.6, không cần <code>node_modules</code>):</p>
+<pre><code>// Helper cho run.sh (thay các đoạn `ruby -rjson -e …` cũ). Không gọi Claude.
+//   result &lt;stepN.json&gt; &lt;stepN.md&gt;   ghi field &quot;result&quot; ra .md, in session_id / cost / turns / subtype
+//   session-id &lt;stepN.json&gt;          in session_id
+//   reads &lt;transcript.jsonl&gt; [skip]  liệt kê file đã Read (bỏ qua `skip` dòng đầu), vd &quot;auth.rb, session.rb×2&quot;
+import { existsSync, readFileSync, writeFileSync } from &quot;node:fs&quot;;
+import { basename } from &quot;node:path&quot;;
+
+const [cmd, ...args] = process.argv.slice(2);
+const readJson = (p: string) =&gt; JSON.parse(readFileSync(p, &quot;utf8&quot;)) as Record&lt;string, any&gt;;
+
+switch (cmd) {
+  case &quot;result&quot;: {
+    const [json, md] = args as [string, string];
+    const d = readJson(json);
+    writeFileSync(md, String(d.result ?? &quot;&quot;));
+    console.log(`  session_id=${d.session_id}  cost=$${Number(d.total_cost_usd ?? 0).toFixed(4)}  turns=${d.num_turns}  subtype=${d.subtype}`);
+    break;
+  }
+  case &quot;session-id&quot;:
+    console.log(readJson(args[0]!).session_id);
+    break;
+  case &quot;reads&quot;: {
+    const [tr, skip = &quot;0&quot;] = args;
+    if (!tr || !existsSync(tr)) {
+      console.log(`(không tìm thấy transcript ${tr})`);
+      break;
+    }
+    const files = readFileSync(tr, &quot;utf8&quot;)
+      .split(&quot;\n&quot;)
+      .slice(Number(skip)) // giống wc -l: đếm theo dòng, kể cả trước khi lọc
+      .filter((l) =&gt; l.length)
+      .flatMap((l) =&gt; {
+        let m: any;
+        try {
+          m = JSON.parse(l).message;
+        } catch {
+          return [];
+        }
+        const c = m?.content;
+        if (!Array.isArray(c)) return [];
+        return c
+          .filter((b: any) =&gt; b?.type === &quot;tool_use&quot; &amp;&amp; b.name === &quot;Read&quot;)
+          .map((b: any) =&gt; basename(String(b.input?.file_path ?? &quot;&quot;)));
+      });
+    const tally = new Map&lt;string, number&gt;();
+    for (const f of files) tally.set(f, (tally.get(f) ?? 0) + 1);
+    console.log(files.length ? [...tally].map(([f, n]) =&gt; (n &gt; 1 ? `${f}×${n}` : f)).join(&quot;, &quot;) : &quot;(không đọc file nào)&quot;);
+    break;
+  }
+  default:
+    console.error(&quot;Dùng: lib.ts result &lt;json&gt; &lt;md&gt; | session-id &lt;json&gt; | reads &lt;transcript&gt; [skip]&quot;);
+    process.exit(2);
+}</code></pre>
 
 <h2>7. Kiểm thử script (chưa gọi Claude thật)</h2>
-<div class="card ok"><b>Đã kiểm tra:</b> <code>bash -n run.sh</code> sạch. Chạy toàn bộ <code>all</code> + <code>step6</code> với <code>CLAUDE_BIN</code> trỏ tới một Claude giả lập (script Ruby trả JSON và ghi transcript giả) để kiểm tra luồng file, việc lưu session ID, cách đọc transcript và bộ chấm <code>compare</code>. Câu trả lời của Claude giả được viết sẵn: bước 4 cố ý “stale”, bước 5 cố ý đúng. Bảng dưới chỉ chứng minh <b>bộ chấm hoạt động</b>, không phải hành vi thật của Claude.
-<pre><code>$ bash -n run.sh &amp;&amp; echo OK
-OK
-$ CLAUDE_BIN=fake_claude ./run.sh all
-Đã tạo lại work/ (10 file), xoá out/ và .session_id
-▶ step1: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode -n cca-1-7-review --session-id 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 -- &quot;&lt;prompt&gt;&quot;
-  session_id=3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087  cost=$0.0123  turns=11  subtype=success
-Phiên &#x27;cca-1-7-review&#x27; = 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 (resume tay: cd work &amp;&amp; claude --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087)
-▶ step2: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 -- &quot;&lt;prompt&gt;&quot;
-  session_id=3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087  cost=$0.0123  turns=1  subtype=success
-Summary → out/summary.md (đọc lại, sửa tay nếu cần trước step5)
-Đã thay 3 file trong work/: auth.rb session.rb middleware.rb (diff ở out/diff_*.txt)
-▶ step4: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 -- &quot;&lt;prompt&gt;&quot;
-  session_id=3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087  cost=$0.0123  turns=1  subtype=success
-▶ step5: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode -n cca-1-7-fresh --session-id f1d651f4-f9b6-4bfe-a33b-24688f50e6d2 -- &quot;&lt;prompt&gt;&quot;
-  session_id=f1d651f4-f9b6-4bfe-a33b-24688f50e6d2  cost=$0.0123  turns=4  subtype=success
-step4   step5   Kiểm tra (theo ANSWER_KEY.md)
-------------------------------------------------------------------------
-FAIL    OK      Không coi legacy_login là còn tồn tại (method đã bị xoá)
-FAIL    OK      Không đề xuất lại secure_compare (A1 đã sửa)
-FAIL    OK      Không đề xuất lại SecureRandom (S1 đã sửa)
-OK      OK      Vẫn báo SQL injection ở middleware (W1 còn)
-FAIL    OK      Phát hiện vấn đề MỚI: log header Authorization (N1)
+<div class="card ok"><b>Đã kiểm tra:</b> <code>bash -n run.sh</code> sạch. Chạy toàn bộ <code>all</code> + <code>step6</code> với <code>CLAUDE_BIN</code> trỏ tới một Claude giả lập (<code>test/bin/claude</code>: wrapper bash gọi <code>fake_claude.ts</code>, trả JSON và ghi transcript giả) để kiểm tra luồng file, việc lưu session ID, cách đọc transcript và bộ chấm <code>compare</code>. Câu trả lời của Claude giả được viết sẵn: bước 4 cố ý “stale”, bước 5 cố ý đúng. Bảng dưới chỉ chứng minh <b>bộ chấm hoạt động</b>, không phải hành vi thật của Claude.
+<pre><code>$ cd bai_1_7_session &amp;&amp; node --experimental-strip-types --no-warnings test/run_sh.test.ts
+== bash -n
+PASS  run.sh không lỗi cú pháp
+PASS  run.sh không còn gọi ruby
 
-Dòng có nhắc tới legacy_login / secure_compare / SecureRandom (người chấm đọc ngữ cảnh):
-  [step4]
-    2:1. auth.rb: legacy_login dùng MD5, nên xoá.
-    3:2. auth.rb: nên dùng ActiveSupport secure_compare thay ==.
-    4:3. session.rb: nên dùng SecureRandom thay rand.
-  [step5]
-    1:auth.rb: đã chuyển sang secure_compare, method cũ đã bị xoá → hết vấn đề.
-    2:session.rb: đã dùng SecureRandom → hết vấn đề.
+== ./run.sh all (Claude GIẢ)
+PASS  all chạy xong, exit 0
+PASS  reset tạo work/ 10 file
+PASS  step1 lưu .session_id dạng UUID
+PASS  lib.ts result: in session_id/cost/turns/subtype
+PASS  step2 ghi out/summary.md
+PASS  step3 thay 3 file, có diff
+PASS  compare in 5 dòng kiểm tra
+PASS  compare: step4 (stale GIẢ) FAIL 4 dòng, step5 OK cả 5
+PASS  lib.ts reads: step4 không đọc file nào
+PASS  lib.ts reads: step5 chỉ đọc 3 file đã đổi
 
-File đã Read — phiên gốc, riêng step4: (không đọc file nào)
-File đã Read — phiên mới (step5):      auth.rb, session.rb, middleware.rb
+== ./run.sh step6 (fork)
+PASS  step6 chạy xong
+PASS  fork không ghi vào phiên gốc (số dòng transcript không đổi)
+PASS  lib.ts session-id: phiên fork có ID mới
 
-Xem đầy đủ: out/step4.md (resume) và out/step5.md (fresh + summary)
-$ CLAUDE_BIN=fake_claude ./run.sh step6
-▶ step6: fake_claude -p --output-format json --model sonnet --max-budget-usd 1 --allowedTools Read,Grep,Glob --permission-mode dontAsk --safe-mode --resume 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087 --fork-session -- &quot;&lt;prompt&gt;&quot;
-  session_id=5d6e7c15-f3be-4e2b-b99d-0476eebce13c  cost=$0.0123  turns=1  subtype=success
-Phiên gốc 3adb8936-cf2f-4bdd-b2ba-7b3d4d49d087: 16 → 16 dòng transcript (fork không ghi vào phiên gốc)
-Phiên fork mới: 5d6e7c15-f3be-4e2b-b99d-0476eebce13c (khác ID gốc ✓)
-</code></pre></div>
+== ./run.sh reset (để lại trạng thái sạch)
+PASS  reset xong
+PASS  work/ có 10 file, không còn out/ và .session_id
+
+17 PASS, 0 FAIL</code></pre>
+<p class="meta">Output của <code>./run.sh all</code> + <code>step6</code> với helper TypeScript trùng khớp từng dòng với bản dùng <code>ruby -rjson</code> trước đó (chỉ khác UUID). Test tự chạy <code>./run.sh reset</code> ở cuối nên <code>work/</code> trở về 10 file gốc, không còn <code>out/</code>.</p></div>
 <div class="card warn"><b>Chưa chạy với Claude thật.</b> Cờ CLI lấy từ <code>claude --help</code> bản 2.1.296; chưa xác nhận bằng một lần chạy thật rằng CLI nhận dấu <code>--</code> trước prompt và kết hợp <code>--safe-mode</code> với <code>--allowedTools</code>. Nếu lệnh báo lỗi cờ, chạy lại với <code>SAFE_MODE=0</code>.</div>
 
 <h2>8. Kết quả quan sát (điền sau khi chạy <code>run.sh</code>)</h2>

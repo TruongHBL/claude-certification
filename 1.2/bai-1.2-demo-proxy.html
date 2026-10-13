@@ -26,7 +26,7 @@ h2{font-size:17px;margin:22px 0 8px}.err{color:var(--err)}.status{font-size:13px
 <ul style="margin:6px 0 0;padding-left:20px">
 <li>Key chỉ nằm trong bộ nhớ của tab này: không lưu, không gửi đi đâu ngoài endpoint bạn nhập. Đóng tab là mất.</li>
 <li>Tool <code>search</code> là <b>giả lập</b> (kết quả gắn nhãn <code>[MOCK]</code>). Vòng lặp dùng <code>finish_reason</code> của OpenAI, không phải <code>stop_reason</code> của Claude API.</li>
-<li>Nếu proxy không cho gọi từ trình duyệt (lỗi CORS), hãy chạy bản Ruby <code>bai_1_2_hub_and_spoke_proxy.rb</code>.</li>
+<li>Nếu proxy không cho gọi từ trình duyệt (lỗi CORS), hãy chạy bản TypeScript <code>node --experimental-strip-types bai_1_2_hub_and_spoke_proxy.ts</code>.</li>
 </ul></div>
 
 <div class="card">
@@ -48,7 +48,7 @@ h2{font-size:17px;margin:22px 0 8px}.err{color:var(--err)}.status{font-size:13px
 <h2>Báo cáo cuối</h2><pre id="report">(chưa có)</pre>
 
 <script>
-// ===== CORE (logic giống bản Ruby) =====
+// ===== CORE (logic giống bai_1_2_hub_and_spoke_proxy.ts) =====
 const cfg = { base: "", key: "", model: "", signal: null };
 let log = (s) => console.log(s);
 const MAX_TOOL_TURNS = 10; // lưới an toàn cho vòng lặp tool
@@ -152,7 +152,7 @@ function readCfg() {
 }
 function explain(e) {
   if (e.name === "AbortError") return "Đã dừng.";
-  if (e instanceof TypeError) return e.message + "\n→ Có thể proxy chặn gọi từ trình duyệt (CORS) hoặc sai Base URL. Hãy chạy bản Ruby.";
+  if (e instanceof TypeError) return e.message + "\n→ Có thể proxy chặn gọi từ trình duyệt (CORS) hoặc sai Base URL. Hãy chạy bản TypeScript (bai_1_2_hub_and_spoke_proxy.ts).";
   return e.message;
 }
 $("loadModels").onclick = async () => {

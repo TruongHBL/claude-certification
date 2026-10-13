@@ -32,7 +32,7 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 <li><b>PostToolUse</b> chuẩn hoá 3 nguồn dữ liệu lệch định dạng về cùng một schema (ngày ISO 8601, status tiếng Anh) <b>trước khi model đọc</b>.</li>
 <li><b>PreToolUse</b> chặn <code>process_refund</code> &gt; $500 và chặn <code>transfer_funds</code> khi chưa qua AML, <b>trước khi tool chạy</b>.</li>
 </ul>
-<p>Vì sao TypeScript, không phải Ruby: Agent SDK chỉ có bản TypeScript và Python. Hook là tính năng của Agent SDK, không có trong Messages API thuần.</p>
+<p>Ngôn ngữ: TypeScript, giống mọi bài trong repo (chạy trực tiếp bằng <code>node --experimental-strip-types</code>, Node ≥ 22.6). Agent SDK chỉ có bản TypeScript và Python. Hook là tính năng của Agent SDK, không có trong Messages API thuần.</p>
 
 <h2>2. Sơ đồ: hook nằm ở đâu trong một lần gọi tool</h2>
 <div class="card"><svg viewBox="0 0 760 300" role="img" aria-label="Sơ đồ PreToolUse, tool, PostToolUse">
@@ -367,12 +367,12 @@ ALL PASS</code></pre></div>
 
 <h2>9. Bản chạy không cần API key</h2>
 <p>Có hai cách, cả hai đều dùng phiên đăng nhập claude.ai của Claude Code CLI:</p>
-<div class="tw"><table><tr><th></th><th>A. Agent SDK qua CLI đã đăng nhập</th><th>B. Thuần CLI: shell hook + MCP server Ruby</th></tr>
+<div class="tw"><table><tr><th></th><th>A. Agent SDK qua CLI đã đăng nhập</th><th>B. Thuần CLI: shell hook + MCP server TypeScript</th></tr>
 <tr><td>Lệnh</td><td><code>./run_cli.sh</code></td><td><code>./run_cli_hooks.sh</code></td></tr>
-<tr><td>Code hook</td><td>Giữ nguyên <code>bai_1_5_sdk_hooks.ts</code> (callback TypeScript chạy trong tiến trình Node)</td><td><code>cli/hooks/*.rb</code>: mỗi hook là <b>một tiến trình riêng</b>, nhận JSON qua stdin</td></tr>
-<tr><td>Tool</td><td>SDK MCP server trong tiến trình (<code>createSdkMcpServer</code>)</td><td><code>cli/ops_mcp_server.rb</code> (stdio, 6 tool như bản SDK)</td></tr>
+<tr><td>Code hook</td><td>Giữ nguyên <code>bai_1_5_sdk_hooks.ts</code> (callback TypeScript chạy trong tiến trình Node)</td><td><code>cli/hooks/*.ts</code>: mỗi hook là <b>một tiến trình riêng</b> (<code>node --experimental-strip-types</code>), nhận JSON qua stdin</td></tr>
+<tr><td>Tool</td><td>SDK MCP server trong tiến trình (<code>createSdkMcpServer</code>)</td><td><code>cli/ops_mcp_server.ts</code> (stdio, dùng <code>lib/mcp_server.ts</code> chung của repo, 6 tool như bản SDK)</td></tr>
 <tr><td>State AML / escalation</td><td>Biến trong bộ nhớ (<code>Set</code>, mảng)</td><td>File JSONL trong <code>cli/state/</code>: tiến trình hook không giữ được bộ nhớ giữa các lần gọi</td></tr>
-<tr><td>Cần cài</td><td>Node 22 + <code>@anthropic-ai/claude-agent-sdk</code>, <code>zod</code></td><td>Chỉ Ruby + <code>claude</code></td></tr>
+<tr><td>Cần cài</td><td>Node 22 + <code>@anthropic-ai/claude-agent-sdk</code>, <code>zod</code></td><td>Chỉ Node ≥ 22.6 + <code>claude</code> (không cần SDK)</td></tr>
 </table></div>
 <div class="card"><b>Kết luận: Agent SDK không tự gọi API.</b> <code>query()</code> spawn một tiến trình Claude Code rồi trao đổi với nó qua stdin/stdout dạng stream-json. Tiến trình đó đọc cùng thông tin đăng nhập với lệnh <code>claude</code>, nên khi <b>không có</b> <code>ANTHROPIC_API_KEY</code> nó dùng phiên đăng nhập claude.ai (trừ vào hạn mức gói, không cần key). Đối chiếu trong mã SDK 0.3.293 đã cài (<code>@anthropic-ai/claude-agent-sdk/sdk.mjs</code> là file đã minify, chỉ 148 dòng rất dài):
 <ul>
@@ -388,52 +388,55 @@ ALL PASS</code></pre></div>
   &quot;hooks&quot;: {
     &quot;PreToolUse&quot;: [
       { &quot;matcher&quot;: &quot;mcp__ops__process_refund&quot;,
-        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/pre_refund_limit.rb\&quot;&quot; }] },
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;node --experimental-strip-types --no-warnings \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/pre_refund_limit.ts\&quot;&quot; }] },
       { &quot;matcher&quot;: &quot;mcp__ops__transfer_funds&quot;,
-        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/pre_aml_gate.rb\&quot;&quot; }] }
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;node --experimental-strip-types --no-warnings \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/pre_aml_gate.ts\&quot;&quot; }] }
     ],
     &quot;PostToolUse&quot;: [
       { &quot;matcher&quot;: &quot;mcp__ops__get_.*&quot;,
-        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/post_normalize.rb\&quot;&quot; }] },
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;node --experimental-strip-types --no-warnings \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/post_normalize.ts\&quot;&quot; }] },
       { &quot;matcher&quot;: &quot;mcp__ops__aml_check&quot;,
-        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;ruby \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/post_aml_record.rb\&quot;&quot; }] }
+        &quot;hooks&quot;: [{ &quot;type&quot;: &quot;command&quot;, &quot;command&quot;: &quot;node --experimental-strip-types --no-warnings \&quot;$CLAUDE_PROJECT_DIR/cli/hooks/post_aml_record.ts\&quot;&quot; }] }
     ]
   }
 }</code></pre>
-<pre><code>#!/usr/bin/env ruby
-# frozen_string_literal: true
-# PreToolUse(mcp__ops__process_refund): refund &gt; $500 (hoặc số tiền không hợp lệ) → deny + ghi hàng đợi người duyệt.
-require_relative &quot;lib&quot;
+<pre><code>// PreToolUse(mcp__ops__process_refund): refund &gt; $500 (hoặc số tiền không hợp lệ) → deny + ghi hàng đợi người duyệt.
+import { REFUND_LIMIT_USD, appendJsonl, deny, hookInput } from &quot;./lib.ts&quot;;
 
-inp = hook_input
-amount = Float(inp.dig(&quot;tool_input&quot;, &quot;amount_usd&quot;), exception: false)
-unless amount &amp;&amp; amount &lt;= REFUND_LIMIT_USD
-  reason = &quot;Refund $#{inp.dig(&#x27;tool_input&#x27;, &#x27;amount_usd&#x27;)} vượt hạn mức $#{REFUND_LIMIT_USD}. Không tự xử lý; &quot; \
-           &quot;đã chuyển cho nhân viên duyệt (escalation). Hãy báo khách là yêu cầu đang chờ duyệt.&quot;
-  append_jsonl(&quot;escalations.jsonl&quot;, { session_id: inp[&quot;session_id&quot;], tool: inp[&quot;tool_name&quot;], input: inp[&quot;tool_input&quot;], reason: reason })
-  deny!(reason)
-end</code></pre>
+const inp = hookInput();
+const rawAmount = inp.tool_input?.amount_usd;
+// Chỉ nhận số hoặc chuỗi số hợp lệ; còn lại (vd "abc", null) coi như không hợp lệ
+const amount = typeof rawAmount === &quot;number&quot; ? rawAmount : typeof rawAmount === &quot;string&quot; &amp;&amp; rawAmount.trim() !== &quot;&quot; ? Number(rawAmount) : NaN;
+if (!(Number.isFinite(amount) &amp;&amp; amount &lt;= REFUND_LIMIT_USD)) {
+  const reason =
+    `Refund $${rawAmount} vượt hạn mức $${REFUND_LIMIT_USD}. Không tự xử lý; ` +
+    &quot;đã chuyển cho nhân viên duyệt (escalation). Hãy báo khách là yêu cầu đang chờ duyệt.&quot;;
+  appendJsonl(&quot;escalations.jsonl&quot;, { session_id: inp.session_id, tool: inp.tool_name, input: inp.tool_input, reason });
+  deny(reason);
+}</code></pre>
+<p class="meta">Lệnh hook dùng <code>$CLAUDE_PROJECT_DIR</code>: Claude Code đặt biến này cho mọi tiến trình hook, bằng thư mục làm việc khi chạy <code>claude</code>. <code>run_cli_hooks.sh</code> <code>cd</code> vào thư mục bài trước khi gọi <code>claude -p</code>, nên đường dẫn <code>$CLAUDE_PROJECT_DIR/cli/hooks/*.ts</code> luôn đúng mà không phải sinh settings tuyệt đối lúc chạy. Hook chỉ import <code>./lib.ts</code> và module có sẵn của Node, không cần <code>node_modules</code>.</p>
 <h3>Lệnh chạy</h3>
 <pre><code>cd ~/Downloads/claude-cert/1.5
 ./run_cli.sh          # A: SDK → CLI đã đăng nhập (CLAUDE_BIN mặc định = $(command -v claude))
 ./run_cli_hooks.sh    # B: claude -p --settings cli/settings.cli.json --mcp-config … --tools "" --model haiku
 ./run_cli_hooks.sh clean
-ruby test/run_tests.rb   # thêm SDK_NODE_MODULES=… để chạy cả phần A</code></pre>
+node --experimental-strip-types --no-warnings test/run.test.ts   # phần A cần npm install ở gốc repo</code></pre>
 <h3>Kiểm thử</h3>
 <ul>
 <li><b>THẬT, không cần model:</b> 4 shell hook được bơm JSON qua stdin giống Claude Code (hạn mức đúng 500, số tiền không hợp lệ, AML khoá theo <code>session_id</code> + khách, AML fail, 3 dạng <code>tool_response</code>). MCP server được bơm JSON-RPC.</li>
 <li><b>Đầu-cuối với Claude GIẢ:</b>
   <ul>
-  <li><code>test/bin/claude</code> đọc <code>--settings</code>/<code>--mcp-config</code> như CLI, chạy đúng lệnh hook và MCP server thật.</li>
-  <li><code>test/bin/claude-sdk-fake</code> nói giao thức stream-json để Agent SDK <b>thật</b> gọi callback hook và SDK MCP server trong tiến trình Node.</li>
+  <li><code>test/bin/claude</code> (wrapper bash gọi <code>fake_claude.ts</code>) đọc <code>--settings</code>/<code>--mcp-config</code> như CLI, chạy đúng lệnh hook và MCP server thật.</li>
+  <li><code>test/bin/claude-sdk-fake</code> (wrapper bash gọi <code>claude_sdk_fake.ts</code>) nói giao thức stream-json để Agent SDK <b>thật</b> gọi callback hook và SDK MCP server trong tiến trình Node.</li>
   <li>Việc chọn tool nào, theo thứ tự nào, là <b>kịch bản GIẢ</b>.</li>
   </ul></li>
 </ul>
-<pre><code>== Hook (THẬT, bơm JSON stdin)
-PASS  refund 750 → deny (exit 0 + JSON)  → {&quot;hookSpecificOutput&quot;=&gt;{&quot;hookEventName&quot;=&gt;&quot;PreToolUse&quot;, &quot;permissionDecision&quot;=&gt;&quot;deny&quot;, &quot;perm
+<pre><code>$ node --experimental-strip-types --no-warnings test/run.test.ts
+== Hook (THẬT, bơm JSON stdin)
+PASS  refund 750 → deny (exit 0 + JSON)
 PASS  refund 500 (đúng hạn mức) → không chặn
 PASS  refund số tiền không hợp lệ → deny
-PASS  mỗi lần deny refund ghi 1 escalation  → 2 dòng
+PASS  mỗi lần deny refund ghi 1 escalation
 PASS  transfer khi chưa AML → deny
 PASS  AML pass rồi → transfer được
 PASS  AML pass ở phiên khác KHÔNG có hiệu lực (khoá theo session_id)
@@ -454,10 +457,10 @@ PASS  tool lạ → JSON-RPC error (lỗi giao thức)
 
 == Đầu-cuối run_cli_hooks.sh với claude GIẢ (hook + server THẬT, chọn tool GIẢ)
 PASS  run_cli_hooks.sh chạy xong
-PASS  LEDGER chỉ có 1 giao dịch hợp lệ (refund 750 không chạy)  → &quot;transfer CUS-42 $200\n&quot;
+PASS  LEDGER chỉ có 1 giao dịch hợp lệ (refund 750 không chạy)
 PASS  output ra model đã chuẩn hoá (date ISO, status chữ)
 PASS  mỗi prompt một lệnh claude -p riêng
-PASS  cờ đúng: --settings, --strict-mcp-config, --tools &quot;&quot;, --permission-mode dontAsk
+PASS  cờ đúng: --settings, --strict-mcp-config, --tools "", --permission-mode dontAsk
 
 == Đầu-cuối run_cli.sh (Agent SDK THẬT → claude-sdk-fake nói giao thức stream-json)
 PASS  run_cli.sh chạy xong qua SDK
@@ -465,7 +468,7 @@ PASS  SDK spawn đúng binary trỏ bởi CLAUDE_BIN
 PASS  tiến trình con KHÔNG có ANTHROPIC_API_KEY
 PASS  SDK đăng ký 4 hook callback + SDK MCP server ops
 PASS  refund 750 bị hook TS chặn, không thực thi
-PASS  LEDGER trong tiến trình Node chỉ có transfer hợp lệ  → LEDGER: [ &#x27;transfer CUS-42 $200&#x27; ]
+PASS  LEDGER trong tiến trình Node chỉ có transfer hợp lệ
 
 30 PASS, 0 FAIL</code></pre>
 <div class="card warn"><b>Chưa chạy với Claude thật.</b> Lệnh thật sẽ tính vào hạn mức gói claude.ai. Ước tính:

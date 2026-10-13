@@ -1,0 +1,35 @@
+
+== Server: TOOLSET=vague
+PASS  initialize trả serverInfo shop
+PASS  2 tool get_customer, lookup_order
+PASS  mô tả vague 1 câu (< 60 ký tự)
+PASS  cả hai chỉ nhận chung field query
+PASS  vague: dò được mã đơn trong chuỗi query
+
+== Server: TOOLSET=clear
+PASS  mô tả clear dài 5 dòng mỗi tool
+PASS  get_customer có ranh giới 'KHÔNG dùng khi … mã đơn'
+PASS  lookup_order có ranh giới 'KHÔNG dùng để tra hồ sơ'
+PASS  schema tách field customer_id/email/phone
+PASS  pattern mã đơn ^#\d{5}$
+PASS  lookup_order #12345 trả đơn đang giao
+PASS  get_customer theo SĐT trả CUS-0117
+PASS  không có đơn → isError + not_found
+PASS  tool không tồn tại → lỗi giao thức JSON-RPC -32602
+PASS  method lạ → -32601
+PASS  SHOP_LOG ghi mỗi tools/call 1 dòng (4 dòng)
+
+== Pipeline run.sh all với claude GIẢ (heuristic viết tay, không phải Claude)
+PASS  run.sh all thoát 0
+PASS  điểm GIẢ A 5, B 9, C 10
+PASS  30 lệnh claude (10 query × 3 cấu hình)
+PASS  cờ: --tools "" --strict-mcp-config --model haiku --output-format stream-json
+PASS  cờ: --allowedTools đúng 2 tool MCP
+PASS  không dùng --safe-mode / --bare
+PASS  results/ thật không bị ghi đè (vẫn còn A/q1.jsonl)
+PASS  chấm bằng log server khi không có stream-json: vẫn 5/9/10
+
+== score.ts trên kết quả chạy THẬT (results/, 13/10/2026)
+PASS  kết quả thật: A 8/10, B 8/10, C 10/10
+
+25 PASS, 0 FAIL

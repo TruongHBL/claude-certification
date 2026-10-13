@@ -2,7 +2,7 @@
 ================ ERROR_STYLE=structured ================
 
 [1] Tra khách bình thường  (get_customer {"customer_id":"CUS-0012"})
-  ✓ thành công: {"results":[{"customer_id":"CUS-0012","name":"Nguyễn Thị Lan","tier":"Vàng","balance_usd":120.0,"orders":["#12
+  ✓ thành công: {"results":[{"customer_id":"CUS-0012","name":"Nguyễn Thị Lan","tier":"Vàng","balance_usd":120,"orders":["#1234
   → kết cục: success sau 1 lần gọi
 
 [2] Khách không tồn tại (rỗng hợp lệ)  (get_customer {"customer_id":"CUS-9999"})
@@ -14,7 +14,7 @@
     ↻ retry 1/3 sau 0.20s
   ! transient (isRetryable=true): Kết nối DB khách hàng bị timeout sau 5s, truy vấn CHƯA chạy (dữ liệu có thể vẫn tồn tại). …
     ↻ retry 2/3 sau 0.40s
-  ✓ thành công: {"results":[{"customer_id":"CUS-0042","name":"Trần Văn Minh","tier":"Bạc","balance_usd":0.0,"orders":["#20871"
+  ✓ thành công: {"results":[{"customer_id":"CUS-0042","name":"Trần Văn Minh","tier":"Bạc","balance_usd":0,"orders":["#20871"]}
   → kết cục: success sau 3 lần gọi
 
 [4] DB sập: timeout mãi  (get_customer {"customer_id":"CUS-0012","simulate":"timeout"})
@@ -31,7 +31,7 @@
 [5] Mã khách gõ sai nhưng sửa được  (get_customer {"customer_id":"cus 12"})
   ! validation (isRetryable=false): customer_id 'cus 12' sai định dạng. Định dạng đúng: CUS + gạch ngang + 4 chữ số, vd CUS-00…
     ✎ sửa input customer_id 'cus 12' → 'CUS-0012' rồi gọi lại (lần gọi mới, không phải retry)
-  ✓ thành công: {"results":[{"customer_id":"CUS-0012","name":"Nguyễn Thị Lan","tier":"Vàng","balance_usd":120.0,"orders":["#12
+  ✓ thành công: {"results":[{"customer_id":"CUS-0012","name":"Nguyễn Thị Lan","tier":"Vàng","balance_usd":120,"orders":["#1234
   → kết cục: success sau 2 lần gọi
 
 [6] Mã khách sai không đoán được  (get_customer {"customer_id":"order-abc"})

@@ -38,10 +38,10 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 <rect class="b" x="200" y="172" width="198" height="54" rx="6"/><text x="299" y="194" text-anchor="middle">Mô tả 2 tool (tools/list)</text><text x="299" y="212" text-anchor="middle" class="m">vague | clear</text>
 <path class="l" d="M414 155 H456"/><polygon points="456,150 464,155 456,160" fill="var(--accent)"/>
 <text x="436" y="140" text-anchor="middle" class="m">tool_use</text>
-<rect class="b" x="464" y="100" width="150" height="110" rx="8"/><text x="539" y="128" text-anchor="middle" font-weight="600">MCP server “shop”</text><text x="539" y="150" text-anchor="middle" class="m">Ruby, stdio</text><text x="539" y="170" text-anchor="middle" class="m">get_customer</text><text x="539" y="188" text-anchor="middle" class="m">lookup_order</text>
+<rect class="b" x="464" y="100" width="150" height="110" rx="8"/><text x="539" y="128" text-anchor="middle" font-weight="600">MCP server “shop”</text><text x="539" y="150" text-anchor="middle" class="m">TypeScript, stdio</text><text x="539" y="170" text-anchor="middle" class="m">get_customer</text><text x="539" y="188" text-anchor="middle" class="m">lookup_order</text>
 <path class="lu" d="M614 135 H656"/><polygon points="656,130 664,135 656,140" fill="var(--ok)"/>
 <path class="lu" d="M614 185 H656"/><polygon points="656,180 664,185 656,190" fill="var(--ok)"/>
-<rect class="u" x="664" y="100" width="122" height="110" rx="8"/><text x="725" y="128" text-anchor="middle" font-weight="600">score.rb</text><text x="725" y="150" text-anchor="middle" class="m">tool ĐẦU TIÊN</text><text x="725" y="168" text-anchor="middle" class="m">so với nhãn</text><text x="725" y="190" text-anchor="middle" class="m">→ x/10</text>
+<rect class="u" x="664" y="100" width="122" height="110" rx="8"/><text x="725" y="128" text-anchor="middle" font-weight="600">score.ts</text><text x="725" y="150" text-anchor="middle" class="m">tool ĐẦU TIÊN</text><text x="725" y="168" text-anchor="middle" class="m">so với nhãn</text><text x="725" y="190" text-anchor="middle" class="m">→ x/10</text>
 <text x="640" y="122" text-anchor="middle" class="m">log</text><text x="640" y="206" text-anchor="middle" class="m">stream</text>
 <rect class="b" x="184" y="262" width="186" height="50" rx="8"/><text x="277" y="284" text-anchor="middle" font-weight="600">A: vague + conflict</text><text x="277" y="302" text-anchor="middle" class="m">hiện trạng</text>
 <rect class="b" x="392" y="262" width="186" height="50" rx="8"/><text x="485" y="284" text-anchor="middle" font-weight="600">B: clear + conflict</text><text x="485" y="302" text-anchor="middle" class="m">chỉ sửa mô tả</text>
@@ -52,7 +52,7 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>3. Năm bước ↔ cách hiện thực</h2>
 <div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
-<tr><td>1</td><td>Tạo 2 MCP tool mô tả mơ hồ, tái hiện misrouting</td><td><code>shop_mcp_server.rb</code> (Ruby thuần, JSON-RPC 2.0 qua stdio). <code>TOOLSET=vague</code>: mô tả 1 câu, cả hai nhận chung field <code>query</code></td></tr>
+<tr><td>1</td><td>Tạo 2 MCP tool mô tả mơ hồ, tái hiện misrouting</td><td><code>shop_mcp_server.ts</code> (TypeScript, JSON-RPC 2.0 qua stdio qua <code>lib/mcp_server.ts</code>, không cần thư viện ngoài). <code>TOOLSET=vague</code>: mô tả 1 câu, cả hai nhận chung field <code>query</code></td></tr>
 <tr><td>2</td><td>Chạy 10 query nhiều ý định, ghi tool được chọn</td><td><code>queries.json</code> có nhãn tool gọi <b>đầu tiên</b>. <code>./run.sh A</code>: mỗi query một lệnh <code>claude -p</code> riêng; tool lấy từ block <code>tool_use</code> đầu tiên trong stream-json, dự phòng bằng log của server</td></tr>
 <tr><td>3</td><td>Viết lại mô tả đủ 5 yếu tố, 3–5 câu</td><td><code>TOOLSET=clear</code>: 5 câu mỗi tool + schema tách field có <code>pattern</code>. Xem bảng mục 4</td></tr>
 <tr><td>4</td><td>Chạy lại 10 query, so sánh (mục tiêu 9–10/10)</td><td><code>./run.sh B</code> (chỉ đổi mô tả) rồi <code>./run.sh score</code></td></tr>
@@ -105,7 +105,8 @@ Câu hỏi về trạng thái, thanh toán hay địa chỉ giao của một đ�
 </table></div>
 
 <h2>7. Mã nguồn</h2>
-<p>Chạy: <code>cd ~/Downloads/claude-cert/2.1 &amp;&amp; ./run.sh all</code> (cần Ruby và Claude Code CLI đã đăng nhập; không cần gem).</p>
+<p>Chạy: <code>cd ~/Downloads/claude-cert/2.1 &amp;&amp; ./run.sh all</code> (cần Node ≥ 22.6 và Claude Code CLI đã đăng nhập; code TypeScript chạy thẳng bằng <code>node --experimental-strip-types</code>, không cần build). Test: <code>node --experimental-strip-types test/run.test.ts</code>.</p>
+<div class="card"><b>Ghi chú chuyển ngôn ngữ:</b> bài này ban đầu viết bằng Ruby và <b>lần chạy thật ngày 13/10/2026 dùng server bản Ruby</b>. Bản TypeScript giữ <b>nguyên văn</b> mô tả và schema của 2 tool (đã so <code>tools/list</code> của hai bản: giống hệt từng byte), nên kết quả ở mục 9 vẫn áp dụng. <code>score.ts</code> chấm lại <code>results/</code> thật cho cùng kết quả A 8/10, B 8/10, C 10/10. Khác biệt duy nhất: gọi tool không tồn tại giờ trả lỗi giao thức JSON-RPC <code>-32602</code> thay vì <code>result</code> có <code>isError</code> (đúng phân lớp lỗi của bài 2.2).</div>
 <div class="tw"><table><tr><th>Flag <code>claude</code></th><th>Mục đích</th></tr>
 <tr><td><code>-p --output-format stream-json --verbose</code></td><td>Chạy không tương tác, xuất từng sự kiện để đọc block <code>tool_use</code> đầu tiên</td></tr>
 <tr><td><code>--mcp-config &lt;file&gt; --strict-mcp-config</code></td><td>Chỉ nạp server “shop”, bỏ MCP server khác của máy</td></tr>
@@ -115,43 +116,40 @@ Câu hỏi về trạng thái, thanh toán hay địa chỉ giao của một đ�
 <tr><td><code>--model haiku --max-budget-usd 0.2 --no-session-persistence</code></td><td>Rẻ, chặn trần chi phí mỗi lệnh, không lưu phiên</td></tr>
 </table></div>
 <p class="meta">Không dùng <code>--safe-mode</code> (tắt cả MCP server) và <code>--bare</code> (chỉ nhận ANTHROPIC_API_KEY, không dùng OAuth).</p>
-<p>File <code>shop_mcp_server.rb</code></p><pre><code>#!/usr/bin/env ruby
-# frozen_string_literal: true
+<p>File <code>shop_mcp_server.ts</code></p><pre><code>#!/usr/bin/env -S node --experimental-strip-types --no-warnings
+// Bài 2.1 – MCP server &quot;shop&quot; (stdio, JSON-RPC 2.0, TypeScript, không cần thư viện ngoài).
+//
+// Hai tool: get_customer, lookup_order. Bộ mô tả chọn bằng biến môi trường:
+//   TOOLSET=vague  : mô tả 1 câu, chồng lấn, cả hai nhận chung field `query` (tái hiện misrouting)
+//   TOOLSET=clear  : mô tả 3–5 câu đủ 5 yếu tố + schema tách field rõ ràng
+// SHOP_LOG=&lt;file&gt;  : mỗi tools/call ghi 1 dòng JSON (tool, arguments, toolset, thời điểm)
+//
+// Dữ liệu là dữ liệu GIẢ, chỉ để agent có kết quả hợp lý mà trả lời.
+import { appendFileSync } from &quot;node:fs&quot;;
+import { runServer, textResult, type ToolDef, type ToolResult } from &quot;../lib/mcp_server.ts&quot;;
 
-# Bài 2.1 – MCP server &quot;shop&quot; (stdio, JSON-RPC 2.0, Ruby thuần, không cần gem).
-#
-# Hai tool: get_customer, lookup_order. Bộ mô tả chọn bằng biến môi trường:
-#   TOOLSET=vague  : mô tả 1 câu, chồng lấn, cả hai nhận chung field `query` (tái hiện misrouting)
-#   TOOLSET=clear  : mô tả 3–5 câu đủ 5 yếu tố + schema tách field rõ ràng
-# SHOP_LOG=&lt;file&gt;  : mỗi tools/call ghi 1 dòng JSON (tool, arguments, toolset, thời điểm)
-#
-# Dữ liệu là dữ liệu GIẢ, chỉ để agent có kết quả hợp lý mà trả lời.
+const TOOLSET = process.env.TOOLSET ?? &quot;vague&quot;;
+const LOG_FILE = process.env.SHOP_LOG;
 
-require &quot;json&quot;
-require &quot;time&quot;
-
-TOOLSET = ENV.fetch(&quot;TOOLSET&quot;, &quot;vague&quot;)
-LOG_FILE = ENV[&quot;SHOP_LOG&quot;]
-
-CUSTOMERS = [
+const CUSTOMERS = [
   { customer_id: &quot;CUS-0042&quot;, name: &quot;Nguyễn Thị Lan&quot;, email: &quot;lan.nguyen@example.vn&quot;, phone: &quot;0912345678&quot;,
     tier: &quot;Vàng&quot;, points: 1240, joined: &quot;2024-03-18&quot;, recent_orders: [&quot;#12345&quot;, &quot;#31007&quot;] },
   { customer_id: &quot;CUS-0117&quot;, name: &quot;Trần Văn Minh&quot;, email: &quot;minh.tran@example.vn&quot;, phone: &quot;0987654321&quot;,
-    tier: &quot;Bạc&quot;, points: 380, joined: &quot;2025-07-02&quot;, recent_orders: [&quot;#20871&quot;, &quot;#45210&quot;] }
-].freeze
+    tier: &quot;Bạc&quot;, points: 380, joined: &quot;2025-07-02&quot;, recent_orders: [&quot;#20871&quot;, &quot;#45210&quot;] },
+];
 
-ORDERS = [
+const ORDERS = [
   { order_number: &quot;#12345&quot;, customer_id: &quot;CUS-0042&quot;, status: &quot;Đang giao&quot;, carrier: &quot;GHN&quot;, tracking_id: &quot;GHN-5521093&quot;,
     eta: &quot;2026-10-14&quot;, paid: true, ship_to: &quot;12 Lê Lợi, Q.1, TP.HCM&quot;, items: [&quot;Nồi chiên không dầu 5L&quot;] },
   { order_number: &quot;#20871&quot;, customer_id: &quot;CUS-0117&quot;, status: &quot;Đã đóng gói&quot;, carrier: &quot;GHN&quot;, tracking_id: &quot;GHN-8842137&quot;,
     eta: &quot;2026-10-16&quot;, paid: false, ship_to: &quot;45 Trần Phú, Hà Đông, Hà Nội&quot;, items: [&quot;Bàn phím cơ&quot;, &quot;Lót chuột&quot;] },
   { order_number: &quot;#31007&quot;, customer_id: &quot;CUS-0042&quot;, status: &quot;Đã giao&quot;, carrier: &quot;GHTK&quot;, tracking_id: &quot;GHTK-770215&quot;,
     eta: &quot;2026-10-05&quot;, paid: true, ship_to: &quot;88 Nguyễn Huệ, Q.1, TP.HCM&quot;, items: [&quot;Máy xay sinh tố&quot;] },
-  { order_number: &quot;#45210&quot;, customer_id: &quot;CUS-0117&quot;, status: &quot;Chờ xác nhận&quot;, carrier: &quot;GHTK&quot;, tracking_id: nil,
-    eta: nil, paid: true, ship_to: &quot;45 Trần Phú, Hà Đông, Hà Nội&quot;, items: [&quot;Tai nghe bluetooth&quot;, &quot;Cáp sạc USB-C&quot;] }
-].freeze
+  { order_number: &quot;#45210&quot;, customer_id: &quot;CUS-0117&quot;, status: &quot;Chờ xác nhận&quot;, carrier: &quot;GHTK&quot;, tracking_id: null,
+    eta: null, paid: true, ship_to: &quot;45 Trần Phú, Hà Đông, Hà Nội&quot;, items: [&quot;Tai nghe bluetooth&quot;, &quot;Cáp sạc USB-C&quot;] },
+];
 
-VAGUE_TOOLS = [
+const VAGUE_TOOLS: ToolDef[] = [
   { name: &quot;get_customer&quot;,
     description: &quot;Lấy thông tin khách hàng.&quot;,
     inputSchema: { type: &quot;object&quot;, properties: { query: { type: &quot;string&quot;, description: &quot;Thông tin cần tìm&quot; } },
@@ -159,111 +157,75 @@ VAGUE_TOOLS = [
   { name: &quot;lookup_order&quot;,
     description: &quot;Lấy thông tin đơn hàng.&quot;,
     inputSchema: { type: &quot;object&quot;, properties: { query: { type: &quot;string&quot;, description: &quot;Thông tin cần tìm&quot; } },
-                   required: [&quot;query&quot;] } }
-].freeze
+                   required: [&quot;query&quot;] } },
+];
 
-CLEAR_TOOLS = [
+// Mô tả giữ NGUYÊN VĂN bản Ruby đã dùng khi chạy thật (13/10/2026), để kết quả trong results/ vẫn có giá trị.
+const CLEAR_TOOLS: ToolDef[] = [
   { name: &quot;get_customer&quot;,
-    description: &lt;&lt;~DESC.strip,
-      Tra HỒ SƠ KHÁCH HÀNG (danh tính, hạng thành viên, điểm tích luỹ, ngày đăng ký, danh sách mã đơn gần đây) và dùng để xác minh danh tính khách.
-      Input: truyền ĐÚNG MỘT trong ba field: customer_id dạng CUS-NNNN (vd CUS-0042), email, hoặc phone là số di động VN 10 chữ số (vd 0912345678).
-      Ví dụ dùng: &quot;khách CUS-0042 là ai&quot;, &quot;SĐT 0912345678 hạng gì&quot;, &quot;email lan@... có những đơn nào&quot;.
-      Giới hạn: không trả trạng thái giao hàng hay chi tiết đơn; không tìm theo tên; không có kết quả thì trả lỗi not_found.
-      KHÔNG dùng khi câu hỏi có mã đơn #NNNNN hoặc mã vận đơn: khi đó gọi lookup_order trực tiếp.
-    DESC
+    description: [
+      &quot;Tra HỒ SƠ KHÁCH HÀNG (danh tính, hạng thành viên, điểm tích luỹ, ngày đăng ký, danh sách mã đơn gần đây) và dùng để xác minh danh tính khách.&quot;,
+      &quot;Input: truyền ĐÚNG MỘT trong ba field: customer_id dạng CUS-NNNN (vd CUS-0042), email, hoặc phone là số di động VN 10 chữ số (vd 0912345678).&quot;,
+      &quot;Ví dụ dùng: \&quot;khách CUS-0042 là ai\&quot;, \&quot;SĐT 0912345678 hạng gì\&quot;, \&quot;email lan@... có những đơn nào\&quot;.&quot;,
+      &quot;Giới hạn: không trả trạng thái giao hàng hay chi tiết đơn; không tìm theo tên; không có kết quả thì trả lỗi not_found.&quot;,
+      &quot;KHÔNG dùng khi câu hỏi có mã đơn #NNNNN hoặc mã vận đơn: khi đó gọi lookup_order trực tiếp.&quot;,
+    ].join(&quot;\n&quot;),
     inputSchema: { type: &quot;object&quot;,
                    properties: {
                      customer_id: { type: &quot;string&quot;, pattern: &quot;^CUS-\\d{4}$&quot;, description: &quot;Mã khách, vd CUS-0042&quot; },
                      email: { type: &quot;string&quot;, description: &quot;Email đăng ký của khách&quot; },
-                     phone: { type: &quot;string&quot;, pattern: &quot;^0\\d{9}$&quot;, description: &quot;SĐT di động 10 số, vd 0912345678&quot; }
+                     phone: { type: &quot;string&quot;, pattern: &quot;^0\\d{9}$&quot;, description: &quot;SĐT di động 10 số, vd 0912345678&quot; },
                    } } },
   { name: &quot;lookup_order&quot;,
-    description: &lt;&lt;~DESC.strip,
-      Tra CHI TIẾT MỘT ĐƠN HÀNG: trạng thái, đơn vị vận chuyển, ngày giao dự kiến, đã thanh toán chưa, địa chỉ giao, danh sách sản phẩm.
-      Input: truyền ĐÚNG MỘT trong hai field: order_number dạng # + 5 chữ số (vd #12345), hoặc tracking_id là mã vận đơn của hãng vận chuyển (vd GHN-8842137, GHTK-770215).
-      Ví dụ dùng: &quot;đơn #12345 tới đâu rồi&quot;, &quot;mã vận đơn GHN-8842137 giao chưa&quot;, &quot;đơn #31007 giao tới địa chỉ nào&quot;.
-      Giới hạn: không tìm đơn theo email, SĐT hay tên khách; nếu khách chỉ đưa email/SĐT thì gọi get_customer trước để lấy mã đơn.
-      KHÔNG dùng để tra hồ sơ hay điểm của khách: đó là việc của get_customer.
-    DESC
+    description: [
+      &quot;Tra CHI TIẾT MỘT ĐƠN HÀNG: trạng thái, đơn vị vận chuyển, ngày giao dự kiến, đã thanh toán chưa, địa chỉ giao, danh sách sản phẩm.&quot;,
+      &quot;Input: truyền ĐÚNG MỘT trong hai field: order_number dạng # + 5 chữ số (vd #12345), hoặc tracking_id là mã vận đơn của hãng vận chuyển (vd GHN-8842137, GHTK-770215).&quot;,
+      &quot;Ví dụ dùng: \&quot;đơn #12345 tới đâu rồi\&quot;, \&quot;mã vận đơn GHN-8842137 giao chưa\&quot;, \&quot;đơn #31007 giao tới địa chỉ nào\&quot;.&quot;,
+      &quot;Giới hạn: không tìm đơn theo email, SĐT hay tên khách; nếu khách chỉ đưa email/SĐT thì gọi get_customer trước để lấy mã đơn.&quot;,
+      &quot;KHÔNG dùng để tra hồ sơ hay điểm của khách: đó là việc của get_customer.&quot;,
+    ].join(&quot;\n&quot;),
     inputSchema: { type: &quot;object&quot;,
                    properties: {
                      order_number: { type: &quot;string&quot;, pattern: &quot;^#\\d{5}$&quot;, description: &quot;Mã đơn, vd #12345&quot; },
-                     tracking_id: { type: &quot;string&quot;, description: &quot;Mã vận đơn, vd GHN-8842137&quot; }
-                   } } }
-].freeze
+                     tracking_id: { type: &quot;string&quot;, description: &quot;Mã vận đơn, vd GHN-8842137&quot; },
+                   } } },
+];
 
-TOOLS = TOOLSET == &quot;clear&quot; ? CLEAR_TOOLS : VAGUE_TOOLS
+export const TOOLS = TOOLSET === &quot;clear&quot; ? CLEAR_TOOLS : VAGUE_TOOLS;
 
-def log_call(name, args)
-  return unless LOG_FILE
+type Args = Record&lt;string, unknown&gt;;
+const joinArgs = (args: Args, keys: string[]) =&gt;
+  keys.map((k) =&gt; args[k]).filter((v) =&gt; v != null).map(String).join(&quot; &quot;);
 
-  File.open(LOG_FILE, &quot;a&quot;) do |f|
-    f.puts JSON.generate({ at: Time.now.iso8601, toolset: TOOLSET, tool: name, arguments: args })
-  end
-end
+// Ở bản vague, field `query` là chuỗi tự do: dò mọi kiểu định danh trong chuỗi.
+function findCustomer(args: Args) {
+  const q = joinArgs(args, [&quot;customer_id&quot;, &quot;email&quot;, &quot;phone&quot;, &quot;query&quot;]);
+  return CUSTOMERS.find((c) =&gt;
+    q.includes(c.customer_id) || q.toLowerCase().includes(c.email) || q.replace(/\D/g, &quot;&quot;).includes(c.phone));
+}
 
-# Ở bản vague, field `query` là chuỗi tự do: dò mọi kiểu định danh trong chuỗi.
-def find_customer(args)
-  q = [args[&quot;customer_id&quot;], args[&quot;email&quot;], args[&quot;phone&quot;], args[&quot;query&quot;]].compact.join(&quot; &quot;)
-  CUSTOMERS.find do |c|
-    q.include?(c[:customer_id]) || q.downcase.include?(c[:email]) || q.gsub(/\D/, &quot;&quot;).include?(c[:phone])
-  end
-end
+function findOrder(args: Args) {
+  const q = joinArgs(args, [&quot;order_number&quot;, &quot;tracking_id&quot;, &quot;query&quot;]);
+  return ORDERS.find((o) =&gt; q.includes(o.order_number) || (o.tracking_id != null &amp;&amp; q.includes(o.tracking_id)));
+}
 
-def find_order(args)
-  q = [args[&quot;order_number&quot;], args[&quot;tracking_id&quot;], args[&quot;query&quot;]].compact.join(&quot; &quot;)
-  ORDERS.find { |o| q.include?(o[:order_number]) || (o[:tracking_id] &amp;&amp; q.include?(o[:tracking_id])) }
-end
+function respond(found: object | undefined, args: Args): ToolResult {
+  return found ? textResult(found) : textResult({ error: &quot;not_found&quot;, input: args }, { isError: true });
+}
 
-def call_tool(name, args)
-  log_call(name, args)
-  result =
-    case name
-    when &quot;get_customer&quot; then find_customer(args)
-    when &quot;lookup_order&quot; then find_order(args)
-    else return { content: [{ type: &quot;text&quot;, text: JSON.generate({ error: &quot;unknown_tool&quot;, tool: name }) }], isError: true }
-    end
-  if result
-    { content: [{ type: &quot;text&quot;, text: JSON.generate(result) }] }
-  else
-    { content: [{ type: &quot;text&quot;, text: JSON.generate({ error: &quot;not_found&quot;, input: args }) }], isError: true }
-  end
-end
-
-def respond(id, result) = $stdout.puts(JSON.generate({ jsonrpc: &quot;2.0&quot;, id: id, result: result }))
-
-def respond_error(id, code, message)
-  $stdout.puts(JSON.generate({ jsonrpc: &quot;2.0&quot;, id: id, error: { code: code, message: message } }))
-end
-
-$stdout.sync = true
-$stdin.each_line do |line|
-  next if line.strip.empty?
-
-  begin
-    msg = JSON.parse(line)
-  rescue JSON::ParserError
-    respond_error(nil, -32_700, &quot;Parse error&quot;)
-    next
-  end
-  id = msg[&quot;id&quot;]
-  case msg[&quot;method&quot;]
-  when &quot;initialize&quot;
-    respond(id, { protocolVersion: msg.dig(&quot;params&quot;, &quot;protocolVersion&quot;) || &quot;2025-06-18&quot;,
-                  capabilities: { tools: {} },
-                  serverInfo: { name: &quot;shop&quot;, version: &quot;1.0.0&quot; } })
-  when &quot;notifications/initialized&quot;, &quot;notifications/cancelled&quot;
-    nil # notification: không trả lời
-  when &quot;ping&quot;
-    respond(id, {})
-  when &quot;tools/list&quot;
-    respond(id, { tools: TOOLS })
-  when &quot;tools/call&quot;
-    respond(id, call_tool(msg.dig(&quot;params&quot;, &quot;name&quot;), msg.dig(&quot;params&quot;, &quot;arguments&quot;) || {}))
-  else
-    respond_error(id, -32_601, &quot;Method not found: #{msg[&#39;method&#39;]}&quot;) unless id.nil?
-  end
-end
+runServer({
+  name: &quot;shop&quot;,
+  tools: TOOLS,
+  onCall: (tool, args) =&gt; {
+    if (LOG_FILE) {
+      appendFileSync(LOG_FILE, JSON.stringify({ at: new Date().toISOString(), toolset: TOOLSET, tool, arguments: args }) + &quot;\n&quot;);
+    }
+  },
+  handlers: {
+    get_customer: (args) =&gt; respond(findCustomer(args), args),
+    lookup_order: (args) =&gt; respond(findOrder(args), args),
+  },
+});
 </code></pre>
 <p>File <code>run.sh</code></p><pre><code>#!/usr/bin/env bash
 # Bài 2.1 – chạy 10 query qua Claude Code CLI với 3 cấu hình rồi chấm tool được gọi ĐẦU TIÊN.
@@ -281,7 +243,9 @@ end
 set -euo pipefail
 
 ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
-RESULTS=&quot;$ROOT/results&quot;
+RESULTS=&quot;${RESULTS_DIR:-$ROOT/results}&quot;   # test đặt RESULTS_DIR riêng để không ghi đè kết quả thật
+NODE=&quot;${NODE_BIN:-node}&quot;
+TS=(--experimental-strip-types --no-warnings)
 MODEL=&quot;${MODEL:-haiku}&quot;
 BUDGET=&quot;${BUDGET:-0.2}&quot;
 CLAUDE_BIN=&quot;${CLAUDE_BIN:-claude}&quot;
@@ -293,18 +257,20 @@ run_config() {
   local cfg=&quot;$1&quot; toolset prompt dir n
   toolset=&quot;$(toolset_of &quot;$cfg&quot;)&quot;; prompt=&quot;$(prompt_of &quot;$cfg&quot;)&quot;
   dir=&quot;$RESULTS/$cfg&quot;; mkdir -p &quot;$dir&quot;
-  n=&quot;$(ruby -rjson -e &#39;puts JSON.parse(File.read(ARGV[0]))[&quot;queries&quot;].size&#39; &quot;$ROOT/queries.json&quot;)&quot;
+  n=&quot;$(&quot;$NODE&quot; -e &#x27;console.log(require(process.argv[1]).queries.length)&#x27; &quot;$ROOT/queries.json&quot;)&quot;
   echo &quot;== Cấu hình $cfg: TOOLSET=$toolset, prompt=$(basename &quot;$prompt&quot;), model=$MODEL&quot;
   for ((i = 0; i &lt; n; i++)); do
     local id text mcp
-    id=&quot;$(ruby -rjson -e &#39;puts JSON.parse(File.read(ARGV[0]))[&quot;queries&quot;][ARGV[1].to_i][&quot;id&quot;]&#39; &quot;$ROOT/queries.json&quot; &quot;$i&quot;)&quot;
-    text=&quot;$(ruby -rjson -e &#39;puts JSON.parse(File.read(ARGV[0]))[&quot;queries&quot;][ARGV[1].to_i][&quot;text&quot;]&#39; &quot;$ROOT/queries.json&quot; &quot;$i&quot;)&quot;
+    id=&quot;$(&quot;$NODE&quot; -e &#x27;console.log(require(process.argv[1]).queries[+process.argv[2]].id)&#x27; &quot;$ROOT/queries.json&quot; &quot;$i&quot;)&quot;
+    text=&quot;$(&quot;$NODE&quot; -e &#x27;console.log(require(process.argv[1]).queries[+process.argv[2]].text)&#x27; &quot;$ROOT/queries.json&quot; &quot;$i&quot;)&quot;
     mcp=&quot;$dir/q$id.mcp.json&quot;
     rm -f &quot;$dir/q$id.log&quot;
     # Mỗi query một file cấu hình MCP để log tool call tách riêng theo query.
-    ruby -rjson -e &#39;puts JSON.pretty_generate({ mcpServers: { shop: { type: &quot;stdio&quot;, command: &quot;ruby&quot;, args: [ARGV[0]],
-                      env: { TOOLSET: ARGV[1], SHOP_LOG: ARGV[2] } } } })&#39; \
-      &quot;$ROOT/shop_mcp_server.rb&quot; &quot;$toolset&quot; &quot;$dir/q$id.log&quot; &gt; &quot;$mcp&quot;
+    # Server chạy bằng node (đường dẫn tuyệt đối) với --experimental-strip-types.
+    &quot;$NODE&quot; -e &#x27;const [srv, toolset, log, node] = process.argv.slice(1);
+      console.log(JSON.stringify({ mcpServers: { shop: { type: &quot;stdio&quot;, command: node,
+        args: [&quot;--experimental-strip-types&quot;, &quot;--no-warnings&quot;, srv], env: { TOOLSET: toolset, SHOP_LOG: log } } } }, null, 2))&#x27; \
+      &quot;$ROOT/shop_mcp_server.ts&quot; &quot;$toolset&quot; &quot;$dir/q$id.log&quot; &quot;$(command -v &quot;$NODE&quot;)&quot; &gt; &quot;$mcp&quot;
     echo &quot;  q$id: $text&quot;
     # Chạy trong thư mục rỗng để không nạp CLAUDE.md/settings của project nào.
     (cd &quot;$RESULTS&quot; &amp;&amp; &quot;$CLAUDE_BIN&quot; -p &quot;$text&quot; \
@@ -323,108 +289,210 @@ run_config() {
 
 case &quot;${1:-}&quot; in
   A|B|C) run_config &quot;$1&quot; ;;
-  all)   for c in A B C; do run_config &quot;$c&quot;; done; ruby &quot;$ROOT/score.rb&quot; &quot;$RESULTS&quot; &quot;$ROOT/queries.json&quot; ;;
-  score) ruby &quot;$ROOT/score.rb&quot; &quot;$RESULTS&quot; &quot;$ROOT/queries.json&quot; ;;
+  all)   for c in A B C; do run_config &quot;$c&quot;; done; &quot;$NODE&quot; &quot;${TS[@]}&quot; &quot;$ROOT/score.ts&quot; &quot;$RESULTS&quot; &quot;$ROOT/queries.json&quot; ;;
+  score) &quot;$NODE&quot; &quot;${TS[@]}&quot; &quot;$ROOT/score.ts&quot; &quot;$RESULTS&quot; &quot;$ROOT/queries.json&quot; ;;
   clean) rm -rf &quot;$RESULTS&quot; ;;
   *) echo &quot;Dùng: $0 A|B|C|all|score|clean&quot;; exit 1 ;;
 esac
 </code></pre>
-<p>File <code>score.rb</code></p><pre><code># frozen_string_literal: true
+<p>File <code>score.ts</code></p><pre><code>#!/usr/bin/env -S node --experimental-strip-types --no-warnings
+// Bài 2.1 – chấm tool được gọi ĐẦU TIÊN cho từng query, từng cấu hình.
+// Nguồn chính: block tool_use đầu tiên trong stream-json (qN.jsonl).
+// Dự phòng: dòng đầu của log server (qN.log), nếu stream-json không đọc được.
+// Dùng: node --experimental-strip-types score.ts results queries.json
+import { existsSync, readFileSync, statSync, writeFileSync } from &quot;node:fs&quot;;
+import { join } from &quot;node:path&quot;;
+import { readStream, toolUses } from &quot;../lib/cli_stream.ts&quot;;
 
-# Bài 2.1 – chấm tool được gọi ĐẦU TIÊN cho từng query, từng cấu hình.
-# Nguồn chính: block tool_use đầu tiên trong stream-json (qN.jsonl).
-# Dự phòng: dòng đầu của log server (qN.log), nếu stream-json không đọc được.
-# Dùng: ruby score.rb results queries.json
+interface Query { id: number; text: string; expected: string }
 
-require &quot;json&quot;
+const [resultsDir, queriesFile] = process.argv.slice(2);
+if (!resultsDir || !queriesFile) {
+  console.error(&quot;Dùng: score.ts &lt;results_dir&gt; &lt;queries.json&gt;&quot;);
+  process.exit(2);
+}
+const queries = (JSON.parse(readFileSync(queriesFile, &quot;utf8&quot;)) as { queries: Query[] }).queries;
+const CONFIGS: Record&lt;string, string&gt; = { A: &quot;vague + conflict&quot;, B: &quot;clear + conflict&quot;, C: &quot;clear + fixed&quot; };
 
-results_dir, queries_file = ARGV
-queries = JSON.parse(File.read(queries_file))[&quot;queries&quot;]
-CONFIGS = { &quot;A&quot; =&gt; &quot;vague + conflict&quot;, &quot;B&quot; =&gt; &quot;clear + conflict&quot;, &quot;C&quot; =&gt; &quot;clear + fixed&quot; }.freeze
+function firstToolFromStream(path: string): string | undefined {
+  return toolUses(readStream(path))[0]?.name.replace(/^mcp__shop__/, &quot;&quot;);
+}
 
-def first_tool_from_stream(path)
-  return nil unless File.exist?(path)
+function firstToolFromLog(path: string): string | undefined {
+  if (!existsSync(path) || statSync(path).size === 0) return undefined;
+  const first = readFileSync(path, &quot;utf8&quot;).split(&quot;\n&quot;)[0];
+  return (JSON.parse(first) as { tool: string }).tool;
+}
 
-  File.foreach(path) do |line|
-    ev = JSON.parse(line) rescue next
-    next unless ev[&quot;type&quot;] == &quot;assistant&quot;
+const summary: { config: string; label: string; correct: number; total: number }[] = [];
+for (const [cfg, label] of Object.entries(CONFIGS)) {
+  const dir = join(resultsDir, cfg);
+  if (!existsSync(dir)) continue;
 
-    Array(ev.dig(&quot;message&quot;, &quot;content&quot;)).each do |b|
-      return b[&quot;name&quot;].sub(/\Amcp__shop__/, &quot;&quot;) if b[&quot;type&quot;] == &quot;tool_use&quot;
-    end
-  end
-  nil
-end
+  const rows = queries.map((q) =&gt; {
+    const got = firstToolFromStream(join(dir, `q${q.id}.jsonl`)) ??
+      firstToolFromLog(join(dir, `q${q.id}.log`)) ?? &quot;(không gọi tool)&quot;;
+    return { ...q, got, ok: got === q.expected };
+  });
+  const correct = rows.filter((r) =&gt; r.ok).length;
+  summary.push({ config: cfg, label, correct, total: rows.length });
+  console.log(`\n== ${cfg} (${label}): ${correct}/${rows.length}`);
+  for (const r of rows.filter((r) =&gt; !r.ok)) {
+    console.log(`   ✗ q${r.id}: cần ${r.expected}, gọi ${r.got}  | ${r.text}`);
+  }
+}
 
-def first_tool_from_log(path)
-  return nil unless File.exist?(path) &amp;&amp; !File.zero?(path)
+if (summary.length === 0) {
+  console.log(`Chưa có kết quả trong ${resultsDir}. Chạy ./run.sh all trước.`);
+  process.exit(1);
+}
+console.log(&quot;\nCấu hình             Đúng&quot;);
+for (const s of summary) {
+  console.log(`${s.config.padEnd(2)} ${s.label.padEnd(17)} ${String(s.correct).padStart(2)}/${s.total}`);
+}
+writeFileSync(join(resultsDir, &quot;score.json&quot;), JSON.stringify(summary, null, 2) + &quot;\n&quot;);
+</code></pre>
+<p>File <code>test/run.test.ts</code></p><pre><code>// Bài 2.1 – kiểm thử server MCP (JSON-RPC thật qua stdio) và pipeline run.sh + score.ts với claude GIẢ.
+// Không gọi model. Pipeline chạy trong thư mục tạm (RESULTS_DIR) nên không đụng results/ (kết quả chạy thật).
+import { spawnSync } from &quot;node:child_process&quot;;
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from &quot;node:fs&quot;;
+import { tmpdir } from &quot;node:os&quot;;
+import { join } from &quot;node:path&quot;;
+import { McpClient } from &quot;../../lib/mcp_client.ts&quot;;
+import { check, section, summary } from &quot;../../lib/check.ts&quot;;
 
-  JSON.parse(File.foreach(path).first)[&quot;tool&quot;]
-end
+const ROOT = join(import.meta.dirname, &quot;..&quot;);
+const SERVER = join(ROOT, &quot;shop_mcp_server.ts&quot;);
+const TS = [&quot;--experimental-strip-types&quot;, &quot;--no-warnings&quot;];
 
-summary = []
-CONFIGS.each do |cfg, label|
-  dir = File.join(results_dir, cfg)
-  next unless Dir.exist?(dir)
+section(&quot;Server: TOOLSET=vague&quot;);
+{
+  const c = McpClient.forTsServer(SERVER, { TOOLSET: &quot;vague&quot; });
+  const init = await c.initialize();
+  check(&quot;initialize trả serverInfo shop&quot;, init.result?.serverInfo?.name === &quot;shop&quot;);
+  const tools = (await c.request(&quot;tools/list&quot;)).result.tools;
+  check(&quot;2 tool get_customer, lookup_order&quot;, tools.map((t: any) =&gt; t.name).join() === &quot;get_customer,lookup_order&quot;);
+  check(&quot;mô tả vague 1 câu (&lt; 60 ký tự)&quot;, tools.every((t: any) =&gt; t.description.length &lt; 60));
+  check(&quot;cả hai chỉ nhận chung field query&quot;, tools.every((t: any) =&gt; Object.keys(t.inputSchema.properties).join() === &quot;query&quot;));
+  const r = await c.callTool(&quot;lookup_order&quot;, { query: &quot;đơn #12345 tới đâu&quot; });
+  check(&quot;vague: dò được mã đơn trong chuỗi query&quot;, JSON.parse(r.result.content[0].text).order_number === &quot;#12345&quot;);
+  c.close();
+}
 
-  rows = queries.map do |q|
-    got = first_tool_from_stream(File.join(dir, &quot;q#{q[&#39;id&#39;]}.jsonl&quot;)) ||
-          first_tool_from_log(File.join(dir, &quot;q#{q[&#39;id&#39;]}.log&quot;)) || &quot;(không gọi tool)&quot;
-    { id: q[&quot;id&quot;], text: q[&quot;text&quot;], expected: q[&quot;expected&quot;], got: got, ok: got == q[&quot;expected&quot;] }
-  end
-  correct = rows.count { _1[:ok] }
-  summary &lt;&lt; [cfg, label, correct, rows.size]
-  puts &quot;\n== #{cfg} (#{label}): #{correct}/#{rows.size}&quot;
-  rows.reject { _1[:ok] }.each do |r|
-    puts &quot;   ✗ q#{r[:id]}: cần #{r[:expected]}, gọi #{r[:got]}  | #{r[:text]}&quot;
-  end
-end
+section(&quot;Server: TOOLSET=clear&quot;);
+{
+  const log = join(mkdtempSync(join(tmpdir(), &quot;shop21-&quot;)), &quot;calls.log&quot;);
+  const c = McpClient.forTsServer(SERVER, { TOOLSET: &quot;clear&quot;, SHOP_LOG: log });
+  await c.initialize();
+  const tools = (await c.request(&quot;tools/list&quot;)).result.tools;
+  const [cust, order] = tools;
+  check(&quot;mô tả clear dài 5 dòng mỗi tool&quot;, tools.every((t: any) =&gt; t.description.split(&quot;\n&quot;).length === 5));
+  check(&quot;get_customer có ranh giới &#x27;KHÔNG dùng khi … mã đơn&#x27;&quot;, /KHÔNG dùng khi câu hỏi có mã đơn/.test(cust.description));
+  check(&quot;lookup_order có ranh giới &#x27;KHÔNG dùng để tra hồ sơ&#x27;&quot;, /KHÔNG dùng để tra hồ sơ/.test(order.description));
+  check(&quot;schema tách field customer_id/email/phone&quot;, Object.keys(cust.inputSchema.properties).join() === &quot;customer_id,email,phone&quot;);
+  check(&quot;pattern mã đơn ^#\\d{5}$&quot;, order.inputSchema.properties.order_number.pattern === &quot;^#\\d{5}$&quot;);
+  const ok = await c.callTool(&quot;lookup_order&quot;, { order_number: &quot;#12345&quot; });
+  check(&quot;lookup_order #12345 trả đơn đang giao&quot;, JSON.parse(ok.result.content[0].text).status === &quot;Đang giao&quot; &amp;&amp; !ok.result.isError);
+  const byPhone = await c.callTool(&quot;get_customer&quot;, { phone: &quot;0987654321&quot; });
+  check(&quot;get_customer theo SĐT trả CUS-0117&quot;, JSON.parse(byPhone.result.content[0].text).customer_id === &quot;CUS-0117&quot;);
+  const miss = await c.callTool(&quot;lookup_order&quot;, { order_number: &quot;#99999&quot; });
+  check(&quot;không có đơn → isError + not_found&quot;, miss.result.isError === true &amp;&amp; JSON.parse(miss.result.content[0].text).error === &quot;not_found&quot;);
+  const unknown = await c.callTool(&quot;delete_order&quot;, {});
+  check(&quot;tool không tồn tại → lỗi giao thức JSON-RPC -32602&quot;, unknown.error?.code === -32602);
+  const foo = await c.request(&quot;foo&quot;);
+  check(&quot;method lạ → -32601&quot;, foo.error?.code === -32601);
+  c.close();
+  const lines = readFileSync(log, &quot;utf8&quot;).trim().split(&quot;\n&quot;).map((l) =&gt; JSON.parse(l));
+  check(&quot;SHOP_LOG ghi mỗi tools/call 1 dòng (4 dòng)&quot;, lines.length === 4 &amp;&amp; lines[0].tool === &quot;lookup_order&quot; &amp;&amp; lines[0].toolset === &quot;clear&quot;);
+}
 
-if summary.empty?
-  puts &quot;Chưa có kết quả trong #{results_dir}. Chạy ./run.sh all trước.&quot;
-  exit 1
-end
-puts &quot;\nCấu hình             Đúng&quot;
-summary.each { |cfg, label, c, n| puts format(&quot;%-2s %-17s %2d/%d&quot;, cfg, label, c, n) }
-File.write(File.join(results_dir, &quot;score.json&quot;),
-           JSON.pretty_generate(summary.map { |cfg, label, c, n| { config: cfg, label: label, correct: c, total: n } }))
+section(&quot;Pipeline run.sh all với claude GIẢ (heuristic viết tay, không phải Claude)&quot;);
+{
+  const dir = mkdtempSync(join(tmpdir(), &quot;results21-&quot;));
+  const argvLog = join(dir, &quot;argv.log&quot;);
+  const r = spawnSync(&quot;bash&quot;, [join(ROOT, &quot;run.sh&quot;), &quot;all&quot;], {
+    cwd: ROOT, encoding: &quot;utf8&quot;,
+    env: { ...process.env, PATH: `${join(ROOT, &quot;test/bin&quot;)}:${process.env.PATH}`, RESULTS_DIR: dir, FAKE_ARGV_LOG: argvLog },
+  });
+  check(&quot;run.sh all thoát 0&quot;, r.status === 0, r.stderr.slice(0, 300));
+  const score = JSON.parse(readFileSync(join(dir, &quot;score.json&quot;), &quot;utf8&quot;)) as { config: string; correct: number }[];
+  const byCfg = Object.fromEntries(score.map((s) =&gt; [s.config, s.correct]));
+  check(&quot;điểm GIẢ A 5, B 9, C 10&quot;, byCfg.A === 5 &amp;&amp; byCfg.B === 9 &amp;&amp; byCfg.C === 10, JSON.stringify(byCfg));
+  const argv = readFileSync(argvLog, &quot;utf8&quot;).trim().split(&quot;\n&quot;).map((l) =&gt; JSON.parse(l) as string[]);
+  check(&quot;30 lệnh claude (10 query × 3 cấu hình)&quot;, argv.length === 30);
+  const a0 = argv[0];
+  const has = (f: string, v?: string) =&gt; { const i = a0.indexOf(f); return i &gt;= 0 &amp;&amp; (v === undefined || a0[i + 1] === v); };
+  check(&quot;cờ: --tools \&quot;\&quot; --strict-mcp-config --model haiku --output-format stream-json&quot;,
+    has(&quot;--tools&quot;, &quot;&quot;) &amp;&amp; has(&quot;--strict-mcp-config&quot;) &amp;&amp; has(&quot;--model&quot;, &quot;haiku&quot;) &amp;&amp; has(&quot;--output-format&quot;, &quot;stream-json&quot;));
+  check(&quot;cờ: --allowedTools đúng 2 tool MCP&quot;, has(&quot;--allowedTools&quot;, &quot;mcp__shop__get_customer&quot;) &amp;&amp; a0.includes(&quot;mcp__shop__lookup_order&quot;));
+  check(&quot;không dùng --safe-mode / --bare&quot;, !a0.includes(&quot;--safe-mode&quot;) &amp;&amp; !a0.includes(&quot;--bare&quot;));
+  check(&quot;results/ thật không bị ghi đè (vẫn còn A/q1.jsonl)&quot;, existsSync(join(ROOT, &quot;results/A/q1.jsonl&quot;)));
+
+  // Dự phòng: xoá stream-json, chấm chỉ bằng log server
+  for (const cfg of [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;]) for (let i = 1; i &lt;= 10; i++) writeFileSync(join(dir, cfg, `q${i}.jsonl`), &quot;&quot;);
+  const s2 = spawnSync(process.execPath, [...TS, join(ROOT, &quot;score.ts&quot;), dir, join(ROOT, &quot;queries.json&quot;)], { encoding: &quot;utf8&quot; });
+  check(&quot;chấm bằng log server khi không có stream-json: vẫn 5/9/10&quot;, /A\s+vague \+ conflict\s+5\/10[\s\S]*B\s+clear \+ conflict\s+9\/10[\s\S]*C\s+clear \+ fixed\s+10\/10/.test(s2.stdout));
+  rmSync(dir, { recursive: true, force: true });
+}
+
+section(&quot;score.ts trên kết quả chạy THẬT (results/, 13/10/2026)&quot;);
+if (existsSync(join(ROOT, &quot;results/A&quot;))) {
+  const tmp = mkdtempSync(join(tmpdir(), &quot;score21-&quot;));
+  // Chấm trên bản sao để không ghi đè results/score.json
+  spawnSync(&quot;cp&quot;, [&quot;-r&quot;, join(ROOT, &quot;results/A&quot;), join(ROOT, &quot;results/B&quot;), join(ROOT, &quot;results/C&quot;), tmp]);
+  const s = spawnSync(process.execPath, [...TS, join(ROOT, &quot;score.ts&quot;), tmp, join(ROOT, &quot;queries.json&quot;)], { encoding: &quot;utf8&quot; });
+  check(&quot;kết quả thật: A 8/10, B 8/10, C 10/10&quot;, /A\s+vague \+ conflict\s+8\/10[\s\S]*B\s+clear \+ conflict\s+8\/10[\s\S]*C\s+clear \+ fixed\s+10\/10/.test(s.stdout), s.stdout.slice(-200));
+  rmSync(tmp, { recursive: true, force: true });
+} else {
+  console.log(&quot;(bỏ qua: không có results/ — thư mục này không đưa lên git)&quot;);
+}
+
+summary();
 </code></pre>
 
 <h2>8. Kiểm thử</h2>
 <div class="card ok"><b>Đã chạy: kiểm thử server và pipeline với <code>claude</code> giả.</b>
 <ul>
-<li>Server: bơm JSON-RPC qua stdin, kiểm tra <code>initialize</code>, <code>tools/list</code> (vague/clear), <code>tools/call</code> trả dữ liệu, lỗi <code>not_found</code> có <code>isError: true</code>, method lạ trả <code>-32601</code>, mỗi call ghi 1 dòng log.</li>
-<li>Pipeline: <code>test/bin/claude</code> giả đọc <code>--mcp-config</code>, <b>khởi chạy server thật qua stdio</b>, gọi <code>tools/list</code> rồi <code>tools/call</code>, xuất stream-json như CLI. Bộ chấm đọc được cả stream-json lẫn log dự phòng.</li>
+<li>Server: bơm JSON-RPC qua stdin, kiểm tra <code>initialize</code>, <code>tools/list</code> (vague/clear), <code>tools/call</code> trả dữ liệu, lỗi <code>not_found</code> có <code>isError: true</code>, tool không tồn tại trả <code>-32602</code>, method lạ trả <code>-32601</code>, mỗi call ghi 1 dòng log. Thêm: <code>score.ts</code> chấm lại <code>results/</code> thật ra đúng 8/8/10.</li>
+<li>Pipeline: <code>test/bin/claude</code> giả (wrapper gọi <code>test/fake_claude.ts</code>, chạy trong thư mục tạm <code>RESULTS_DIR</code> nên không ghi đè kết quả thật) đọc <code>--mcp-config</code>, <b>khởi chạy server thật qua stdio</b>, gọi <code>tools/list</code> rồi <code>tools/call</code>, xuất stream-json như CLI. Bộ chấm đọc được cả stream-json lẫn log dự phòng.</li>
 </ul>
 <p><b>Quan trọng:</b> tool mà <code>claude</code> giả chọn là <b>HEURISTIC GIẢ ĐỊNH</b> viết tay (mô tả ngắn thì bắt theo chữ “khách/địa chỉ”, prompt conflict có chữ “khách” thì gọi get_customer…). Điểm 5/10 → 9/10 → 10/10 dưới đây chỉ chứng minh pipeline và bộ chấm chạy đúng, <b>không phải kết quả của Claude</b>.</p></div>
-<pre><code>$ (JSON-RPC qua stdin, TOOLSET=clear)
-{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;result&quot;:{&quot;protocolVersion&quot;:&quot;2025-06-18&quot;,&quot;capabilities&quot;:{&quot;tools&quot;:{}},&quot;serverInfo&quot;:{&quot;name&quot;:&quot;shop&quot;,&quot;version&quot;:&quot;1.0.0&quot;}}}
-{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:2,&quot;result&quot;:{&quot;tools&quot;:[{&quot;name&quot;:&quot;get_customer&quot;,&quot;description&quot;:&quot;Tra HỒ SƠ KHÁCH HÀNG (danh tính, hạng thành viên, điểm tích luỹ, ngày…
-{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:3,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;{\&quot;order_number\&quot;:\&quot;#12345\&quot;,\&quot;customer_id\&quot;:\&quot;CUS-0042\&quot;,\&quot;status\&quot;:\&quot;Đang giao\&quot;…
-{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:4,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;{\&quot;error\&quot;:\&quot;not_found\&quot;,\&quot;input\&quot;:{\&quot;order_number\&quot;:\&quot;#99999\&quot;}}&quot;}],&quot;isError&quot;:tru…
-{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:5,&quot;error&quot;:{&quot;code&quot;:-32601,&quot;message&quot;:&quot;Method not found: foo&quot;}}
+<pre><code>$ node --experimental-strip-types test/run.test.ts
 
-$ PATH=test/bin:$PATH ./run.sh all     # claude GIẢ
-== Cấu hình A: TOOLSET=vague, prompt=system_conflict.txt, model=haiku
-== Cấu hình B: TOOLSET=clear, prompt=system_conflict.txt, model=haiku
-== Cấu hình C: TOOLSET=clear, prompt=system_fixed.txt, model=haiku
+== Server: TOOLSET=vague
+PASS  initialize trả serverInfo shop
+PASS  2 tool get_customer, lookup_order
+PASS  mô tả vague 1 câu (&lt; 60 ký tự)
+PASS  cả hai chỉ nhận chung field query
+PASS  vague: dò được mã đơn trong chuỗi query
 
-== A (vague + conflict): 5/10
-   ✗ q4: cần get_customer, gọi lookup_order  | Khách có số điện thoại 0912345678 là ai, hạng thành viên gì?
-   ✗ q6: cần get_customer, gọi lookup_order  | Tài khoản email lan.nguyen@example.vn đăng ký từ khi nào?
-   ✗ q7: cần lookup_order, gọi get_customer  | Đơn #31007 được giao tới địa chỉ nào?
-   ✗ q8: cần get_customer, gọi lookup_order  | Khách CUS-0117 hiện có bao nhiêu điểm tích luỹ?
-   ✗ q9: cần lookup_order, gọi get_customer  | Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+== Server: TOOLSET=clear
+PASS  mô tả clear dài 5 dòng mỗi tool
+PASS  get_customer có ranh giới &#x27;KHÔNG dùng khi … mã đơn&#x27;
+PASS  lookup_order có ranh giới &#x27;KHÔNG dùng để tra hồ sơ&#x27;
+PASS  schema tách field customer_id/email/phone
+PASS  pattern mã đơn ^#\d{5}$
+PASS  lookup_order #12345 trả đơn đang giao
+PASS  get_customer theo SĐT trả CUS-0117
+PASS  không có đơn → isError + not_found
+PASS  tool không tồn tại → lỗi giao thức JSON-RPC -32602
+PASS  method lạ → -32601
+PASS  SHOP_LOG ghi mỗi tools/call 1 dòng (4 dòng)
 
-== B (clear + conflict): 9/10
-   ✗ q9: cần lookup_order, gọi get_customer  | Tôi là khách CUS-0042, đơn #12345 của tôi bị giao trễ, kiểm tra giúp tôi.
+== Pipeline run.sh all với claude GIẢ (heuristic viết tay, không phải Claude)
+PASS  run.sh all thoát 0
+PASS  điểm GIẢ A 5, B 9, C 10
+PASS  30 lệnh claude (10 query × 3 cấu hình)
+PASS  cờ: --tools &quot;&quot; --strict-mcp-config --model haiku --output-format stream-json
+PASS  cờ: --allowedTools đúng 2 tool MCP
+PASS  không dùng --safe-mode / --bare
+PASS  results/ thật không bị ghi đè (vẫn còn A/q1.jsonl)
+PASS  chấm bằng log server khi không có stream-json: vẫn 5/9/10
 
-== C (clear + fixed): 10/10
+== score.ts trên kết quả chạy THẬT (results/, 13/10/2026)
+PASS  kết quả thật: A 8/10, B 8/10, C 10/10
 
-Cấu hình             Đúng
-A  vague + conflict   5/10
-B  clear + conflict   9/10
-C  clear + fixed     10/10
+25 PASS, 0 FAIL
 </code></pre>
 <div class="card ok"><b>Đã chạy với Claude thật</b> ngày 13/10/2026 (Claude Code CLI 2.1.296, model haiku, đăng nhập claude.ai, không cần API key). Bảng điểm phía trên là của <code>claude</code> giả; kết quả thật ở mục 9.</div>
 
@@ -446,7 +514,7 @@ C  clear + fixed     10/10
 
 <h2>10. Tiêu chí hoàn thành</h2>
 <ul class="chk">
-<li>Có so sánh độ chính xác trước/sau trên cùng 10 query (A → B → C, chấm tự động bằng <code>score.rb</code>)</li>
+<li>Có so sánh độ chính xác trước/sau trên cùng 10 query (A → B → C, chấm tự động bằng <code>score.ts</code>)</li>
 <li>Mô tả mới nêu định dạng định danh (#NNNNN, CUS-NNNN, mã vận đơn, SĐT 10 số) và ranh giới “KHÔNG dùng cho…” giữa hai tool</li>
 <li>Có danh sách câu system prompt gây xung đột kèm bản viết lại (mục 5)</li>
 <li>Mục tiêu khi chạy thật: C đạt 9–10/10. <span class="grn">Đạt: 10/10 ở cả 2 lượt</span></li>

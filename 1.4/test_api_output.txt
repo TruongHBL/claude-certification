@@ -1,0 +1,59 @@
+
+== Kịch bản skip
+[iter 0] process_refund ✗ → BLOCKED: chưa xác minh khách hàng trong phiên này. Hãy gọi get_customer và nhận verified=true trước khi hoàn tiền.
+[iter 1] get_customer → {"verified":true,"customer_id":"C-001","name":"Nguyễn An"}
+[iter 2] process_refund → {"status":"refunded","refund_id":"RF-1","order_id":"ORD-1001","amount":120}
+Trả lời: Đã xác minh và hoàn 120 USD cho ORD-1001 (RF-1).
+Ledger: [{"order_id":"ORD-1001","amount":120,"reason":"Tai nghe hỏng"}]
+PASS  ledger có đúng 1 refund
+PASS  khách đã xác minh
+
+== Kịch bản multi
+[iter 0] get_customer → {"verified":true,"customer_id":"C-001","name":"Nguyễn An"}
+[iter 1] lookup_order → {"customer_id":"C-001","amount":45,"status":"delivered","item":"Ốp lưng","payment":"visa-4242","order_id":"ORD-1002"}
+[iter 1] lookup_order → {"customer_id":"C-001","amount":120,"status":"delivered","item":"Tai nghe","payment":"visa-4242","order_id":"ORD-1001"}
+[iter 2] process_refund → {"status":"refunded","refund_id":"RF-1","order_id":"ORD-1002","amount":45}
+[iter 3] escalate_to_human ✗ → Handoff bị từ chối – trường rỗng/placeholder: root_cause_analysis, recommended_action. Hãy điền cụ thể.
+
+=== HANDOFF gửi nhân viên ===
+{
+  "ticket_id": "HO-0001",
+  "customer_id": "C-001",
+  "conversation_summary": "Khách C-001 (đã xác minh) yêu cầu: trả ORD-1002, khiếu nại trừ tiền 2 lần ORD-1001, đổi địa chỉ.",
+  "root_cause_analysis": "Trả hàng: giao sai màu. Trừ 2 lần: hệ thống đơn chỉ có 1 giao dịch 120 USD → nghi lỗi cổng thanh toán. Địa chỉ: ngoài quyền agent.",
+  "recommended_action": "Billing: đối soát visa-4242 với cổng thanh toán, hoàn 120 USD nếu trùng. CS: cập nhật địa chỉ 12 Láng Hạ, Hà Nội.",
+  "refund_amount": 45,
+  "concerns": [
+    {
+      "type": "return",
+      "detail": "ORD-1002 ốp lưng sai màu – đã hoàn 45 USD (RF-1)",
+      "status": "resolved"
+    },
+    {
+      "type": "billing_dispute",
+      "detail": "visa-4242 bị trừ 2 lần cho ORD-1001 (120 USD); hệ thống đơn chỉ ghi 1 giao dịch",
+      "status": "needs_human"
+    },
+    {
+      "type": "account_update",
+      "detail": "Đổi địa chỉ giao hàng sang 12 Láng Hạ, Hà Nội – agent không có tool sửa tài khoản",
+      "status": "needs_human"
+    }
+  ]
+}
+
+[iter 4] escalate_to_human → {"status":"escalated","ticket_id":"HO-0001"}
+Trả lời: Đã hoàn 45 USD cho ORD-1002; 2 vấn đề còn lại đã chuyển nhân viên (HO-0001).
+Ledger: [{"order_id":"ORD-1002","amount":45,"reason":"Sai màu"}]
+PASS  ledger có đúng 1 refund
+PASS  khách đã xác minh
+PASS  handoff thiếu trường bị từ chối, bản đủ 5 trường được nhận
+
+== Cổng chặn gọi trực tiếp
+PASS  phiên mới: refund bị chặn
+PASS  sai 4 số cuối → không verify
+PASS  refund cho khách khác bị chặn
+PASS  ledger rỗng sau các lệnh bị chặn
+PASS  thiếu tham số bắt buộc → lỗi có cấu trúc
+
+10 PASS, 0 FAIL

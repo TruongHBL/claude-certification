@@ -13,16 +13,18 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARALLEL="${PARALLEL:-4}"
+TS=(node --experimental-strip-types --no-warnings)
+CLI="$ROOT/review_cli.ts"
 mkdir -p "$ROOT/bai_1_6_results_cli"
 
-run_single() { echo "== single-pass"; ruby "$ROOT/review_cli.rb" single; }
+run_single() { echo "== single-pass"; "${TS[@]}" "$CLI" single; }
 run_multi() {
   echo "== multi-pass: per-file (song song $PARALLEL)"
-  ruby "$ROOT/review_cli.rb" list | xargs -P "$PARALLEL" -I{} ruby "$ROOT/review_cli.rb" file {}
+  "${TS[@]}" "$CLI" list | xargs -P "$PARALLEL" -I{} "${TS[@]}" "$CLI" file {}
   echo "== multi-pass: integration (chỉ summary/exports/imports)"
-  ruby "$ROOT/review_cli.rb" integrate
+  "${TS[@]}" "$CLI" integrate
 }
-run_compare() { echo "== compare"; ruby "$ROOT/review_cli.rb" compare; }
+run_compare() { echo "== compare"; "${TS[@]}" "$CLI" compare; }
 
 case "${1:-}" in
   single)  run_single ;;

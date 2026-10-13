@@ -1,3 +1,5 @@
+
+== MCP server
 PASS  server: initialize trả serverInfo loop
 PASS  server: tools/list có web_search + calculator
 PASS  server: web_search trả số liệu giả lập
@@ -6,6 +8,24 @@ PASS  server: chia 0 → isError
 PASS  server: ký tự lạ → isError
 PASS  server: method lạ → -32601
 PASS  server: ghi log 4 lần tools/call
+
+== Bản API (transport giả)
+PASS  calc: ưu tiên toán tử + ngoặc + dấu phẩy thập phân
+PASS  calc: số nguyên in kiểu '18.0'
+PASS  api: trả text của lượt end_turn
+PASS  api: đúng 4 lần gọi API, không dừng ở lượt 0 dù có text
+PASS  api: mỗi lượt gửi tool_result khớp tool_use_id của lượt trước, gộp trong MỘT message user
+PASS  api: input sai → tool_result is_error kèm thông báo để Claude tự sửa
+PASS  api: kết quả calculator thật (18.2 và 9.1954) nối vào lượt 3
+      [iter 0] web_search({"query":"dân số Hà Nội 2024"}) → Dân số Hà Nội năm 2024 khoảng 8,7 triệu người (số liệu giả lập).
+      [iter 0] web_search({"query":"dân số TP. Hồ Chí Minh 2024"}) → Dân số TP. Hồ Chí Minh năm 2024 khoảng 9,5 triệu người (số liệu giả lập).
+      [iter 1] calculator({"expression":"8,7 triệu + 9,5 triệu"}) → Lỗi: ký tự không hợp lệ: triệutriệu
+      [iter 2] calculator({"expression":"8,7 + 9,5"}) → 18.2
+      [iter 2] calculator({"expression":"(9.5 - 8.7) / 8.7 * 100"}) → 9.1954
+PASS  api: stop_reason=max_tokens → ném lỗi
+PASS  api: kẹt tool_use → dừng ở MAX_ITERATIONS=20, trả null
+
+== Bản CLI (claude giả)
 PASS  e2e: lệnh claude có -p, stream-json, --verbose
 PASS  e2e: --tools "" (tắt tool built-in)
 PASS  e2e: --allowedTools đúng 2 tool MCP
@@ -20,4 +40,4 @@ PASS  e2e: lưu report.txt
 PASS  thiếu stop_reason → suy ra và đánh dấu (suy ra)
 PASS  thiếu tool_result → parser báo FAIL, exit≠0
 
-21 PASS, 0 FAIL
+30 PASS, 0 FAIL

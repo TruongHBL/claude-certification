@@ -1,4 +1,5 @@
-== hook PreToolUse (guard_hook.rb, chạy thật) ==
+
+== hook PreToolUse (guard_hook.ts, chạy thật)
 PASS  coordinator (luồng chính, --agent coordinator) gọi Agent → cho qua
 PASS  luồng chính không có agent_type vẫn được coi là coordinator
 PASS  coordinator gọi search_web → deny
@@ -18,7 +19,7 @@ PASS  hook ghi log mọi lệnh (17 dòng) với agent, tool, decision, rule
 PASS  log phân biệt luật: outside_allowlist / metadata_gate / unknown_agent
 PASS  hook không bao giờ thoát mã 2 (chặn bằng JSON deny, có lý do)
 
-== MCP server (JSON-RPC thật qua stdio) ==
+== MCP server (JSON-RPC thật qua stdio)
 PASS  initialize trả serverInfo research
 PASS  notification không được trả lời
 PASS  tools/list: 14 tool (12 nghiệp vụ + review_output, request_revision), không có Agent
@@ -31,18 +32,18 @@ PASS  tool không tồn tại → lỗi giao thức JSON-RPC -32602 (không ph�
 PASS  method lạ → -32601
 PASS  server log 4 lệnh thực thi
 
-== cấu hình CLI sinh từ tool_config.rb ==
+== cấu hình CLI sinh từ tool_config.ts
 PASS  agents.json có 4 agent (coordinator + 3 subagent, tên gạch nối)
 PASS  tools của từng agent = đúng tên mcp__research__<tool> của role
 PASS  subagent có 4–5 tool, coordinator chỉ Agent + 2 tool điều phối
 PASS  subagent đặt omitClaudeMd + background false; mọi agent model haiku
 PASS  không tool nào trùng giữa 3 subagent
 PASS  --allowedTools phủ mọi tool của mọi agent
-PASS  settings.json: PreToolUse matcher * gọi guard_hook.rb
+PASS  settings.json: PreToolUse matcher * gọi guard_hook.ts
 PASS  mcp.json: server research stdio, file server tồn tại
 PASS  cấu hình --misuse chỉ thêm search_web cho synthesis
 
-== audit_cli.rb trên log dựng tay ==
+== audit_cli.ts trên log dựng tay
 PASS  log đúng → mọi kiểm tra đạt
 PASS  doc-analysis chạy summarize trước metadata → audit TRƯỢT
 PASS  server thực thi lệnh không qua hook → audit TRƯỢT
@@ -50,7 +51,7 @@ PASS  có vi phạm bị chặn → chế độ thường TRƯỢT 'không có v
 PASS  … và chế độ --misuse ĐẠT
 PASS  không có log hook (hook không chạy) → audit TRƯỢT
 
-== end-to-end: run_cli.sh với `claude` GIẢ (kịch bản cố định) ==
+== end-to-end: run_cli.sh với `claude` GIẢ (kịch bản cố định)
 PASS  run_cli.sh run → thoát 0, audit 10/10
 PASS  log ghi rõ là claude GIẢ
 PASS  cổng extract_metadata chặn đúng 1 lệnh sai thứ tự

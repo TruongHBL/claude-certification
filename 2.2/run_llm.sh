@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bài 2.2 – PHẦN TUỲ CHỌN: để Claude (haiku) tự quyết dựa vào metadata lỗi, so với lỗi kiểu "Error".
-# recovery_agent.rb đã chứng minh logic rẽ nhánh bằng code; script này xem MODEL có đọc metadata
+# recovery_agent.ts đã chứng minh logic rẽ nhánh bằng code; script này xem MODEL có đọc metadata
 # và tự hành xử đúng không (không retry rỗng/business, sửa mã khách, xin quyền…).
 #
 # Dùng:  ./run_llm.sh structured | bad | all    chạy 5 prompt × kiểu lỗi (MỖI prompt một lệnh `claude -p`)
@@ -11,7 +11,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESULTS="$ROOT/results_llm"
+RESULTS="${RESULTS_DIR:-$ROOT/results_llm}"   # test đặt RESULTS_DIR riêng
+NODE="${NODE_BIN:-node}"
 MODEL="${MODEL:-haiku}"
 BUDGET="${BUDGET:-0.2}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
@@ -33,9 +34,10 @@ run_style() {
   for i in "${!PROMPTS[@]}"; do
     mcp="$dir/p$i.mcp.json"
     rm -f "$dir/p$i.log"
-    ruby -rjson -e 'puts JSON.pretty_generate({ mcpServers: { support: { type: "stdio", command: "ruby", args: [ARGV[0]],
-                      env: { ERROR_STYLE: ARGV[1], SUPPORT_LOG: ARGV[2] } } } })' \
-      "$ROOT/support_mcp_server.rb" "$style" "$dir/p$i.log" > "$mcp"
+    "$NODE" -e 'const [srv, style, log, node] = process.argv.slice(1);
+      console.log(JSON.stringify({ mcpServers: { support: { type: "stdio", command: node,
+        args: ["--experimental-strip-types", "--no-warnings", srv], env: { ERROR_STYLE: style, SUPPORT_LOG: log } } } }, null, 2))' \
+      "$ROOT/support_mcp_server.ts" "$style" "$dir/p$i.log" "$(command -v "$NODE")" > "$mcp"
     echo "  p$i: ${PROMPTS[$i]}"
     (cd "$RESULTS" && "$CLAUDE_BIN" -p "${PROMPTS[$i]}" \
       --model "$MODEL" \
@@ -52,24 +54,7 @@ run_style() {
 }
 
 report() {
-  ruby -rjson -e '
-    prompts = ARGV[1..]
-    %w[structured bad].each do |style|
-      dir = File.join(ARGV[0], style)
-      next unless Dir.exist?(dir)
-      puts "== #{style}"
-      prompts.each_with_index do |p, i|
-        f = File.join(dir, "p#{i}.jsonl")
-        next unless File.exist?(f)
-        ev = File.readlines(f).filter_map { |l| JSON.parse(l) rescue nil }
-        calls = ev.select { |e| e["type"] == "assistant" }.flat_map { |e| e.dig("message", "content") || [] }
-                  .select { |b| b["type"] == "tool_use" }.map { |b| "#{b["name"].sub("mcp__support__", "")}(#{JSON.generate(b["input"])})" }
-        final = ev.reverse.find { |e| e["type"] == "result" }
-        puts "  p#{i}: #{p}"
-        puts "     #{calls.size} lần gọi: #{calls.join(" → ")}"
-        puts "     trả lời: #{final&.dig("result").to_s.gsub(/\s+/, " ")[0, 160]}"
-      end
-    end' "$RESULTS" "${PROMPTS[@]}"
+  "$NODE" --experimental-strip-types --no-warnings "$ROOT/report_llm.ts" "$RESULTS" "${PROMPTS[@]}"
 }
 
 case "${1:-}" in

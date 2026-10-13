@@ -1,0 +1,27 @@
+
+== bash -n
+PASS  run.sh không lỗi cú pháp
+PASS  run.sh không còn gọi ruby
+
+== ./run.sh all (Claude GIẢ)
+PASS  all chạy xong, exit 0
+PASS  reset tạo work/ 10 file
+PASS  step1 lưu .session_id dạng UUID
+PASS  lib.ts result: in session_id/cost/turns/subtype
+PASS  step2 ghi out/summary.md
+PASS  step3 thay 3 file, có diff
+PASS  compare in 5 dòng kiểm tra
+PASS  compare: step4 (stale GIẢ) FAIL 4 dòng, step5 OK cả 5
+PASS  lib.ts reads: step4 không đọc file nào
+PASS  lib.ts reads: step5 chỉ đọc 3 file đã đổi
+
+== ./run.sh step6 (fork)
+PASS  step6 chạy xong
+PASS  fork không ghi vào phiên gốc (số dòng transcript không đổi)
+PASS  lib.ts session-id: phiên fork có ID mới
+
+== ./run.sh reset (để lại trạng thái sạch)
+PASS  reset xong
+PASS  work/ có 10 file, không còn out/ và .session_id
+
+17 PASS, 0 FAIL

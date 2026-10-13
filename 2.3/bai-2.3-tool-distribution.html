@@ -28,7 +28,7 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>1. Mục tiêu</h2>
 <p>Cấu hình một hệ <b>coordinator + 3 subagent</b> (web_search, doc_analysis, synthesis), mỗi agent <b>4–5 tool đúng vai trò</b>. Thêm một tool cross-role có giới hạn (<code>verify_fact</code>) để tránh vòng về coordinator, dùng <code>tool_choice</code> ép thứ tự bước bắt buộc, thay <code>fetch_url</code> bằng <code>load_document</code> có kiểm tra URL, rồi chạy end-to-end và <b>kiểm chứng từ log</b> rằng không agent nào dùng tool ngoài bộ của mình.</p>
-<p class="meta">Bài dùng <b>Messages API trực tiếp</b> (Ruby, <code>Net::HTTP</code>, không cần gem) vì <code>tool_choice</code> là tham số của Messages API và phải đổi theo <b>từng lượt</b> (doc_analysis: lượt 1 ép <code>extract_metadata</code>, sau đó <code>auto</code>). Agent SDK / Claude Code không cho đặt <code>tool_choice</code> từng lượt như vậy.</p>
+<p class="meta">Bài dùng <b>Messages API trực tiếp</b> (TypeScript, gọi bằng <code>fetch</code> qua <code>lib/anthropic.ts</code>, không cần SDK) vì <code>tool_choice</code> là tham số của Messages API và phải đổi theo <b>từng lượt</b> (doc_analysis: lượt 1 ép <code>extract_metadata</code>, sau đó <code>auto</code>). Agent SDK / Claude Code không cho đặt <code>tool_choice</code> từng lượt như vậy.</p>
 
 <h2>2. Sơ đồ</h2>
 <div class="card"><svg viewBox="0 0 820 430" role="img" aria-label="Coordinator và 3 subagent với bộ tool riêng">
@@ -62,11 +62,11 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 
 <h2>3. Năm bước ↔ cách hiện thực</h2>
 <div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
-<tr><td>1</td><td>3 role, mỗi role 4–5 tool, không trùng nhau</td><td><code>tool_config.rb</code>: web_search 4, doc_analysis 4, synthesis 4 tool; coordinator 3 tool điều phối. <code>config_check.rb</code> kiểm tra tự động: số tool, trùng role, tên chung chung, <code>fetch_url</code>, coordinator không giữ tool nghiệp vụ</td></tr>
+<tr><td>1</td><td>3 role, mỗi role 4–5 tool, không trùng nhau</td><td><code>tool_config.ts</code>: web_search 4, doc_analysis 4, synthesis 4 tool; coordinator 3 tool điều phối. <code>config_check.ts</code> kiểm tra tự động: số tool, trùng role, tên chung chung, <code>fetch_url</code>, coordinator không giữ tool nghiệp vụ</td></tr>
 <tr><td>2</td><td><code>verify_fact</code> scoped cho synthesis</td><td>Mô tả ghi <code>[SCOPED]</code>: chỉ tra MỘT dữ kiện trong MỘT nguồn đã lưu; nhận định so sánh/nhân quả/nhiều nguồn → ghi vào <code>needs_coordinator_verification</code>. Tool cũng tự trả lỗi <code>business</code> khi nhận nhận định phức tạp (heuristic giả lập)</td></tr>
 <tr><td>3</td><td>Ép doc_analysis gọi <code>extract_metadata</code> trước</td><td>Chính sách theo lượt: lượt 1 <code>{type:"tool", name:"extract_metadata"}</code>, lượt 2+ <code>{type:"auto"}</code>. Áp cho <b>mỗi phiên</b> doc_analysis (cả phiên kiểm chứng sau)</td></tr>
-<tr><td>4</td><td>Thay <code>fetch_url</code> bằng <code>load_document</code></td><td><code>load_document.rb</code>: chỉ https, domain trong allowlist, đuôi .pdf/.docx/.md/.txt/.html; chặn localhost, IP nội bộ, 169.254 (metadata cloud). Lỗi theo quy ước bài 2.2: <code>errorCategory</code> validation/permission, <code>isRetryable:false</code>, <code>description</code> hướng dẫn</td></tr>
-<tr><td>5</td><td>Chạy end-to-end, kiểm tra không lạm dụng tool</td><td><code>multi_agent_run.rb</code>: mỗi agent là một vòng lặp riêng (stop_reason như bài 1.1). Lớp <b>audit</b> đối chiếu mọi <code>tool_use</code> với allowlist; ngoài bộ → <code>is_error</code>, không thực thi. Log JSONL ghi agent, lượt, tool_choice gửi đi, tool được gọi; cuối chạy tự kiểm 6 điều kiện</td></tr>
+<tr><td>4</td><td>Thay <code>fetch_url</code> bằng <code>load_document</code></td><td><code>load_document.ts</code>: chỉ https, domain trong allowlist, đuôi .pdf/.docx/.md/.txt/.html; chặn localhost, IP nội bộ, 169.254 (metadata cloud). Lỗi theo quy ước bài 2.2: <code>errorCategory</code> validation/permission, <code>isRetryable:false</code>, <code>description</code> hướng dẫn</td></tr>
+<tr><td>5</td><td>Chạy end-to-end, kiểm tra không lạm dụng tool</td><td><code>multi_agent_run.ts</code>: mỗi agent là một vòng lặp riêng (stop_reason như bài 1.1). Lớp <b>audit</b> đối chiếu mọi <code>tool_use</code> với allowlist; ngoài bộ → <code>is_error</code>, không thực thi. Log JSONL ghi agent, lượt, tool_choice gửi đi, tool được gọi; cuối chạy tự kiểm 6 điều kiện</td></tr>
 </table></div>
 
 <h2>4. tool_choice: ba chế độ</h2>
@@ -98,811 +98,917 @@ svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px syst
 </table></div>
 
 <h2>7. Mã nguồn</h2>
-<p>Thư mục <code>2.3/</code>: <code>tool_config.rb</code> (cấu hình), <code>load_document.rb</code>, <code>config_check.rb</code>, <code>multi_agent_run.rb</code>, <code>test/run_tests.rb</code>. Ruby 3.2, không cần gem.</p>
-<pre><code>ruby config_check.rb                    # kiểm tra cấu hình (thật)
-ruby multi_agent_run.rb                 # end-to-end với client GIẢ LẬP
-ruby multi_agent_run.rb --misuse-demo   # GIẢ LẬP synthesis gọi search_web → audit chặn
-ruby test/run_tests.rb                  # toàn bộ kiểm thử
-ANTHROPIC_API_KEY=... ruby multi_agent_run.rb --real   # Claude thật (chưa chạy)</code></pre>
-<details><summary><b>tool_config.rb</b></summary><pre><code># frozen_string_literal: true
+<p>Thư mục <code>2.3/</code>: <code>tool_config.ts</code> (cấu hình), <code>load_document.ts</code>, <code>config_check.ts</code>, <code>multi_agent_run.ts</code>, <code>test/api.test.ts</code>. TypeScript chạy thẳng bằng Node ≥ 22.6 (<code>--experimental-strip-types</code>), không cần build; thư viện dùng chung ở <code>lib/</code> (Messages API, MCP server/client, bộ test). Typecheck: <code>npx tsc -p tsconfig.json</code> ở thư mục gốc.</p>
+<pre><code>npm install                       # một lần, ở thư mục gốc repo (typescript, @types/node)
+cd 2.3
+alias ts='node --experimental-strip-types --no-warnings'
+ts config_check.ts                 # kiểm tra cấu hình (thật)
+ts multi_agent_run.ts              # end-to-end với client GIẢ LẬP
+ts multi_agent_run.ts --misuse-demo   # GIẢ LẬP synthesis gọi search_web → audit chặn
+ts test/api.test.ts                # toàn bộ kiểm thử bản API
+ANTHROPIC_API_KEY=... ts multi_agent_run.ts --real   # Claude thật (chưa chạy)</code></pre>
+<details><summary><b>tool_config.ts</b></summary><pre><code>// Bài 2.3 – Build Exercise: phân bổ tool theo vai trò + tool_choice.
+//
+// File này là &quot;cấu hình&quot; của hệ đa agent: mỗi agent có bộ tool riêng (4–5 tool),
+// chính sách tool_choice theo từng lượt, và danh sách tool cross-role có giới hạn (scoped).
+// config_check.ts kiểm tra cấu hình này; multi_agent_run.ts dùng nó để chạy.
+import type { Tool, ToolChoice } from &quot;../lib/anthropic.ts&quot;;
 
-# Bài 2.3 – Build Exercise: phân bổ tool theo vai trò + tool_choice.
-#
-# File này là &quot;cấu hình&quot; của hệ đa agent: mỗi agent có bộ tool riêng (4–5 tool),
-# chính sách tool_choice theo từng lượt, và danh sách tool cross-role có giới hạn (scoped).
-# config_check.rb kiểm tra cấu hình này; multi_agent_run.rb dùng nó để chạy.
+export function tool(name: string, description: string, properties: Record&lt;string, unknown&gt;, required: string[]): Tool {
+  return { name, description, input_schema: { type: &quot;object&quot;, properties, required } };
+}
 
-module ToolConfig
-  def self.tool(name, description, properties, required)
-    { name: name, description: description,
-      input_schema: { type: &quot;object&quot;, properties: properties, required: required } }
-  end
+const STR = { type: &quot;string&quot; } as const;
+const str = (description: string) =&gt; ({ ...STR, description });
 
-  STR = { type: &quot;string&quot; }.freeze
+// ---------- Web Search agent: tìm và lấy tài liệu từ web ----------
+export const WEB_SEARCH_TOOLS: Tool[] = [
+  tool(&quot;search_web&quot;,
+    &quot;Tìm kiếm web theo từ khoá. Trả về tối đa 5 kết quả {title, url, snippet}. &quot; +
+    &quot;Dùng để tìm NGUỒN mới. Không dùng để đọc nội dung chi tiết của một trang (dùng load_document).&quot;,
+    { query: str(&quot;Từ khoá tìm kiếm, 3–12 từ&quot;) }, [&quot;query&quot;]),
+  tool(&quot;load_document&quot;,
+    &quot;Tải nội dung MỘT tài liệu (pdf, docx, md, txt, html) qua https từ domain đã duyệt. &quot; +
+    &quot;Thay thế cho fetch_url: từ chối ảnh, API JSON, http, localhost/IP nội bộ với lỗi validation/permission &quot; +
+    &quot;(isRetryable=false). Không dùng để gọi API hay tải file bất kỳ.&quot;,
+    { url: str(&quot;URL https trỏ tới tài liệu, vd https://www.gso.gov.vn/bao-cao.pdf&quot;) }, [&quot;url&quot;]),
+  tool(&quot;extract_links&quot;,
+    &quot;Lấy danh sách liên kết tài liệu (pdf/docx/html) trong một tài liệu ĐÃ tải bằng load_document. &quot; +
+    &quot;Không tự tải trang mới.&quot;,
+    { document_id: str(&quot;document_id do load_document trả về&quot;) }, [&quot;document_id&quot;]),
+  tool(&quot;save_snippet&quot;,
+    &quot;Lưu một đoạn trích kèm metadata nguồn (url, tiêu đề, vị trí) để chuyển cho các agent sau. &quot; +
+    &quot;Mọi trích dẫn đưa ra ngoài phải được lưu qua tool này.&quot;,
+    { url: STR, quote: STR, location: str(&quot;trang/đoạn, vd &#x27;tr. 12&#x27;&quot;) }, [&quot;url&quot;, &quot;quote&quot;, &quot;location&quot;]),
+];
 
-  # ---------- Web Search agent: tìm và lấy tài liệu từ web ----------
-  WEB_SEARCH_TOOLS = [
-    tool(&quot;search_web&quot;,
-         &quot;Tìm kiếm web theo từ khoá. Trả về tối đa 5 kết quả {title, url, snippet}. &quot; \
-         &quot;Dùng để tìm NGUỒN mới. Không dùng để đọc nội dung chi tiết của một trang (dùng load_document).&quot;,
-         { query: STR.merge(description: &quot;Từ khoá tìm kiếm, 3–12 từ&quot;) }, %w[query]),
-    tool(&quot;load_document&quot;,
-         &quot;Tải nội dung MỘT tài liệu (pdf, docx, md, txt, html) qua https từ domain đã duyệt. &quot; \
-         &quot;Thay thế cho fetch_url: từ chối ảnh, API JSON, http, localhost/IP nội bộ với lỗi validation/permission &quot; \
-         &quot;(isRetryable=false). Không dùng để gọi API hay tải file bất kỳ.&quot;,
-         { url: STR.merge(description: &quot;URL https trỏ tới tài liệu, vd https://www.gso.gov.vn/bao-cao.pdf&quot;) }, %w[url]),
-    tool(&quot;extract_links&quot;,
-         &quot;Lấy danh sách liên kết tài liệu (pdf/docx/html) trong một tài liệu ĐÃ tải bằng load_document. &quot; \
-         &quot;Không tự tải trang mới.&quot;,
-         { document_id: STR.merge(description: &quot;document_id do load_document trả về&quot;) }, %w[document_id]),
-    tool(&quot;save_snippet&quot;,
-         &quot;Lưu một đoạn trích kèm metadata nguồn (url, tiêu đề, vị trí) để chuyển cho các agent sau. &quot; \
-         &quot;Mọi trích dẫn đưa ra ngoài phải được lưu qua tool này.&quot;,
-         { url: STR, quote: STR, location: STR.merge(description: &quot;trang/đoạn, vd &#x27;tr. 12&#x27;&quot;) }, %w[url quote location])
-  ].freeze
+// ---------- Document Analysis agent: phân tích tài liệu đã có ----------
+export const DOC_ANALYSIS_TOOLS: Tool[] = [
+  tool(&quot;extract_metadata&quot;,
+    &quot;BƯỚC BẮT BUỘC ĐẦU TIÊN cho mỗi tài liệu: lấy tiêu đề, tác giả/tổ chức, ngày xuất bản, loại tài liệu. &quot; +
+    &quot;Các bước sau (trích số liệu, tóm tắt, kiểm chứng) dựa trên metadata này để ghi nguồn.&quot;,
+    { document_id: STR }, [&quot;document_id&quot;]),
+  tool(&quot;extract_data_points&quot;,
+    &quot;Trích các số liệu định lượng (con số, tỉ lệ, năm, mẫu khảo sát) từ một tài liệu, kèm vị trí trong tài liệu.&quot;,
+    { document_id: STR, topic: str(&quot;Chủ đề cần trích số liệu&quot;) }, [&quot;document_id&quot;, &quot;topic&quot;]),
+  tool(&quot;summarize_content&quot;,
+    &quot;Tóm tắt nội dung một tài liệu trong 3–5 ý, giữ nguyên quan điểm của tác giả, không thêm nhận định.&quot;,
+    { document_id: STR }, [&quot;document_id&quot;]),
+  tool(&quot;verify_claim&quot;,
+    &quot;Kiểm chứng ĐẦY ĐỦ một nhận định: đối chiếu nhiều tài liệu, phát hiện mâu thuẫn, đánh giá độ tin cậy. &quot; +
+    &quot;Dùng cho kiểm chứng phức tạp do coordinator giao.&quot;,
+    { claim: STR, document_ids: { type: &quot;array&quot;, items: STR } }, [&quot;claim&quot;, &quot;document_ids&quot;]),
+];
 
-  # ---------- Document Analysis agent: phân tích tài liệu đã có ----------
-  DOC_ANALYSIS_TOOLS = [
-    tool(&quot;extract_metadata&quot;,
-         &quot;BƯỚC BẮT BUỘC ĐẦU TIÊN cho mỗi tài liệu: lấy tiêu đề, tác giả/tổ chức, ngày xuất bản, loại tài liệu. &quot; \
-         &quot;Các bước sau (trích số liệu, tóm tắt, kiểm chứng) dựa trên metadata này để ghi nguồn.&quot;,
-         { document_id: STR }, %w[document_id]),
-    tool(&quot;extract_data_points&quot;,
-         &quot;Trích các số liệu định lượng (con số, tỉ lệ, năm, mẫu khảo sát) từ một tài liệu, kèm vị trí trong tài liệu.&quot;,
-         { document_id: STR, topic: STR.merge(description: &quot;Chủ đề cần trích số liệu&quot;) }, %w[document_id topic]),
-    tool(&quot;summarize_content&quot;,
-         &quot;Tóm tắt nội dung một tài liệu trong 3–5 ý, giữ nguyên quan điểm của tác giả, không thêm nhận định.&quot;,
-         { document_id: STR }, %w[document_id]),
-    tool(&quot;verify_claim&quot;,
-         &quot;Kiểm chứng ĐẦY ĐỦ một nhận định: đối chiếu nhiều tài liệu, phát hiện mâu thuẫn, đánh giá độ tin cậy. &quot; \
-         &quot;Dùng cho kiểm chứng phức tạp do coordinator giao.&quot;,
-         { claim: STR, document_ids: { type: &quot;array&quot;, items: STR } }, %w[claim document_ids])
-  ].freeze
-
-  # ---------- Synthesis agent: viết báo cáo từ kết quả đã có ----------
-  SYNTHESIS_TOOLS = [
-    tool(&quot;compile_report&quot;,
-         &quot;Nộp báo cáo cuối có cấu trúc. Gọi tool này là KẾT THÚC phiên synthesis. &quot; \
-         &quot;Nhận định chưa kiểm chứng được phải đưa vào needs_coordinator_verification, không được bỏ.&quot;,
-         { title: STR,
-           sections: { type: &quot;array&quot;, items: { type: &quot;object&quot;,
-                                               properties: { heading: STR, body: STR,
-                                                             citations: { type: &quot;array&quot;, items: STR } },
-                                               required: %w[heading body citations] } },
-           needs_coordinator_verification: { type: &quot;array&quot;, items: STR } },
-         %w[title sections needs_coordinator_verification]),
-    tool(&quot;verify_fact&quot;,
-         &quot;[SCOPED] Tra cứu NHANH một dữ kiện đơn giản trong MỘT nguồn (một con số, một ngày, một tên) &quot; \
-         &quot;trong kho trích đoạn đã lưu. KHÔNG dùng cho nhận định cần đối chiếu nhiều nguồn, có mâu thuẫn &quot; \
-         &quot;hoặc cần đánh giá: trường hợp đó ghi vào needs_coordinator_verification để coordinator xử lý.&quot;,
-         { fact: STR.merge(description: &quot;Một dữ kiện đơn, vd &#x27;Tỉ lệ công ty áp dụng hybrid năm 2026 là 62%&#x27;&quot;),
-           source_url: STR.merge(description: &quot;MỘT url nguồn đã lưu&quot;) }, %w[fact source_url]),
-    tool(&quot;format_citation&quot;,
-         &quot;Định dạng trích dẫn theo kiểu APA từ metadata (tác giả, năm, tiêu đề, url).&quot;,
-         { author: STR, year: STR, title: STR, url: STR }, %w[author year title url]),
-    tool(&quot;assess_coverage&quot;,
-         &quot;Đánh giá báo cáo nháp đã trả lời đủ các ý của câu hỏi chưa, liệt kê ý còn thiếu.&quot;,
-         { question: STR, draft_outline: { type: &quot;array&quot;, items: STR } }, %w[question draft_outline])
-  ].freeze
-
-  # ---------- Coordinator: chỉ điều phối, không có tool nghiệp vụ ----------
-  COORDINATOR_TOOLS = [
-    tool(&quot;Agent&quot;,
-         &quot;Giao việc cho một subagent (web_search | doc_analysis | synthesis). Prompt phải chứa đủ context: &quot; \
-         &quot;subagent không thấy hội thoại của coordinator.&quot;,
-         { agent_type: { type: &quot;string&quot;, enum: %w[web_search doc_analysis synthesis] }, prompt: STR },
-         %w[agent_type prompt]),
-    tool(&quot;review_output&quot;,
-         &quot;Ghi nhận đánh giá của coordinator về kết quả một subagent (đạt / chưa đạt + lý do).&quot;,
-         { agent_type: STR, verdict: { type: &quot;string&quot;, enum: %w[pass revise] }, reason: STR },
-         %w[agent_type verdict reason]),
-    tool(&quot;request_revision&quot;,
-         &quot;Yêu cầu một subagent làm lại phần chưa đạt, kèm hướng dẫn cụ thể.&quot;,
-         { agent_type: STR, instructions: STR }, %w[agent_type instructions])
-  ].freeze
-
-  # Chính sách tool_choice: lambda nhận số thứ tự lượt (1-based) trong phiên của agent.
-  #   web_search  : auto  – có lúc cần trả lời text (tóm tắt nguồn) để kết thúc.
-  #   doc_analysis: lượt 1 ép extract_metadata (bước bắt buộc, không được bỏ/đảo), sau đó auto.
-  #   synthesis   : any   – luôn phải gọi tool, không được trả text hội thoại; phiên kết thúc khi
-  #                 compile_report được gọi (terminal tool), không chờ end_turn.
-  #   coordinator : auto
-  AGENTS = {
-    &quot;coordinator&quot; =&gt; {
-      role: &quot;Điều phối: chia việc, giao subagent, duyệt kết quả, xử lý kiểm chứng phức tạp.&quot;,
-      tools: COORDINATOR_TOOLS,
-      tool_choice: -&gt;(_turn) { { type: &quot;auto&quot; } },
-      terminal_tool: nil
+// ---------- Synthesis agent: viết báo cáo từ kết quả đã có ----------
+export const SYNTHESIS_TOOLS: Tool[] = [
+  tool(&quot;compile_report&quot;,
+    &quot;Nộp báo cáo cuối có cấu trúc. Gọi tool này là KẾT THÚC phiên synthesis. &quot; +
+    &quot;Nhận định chưa kiểm chứng được phải đưa vào needs_coordinator_verification, không được bỏ.&quot;,
+    {
+      title: STR,
+      sections: {
+        type: &quot;array&quot;,
+        items: {
+          type: &quot;object&quot;,
+          properties: { heading: STR, body: STR, citations: { type: &quot;array&quot;, items: STR } },
+          required: [&quot;heading&quot;, &quot;body&quot;, &quot;citations&quot;],
+        },
+      },
+      needs_coordinator_verification: { type: &quot;array&quot;, items: STR },
     },
-    &quot;web_search&quot; =&gt; {
-      role: &quot;Tìm nguồn trên web và lưu trích đoạn kèm metadata.&quot;,
-      tools: WEB_SEARCH_TOOLS,
-      tool_choice: -&gt;(_turn) { { type: &quot;auto&quot; } },
-      terminal_tool: nil
-    },
-    &quot;doc_analysis&quot; =&gt; {
-      role: &quot;Phân tích tài liệu: metadata, số liệu, tóm tắt, kiểm chứng đầy đủ.&quot;,
-      tools: DOC_ANALYSIS_TOOLS,
-      tool_choice: -&gt;(turn) { turn == 1 ? { type: &quot;tool&quot;, name: &quot;extract_metadata&quot; } : { type: &quot;auto&quot; } },
-      terminal_tool: nil
-    },
-    &quot;synthesis&quot; =&gt; {
-      role: &quot;Viết báo cáo cuối từ kết quả của các agent khác.&quot;,
-      tools: SYNTHESIS_TOOLS,
-      tool_choice: -&gt;(_turn) { { type: &quot;any&quot; } },
-      terminal_tool: &quot;compile_report&quot;
-    }
-  }.freeze
+    [&quot;title&quot;, &quot;sections&quot;, &quot;needs_coordinator_verification&quot;]),
+  tool(&quot;verify_fact&quot;,
+    &quot;[SCOPED] Tra cứu NHANH một dữ kiện đơn giản trong MỘT nguồn (một con số, một ngày, một tên) &quot; +
+    &quot;trong kho trích đoạn đã lưu. KHÔNG dùng cho nhận định cần đối chiếu nhiều nguồn, có mâu thuẫn &quot; +
+    &quot;hoặc cần đánh giá: trường hợp đó ghi vào needs_coordinator_verification để coordinator xử lý.&quot;,
+    {
+      fact: str(&quot;Một dữ kiện đơn, vd &#x27;Tỉ lệ công ty áp dụng hybrid năm 2026 là 62%&#x27;&quot;),
+      source_url: str(&quot;MỘT url nguồn đã lưu&quot;),
+    }, [&quot;fact&quot;, &quot;source_url&quot;]),
+  tool(&quot;format_citation&quot;,
+    &quot;Định dạng trích dẫn theo kiểu APA từ metadata (tác giả, năm, tiêu đề, url).&quot;,
+    { author: STR, year: STR, title: STR, url: STR }, [&quot;author&quot;, &quot;year&quot;, &quot;title&quot;, &quot;url&quot;]),
+  tool(&quot;assess_coverage&quot;,
+    &quot;Đánh giá báo cáo nháp đã trả lời đủ các ý của câu hỏi chưa, liệt kê ý còn thiếu.&quot;,
+    { question: STR, draft_outline: { type: &quot;array&quot;, items: STR } }, [&quot;question&quot;, &quot;draft_outline&quot;]),
+];
 
-  # Tool cross-role có giới hạn: được phép &quot;lấn&quot; sang việc của role khác, nhưng chỉ phần đơn giản.
-  # verify_fact là bản thu hẹp của verify_claim (doc_analysis).
-  SCOPED_CROSS_ROLE = { &quot;verify_fact&quot; =&gt; { owner: &quot;synthesis&quot;, narrows: &quot;verify_claim&quot; } }.freeze
+// ---------- Coordinator: chỉ điều phối, không có tool nghiệp vụ ----------
+export const COORDINATOR_TOOLS: Tool[] = [
+  tool(&quot;Agent&quot;,
+    &quot;Giao việc cho một subagent (web_search | doc_analysis | synthesis). Prompt phải chứa đủ context: &quot; +
+    &quot;subagent không thấy hội thoại của coordinator.&quot;,
+    { agent_type: { type: &quot;string&quot;, enum: [&quot;web_search&quot;, &quot;doc_analysis&quot;, &quot;synthesis&quot;] }, prompt: STR },
+    [&quot;agent_type&quot;, &quot;prompt&quot;]),
+  tool(&quot;review_output&quot;,
+    &quot;Ghi nhận đánh giá của coordinator về kết quả một subagent (đạt / chưa đạt + lý do).&quot;,
+    { agent_type: STR, verdict: { type: &quot;string&quot;, enum: [&quot;pass&quot;, &quot;revise&quot;] }, reason: STR },
+    [&quot;agent_type&quot;, &quot;verdict&quot;, &quot;reason&quot;]),
+  tool(&quot;request_revision&quot;,
+    &quot;Yêu cầu một subagent làm lại phần chưa đạt, kèm hướng dẫn cụ thể.&quot;,
+    { agent_type: STR, instructions: STR }, [&quot;agent_type&quot;, &quot;instructions&quot;]),
+];
 
-  # Tool nghiệp vụ = mọi tool của 3 subagent. Coordinator không được giữ tool nào trong số này.
-  def self.domain_tool_names
-    %w[web_search doc_analysis synthesis].flat_map { |a| AGENTS[a][:tools].map { |t| t[:name] } }
-  end
+export type Role = &quot;coordinator&quot; | &quot;web_search&quot; | &quot;doc_analysis&quot; | &quot;synthesis&quot;;
 
-  def self.allowed_names(agent) = AGENTS.fetch(agent)[:tools].map { |t| t[:name] }
-end
-</code></pre></details>
-<details><summary><b>load_document.rb</b></summary><pre><code># frozen_string_literal: true
+export interface AgentConfig {
+  role: string;
+  tools: Tool[];
+  /** Nhận số thứ tự lượt (1-based) trong phiên của agent. */
+  tool_choice: (turn: number) =&gt; ToolChoice;
+  terminal_tool: string | null;
+}
 
-# load_document: bản THU HẸP của fetch_url (least privilege áp vào thiết kế tool).
-#
-# fetch_url tải BẤT KỲ URL nào → agent có thể gọi API nội bộ, tải ảnh/binary, chạm metadata cloud.
-# load_document chỉ nhận tài liệu: https + domain đã duyệt + đuôi tài liệu. Vi phạm trả lỗi có
-# cấu trúc theo quy ước bài 2.2 (errorCategory / isRetryable / description).
+// Chính sách tool_choice theo lượt:
+//   web_search  : auto  – có lúc cần trả lời text (tóm tắt nguồn) để kết thúc.
+//   doc_analysis: lượt 1 ép extract_metadata (bước bắt buộc, không được bỏ/đảo), sau đó auto.
+//   synthesis   : any   – luôn phải gọi tool, không được trả text hội thoại; phiên kết thúc khi
+//                 compile_report được gọi (terminal tool), không chờ end_turn.
+//   coordinator : auto
+export const AGENTS: Record&lt;Role, AgentConfig&gt; = {
+  coordinator: {
+    role: &quot;Điều phối: chia việc, giao subagent, duyệt kết quả, xử lý kiểm chứng phức tạp.&quot;,
+    tools: COORDINATOR_TOOLS,
+    tool_choice: () =&gt; ({ type: &quot;auto&quot; }),
+    terminal_tool: null,
+  },
+  web_search: {
+    role: &quot;Tìm nguồn trên web và lưu trích đoạn kèm metadata.&quot;,
+    tools: WEB_SEARCH_TOOLS,
+    tool_choice: () =&gt; ({ type: &quot;auto&quot; }),
+    terminal_tool: null,
+  },
+  doc_analysis: {
+    role: &quot;Phân tích tài liệu: metadata, số liệu, tóm tắt, kiểm chứng đầy đủ.&quot;,
+    tools: DOC_ANALYSIS_TOOLS,
+    tool_choice: (turn) =&gt; (turn === 1 ? { type: &quot;tool&quot;, name: &quot;extract_metadata&quot; } : { type: &quot;auto&quot; }),
+    terminal_tool: null,
+  },
+  synthesis: {
+    role: &quot;Viết báo cáo cuối từ kết quả của các agent khác.&quot;,
+    tools: SYNTHESIS_TOOLS,
+    tool_choice: () =&gt; ({ type: &quot;any&quot; }),
+    terminal_tool: &quot;compile_report&quot;,
+  },
+};
 
-require &quot;uri&quot;
-require &quot;ipaddr&quot;
+export const SUBAGENTS = [&quot;web_search&quot;, &quot;doc_analysis&quot;, &quot;synthesis&quot;] as const satisfies readonly Role[];
 
-module LoadDocument
-  DOC_EXTENSIONS = %w[.pdf .docx .md .txt .html .htm].freeze
-  TRUSTED_DOMAINS = %w[gso.gov.vn molisa.gov.vn ilo.org worldbank.org vnexpress.net hbr.org docs.example.vn].freeze
-  BLOCKED_HOSTS = %w[localhost metadata.google.internal].freeze
+// Tool cross-role có giới hạn: được phép &quot;lấn&quot; sang việc của role khác, nhưng chỉ phần đơn giản.
+// verify_fact là bản thu hẹp của verify_claim (doc_analysis).
+export const SCOPED_CROSS_ROLE: Record&lt;string, { owner: Role; narrows: string }&gt; = {
+  verify_fact: { owner: &quot;synthesis&quot;, narrows: &quot;verify_claim&quot; },
+};
 
-  module_function
+// Tool nghiệp vụ = mọi tool của 3 subagent. Coordinator không được giữ tool nào trong số này.
+export const domainToolNames = (): string[] =&gt; SUBAGENTS.flatMap((a) =&gt; AGENTS[a].tools.map((t) =&gt; t.name));
 
-  def error(category, description)
-    { isError: true, structuredContent: { errorCategory: category, isRetryable: false, description: description } }
-  end
+export function allowedNames(agent: string): string[] {
+  const cfg = AGENTS[agent as Role];
+  if (!cfg) throw new Error(`Agent không có trong cấu hình: ${agent}`);
+  return cfg.tools.map((t) =&gt; t.name);
+}
 
-  def internal_ip?(host)
-    ip = IPAddr.new(host)
-    ip.loopback? || ip.private? || ip.link_local?
-  rescue IPAddr::InvalidAddressError
-    false
-  end
+export const isRole = (x: unknown): x is Role =&gt; typeof x === &quot;string&quot; &amp;&amp; Object.hasOwn(AGENTS, x);</code></pre></details>
+<details><summary><b>load_document.ts</b></summary><pre><code>// load_document: bản THU HẸP của fetch_url (least privilege áp vào thiết kế tool).
+//
+// fetch_url tải BẤT KỲ URL nào → agent có thể gọi API nội bộ, tải ảnh/binary, chạm metadata cloud.
+// load_document chỉ nhận tài liệu: https + domain đã duyệt + đuôi tài liệu. Vi phạm trả lỗi có
+// cấu trúc theo quy ước bài 2.2 (errorCategory / isRetryable / description).
+import { isIP } from &quot;node:net&quot;;
+import { extname } from &quot;node:path&quot;;
 
-  def trusted?(host)
-    TRUSTED_DOMAINS.any? { |d| host == d || host.end_with?(&quot;.#{d}&quot;) }
-  end
+export const DOC_EXTENSIONS = [&quot;.pdf&quot;, &quot;.docx&quot;, &quot;.md&quot;, &quot;.txt&quot;, &quot;.html&quot;, &quot;.htm&quot;];
+export const TRUSTED_DOMAINS = [&quot;gso.gov.vn&quot;, &quot;molisa.gov.vn&quot;, &quot;ilo.org&quot;, &quot;worldbank.org&quot;, &quot;vnexpress.net&quot;, &quot;hbr.org&quot;, &quot;docs.example.vn&quot;];
+export const BLOCKED_HOSTS = [&quot;localhost&quot;, &quot;metadata.google.internal&quot;];
 
-  # Trả nil nếu hợp lệ, hoặc Hash lỗi có cấu trúc.
-  def validate(url)
-    uri = URI.parse(url.to_s.strip)
-    return error(&quot;validation&quot;, &quot;URL không hợp lệ: &#x27;#{url}&#x27;. Cần URL https đầy đủ trỏ tới tài liệu.&quot;) unless uri.is_a?(URI::Generic) &amp;&amp; uri.host
+export interface StructuredError {
+  errorCategory: &quot;transient&quot; | &quot;validation&quot; | &quot;business&quot; | &quot;permission&quot;;
+  isRetryable: boolean;
+  description: string;
+}
 
-    host = uri.host.downcase
-    return error(&quot;validation&quot;, &quot;Chỉ nhận https (nhận được #{uri.scheme}). Tìm bản https của tài liệu.&quot;) unless uri.scheme == &quot;https&quot;
-    if BLOCKED_HOSTS.include?(host) || internal_ip?(host)
-      return error(&quot;permission&quot;, &quot;Từ chối địa chỉ nội bộ &#x27;#{host}&#x27;. load_document không truy cập mạng nội bộ/metadata; không thử lại.&quot;)
-    end
-    return error(&quot;permission&quot;, &quot;Domain &#x27;#{host}&#x27; chưa được duyệt. Báo coordinator nếu thật sự cần nguồn này.&quot;) unless trusted?(host)
+export interface LoadDocumentError {
+  isError: true;
+  structuredContent: StructuredError;
+}
 
-    ext = File.extname(uri.path.to_s).downcase
-    unless DOC_EXTENSIONS.include?(ext)
-      shown = ext.empty? ? &quot;(không có đuôi)&quot; : ext
-      return error(&quot;validation&quot;, &quot;&#x27;#{shown}&#x27; không phải tài liệu. Chỉ nhận #{DOC_EXTENSIONS.join(&#x27; &#x27;)}. Dùng search_web để tìm bản tài liệu.&quot;)
-    end
-    nil
-  rescue URI::InvalidURIError
-    error(&quot;validation&quot;, &quot;URL không parse được: &#x27;#{url}&#x27;.&quot;)
-  end
-end
-</code></pre></details>
-<details><summary><b>config_check.rb</b></summary><pre><code># frozen_string_literal: true
+function error(category: StructuredError[&quot;errorCategory&quot;], description: string): LoadDocumentError {
+  return { isError: true, structuredContent: { errorCategory: category, isRetryable: false, description } };
+}
 
-# Kiểm tra tĩnh cấu hình phân bổ tool (chạy thật, tất định, không gọi model).
-# Chạy: ruby config_check.rb
+/** Loopback, private (10/8, 172.16/12, 192.168/16, fc00::/7) hoặc link-local (169.254/16, fe80::/10). */
+export function isInternalIp(host: string): boolean {
+  const h = host.replace(/^\[|\]$/g, &quot;&quot;);
+  const v = isIP(h);
+  if (v === 4) {
+    const [a, b] = h.split(&quot;.&quot;).map(Number);
+    return a === 127 || a === 10 || (a === 172 &amp;&amp; b &gt;= 16 &amp;&amp; b &lt;= 31) || (a === 192 &amp;&amp; b === 168) || (a === 169 &amp;&amp; b === 254);
+  }
+  if (v === 6) {
+    const l = h.toLowerCase();
+    return l === &quot;::1&quot; || /^f[cd]/.test(l) || /^fe[89ab]/.test(l);
+  }
+  return false;
+}
 
-require_relative &quot;tool_config&quot;
+const trusted = (host: string) =&gt; TRUSTED_DOMAINS.some((d) =&gt; host === d || host.endsWith(`.${d}`));
 
-module ConfigCheck
-  GENERIC_NAMES = %w[fetch_url analyze analyze_document analyze_content process run do_task
-                     execute get_data handle helper tool search].freeze
-  SUBAGENTS = %w[web_search doc_analysis synthesis].freeze
+/** Trả null nếu hợp lệ, hoặc object lỗi có cấu trúc. */
+export function validate(url: unknown): LoadDocumentError | null {
+  const raw = String(url ?? &quot;&quot;).trim();
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return error(&quot;validation&quot;, `URL không hợp lệ: &#x27;${raw}&#x27;. Cần URL https đầy đủ trỏ tới tài liệu.`);
+  }
+  if (!u.hostname) return error(&quot;validation&quot;, `URL không hợp lệ: &#x27;${raw}&#x27;. Cần URL https đầy đủ trỏ tới tài liệu.`);
 
-  module_function
+  const host = u.hostname.toLowerCase();
+  const scheme = u.protocol.replace(/:$/, &quot;&quot;);
+  if (scheme !== &quot;https&quot;) return error(&quot;validation&quot;, `Chỉ nhận https (nhận được ${scheme}). Tìm bản https của tài liệu.`);
+  if (BLOCKED_HOSTS.includes(host) || isInternalIp(host)) {
+    return error(&quot;permission&quot;, `Từ chối địa chỉ nội bộ &#x27;${host}&#x27;. load_document không truy cập mạng nội bộ/metadata; không thử lại.`);
+  }
+  if (!trusted(host)) return error(&quot;permission&quot;, `Domain &#x27;${host}&#x27; chưa được duyệt. Báo coordinator nếu thật sự cần nguồn này.`);
 
-  def checks(agents = ToolConfig::AGENTS, scoped = ToolConfig::SCOPED_CROSS_ROLE)
-    out = []
-    add = -&gt;(name, ok, detail) { out &lt;&lt; { name: name, ok: ok, detail: detail } }
+  const ext = extname(u.pathname).toLowerCase();
+  if (!DOC_EXTENSIONS.includes(ext)) {
+    const shown = ext === &quot;&quot; ? &quot;(không có đuôi)&quot; : ext;
+    return error(&quot;validation&quot;, `&#x27;${shown}&#x27; không phải tài liệu. Chỉ nhận ${DOC_EXTENSIONS.join(&quot; &quot;)}. Dùng search_web để tìm bản tài liệu.`);
+  }
+  return null;
+}</code></pre></details>
+<details><summary><b>config_check.ts</b></summary><pre><code>// Kiểm tra tĩnh cấu hình phân bổ tool (chạy thật, tất định, không gọi model).
+// Chạy: node --experimental-strip-types config_check.ts
+import { pathToFileURL } from &quot;node:url&quot;;
+import { AGENTS, SCOPED_CROSS_ROLE, SUBAGENTS, type AgentConfig, type Role } from &quot;./tool_config.ts&quot;;
 
-    SUBAGENTS.each do |a|
-      n = agents[a][:tools].size
-      add.(&quot;#{a}: 4–5 tool&quot;, (4..5).cover?(n), &quot;#{n} tool&quot;)
-    end
+const GENERIC_NAMES = [&quot;fetch_url&quot;, &quot;analyze&quot;, &quot;analyze_document&quot;, &quot;analyze_content&quot;, &quot;process&quot;, &quot;run&quot;, &quot;do_task&quot;,
+  &quot;execute&quot;, &quot;get_data&quot;, &quot;handle&quot;, &quot;helper&quot;, &quot;tool&quot;, &quot;search&quot;];
 
-    owners = Hash.new { |h, k| h[k] = [] }
-    agents.each { |a, cfg| cfg[:tools].each { |t| owners[t[:name]] &lt;&lt; a } }
-    dup = owners.select { |name, list| list.size &gt; 1 &amp;&amp; !scoped.key?(name) }
-    add.(&quot;không tool nào trùng giữa các role (trừ scoped)&quot;, dup.empty?, dup.empty? ? &quot;OK&quot; : dup.inspect)
+export interface CheckRow {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
 
-    scoped.each do |name, meta|
-      owner_ok = owners[name] == [meta[:owner]]
-      desc = agents[meta[:owner]][:tools].find { |t| t[:name] == name }&amp;.dig(:description).to_s
-      add.(&quot;scoped #{name} chỉ ở #{meta[:owner]} và mô tả có giới hạn&quot;,
-           owner_ok &amp;&amp; desc.include?(&quot;[SCOPED]&quot;) &amp;&amp; desc.include?(&quot;coordinator&quot;),
-           &quot;owner=#{owners[name].inspect}&quot;)
-    end
+export function checks(
+  agents: Record&lt;Role, AgentConfig&gt; = AGENTS,
+  scoped: Record&lt;string, { owner: Role }&gt; = SCOPED_CROSS_ROLE,
+): CheckRow[] {
+  const out: CheckRow[] = [];
+  const add = (name: string, ok: boolean, detail: string) =&gt; out.push({ name, ok, detail });
 
-    all_names = owners.keys
-    generic = all_names &amp; GENERIC_NAMES
-    add.(&quot;không có tên tool chung chung / fetch_url&quot;, generic.empty?, generic.empty? ? &quot;OK&quot; : generic.inspect)
+  for (const a of SUBAGENTS) {
+    const n = agents[a].tools.length;
+    add(`${a}: 4–5 tool`, n &gt;= 4 &amp;&amp; n &lt;= 5, `${n} tool`);
+  }
 
-    domain = SUBAGENTS.flat_map { |a| agents[a][:tools].map { |t| t[:name] } }
-    leaked = agents[&quot;coordinator&quot;][:tools].map { |t| t[:name] } &amp; domain
-    add.(&quot;coordinator không giữ tool nghiệp vụ&quot;, leaked.empty?, leaked.empty? ? &quot;OK&quot; : leaked.inspect)
+  const owners = new Map&lt;string, Role[]&gt;();
+  for (const [a, cfg] of Object.entries(agents) as [Role, AgentConfig][]) {
+    for (const t of cfg.tools) owners.set(t.name, [...(owners.get(t.name) ?? []), a]);
+  }
+  const dup = [...owners].filter(([name, list]) =&gt; list.length &gt; 1 &amp;&amp; !Object.hasOwn(scoped, name));
+  add(&quot;không tool nào trùng giữa các role (trừ scoped)&quot;, dup.length === 0, dup.length === 0 ? &quot;OK&quot; : JSON.stringify(dup));
 
-    missing_desc = all_names.select { |n| agents.values.flat_map { |c| c[:tools] }.find { |t| t[:name] == n }[:description].to_s.size &lt; 40 }
-    add.(&quot;mọi tool có mô tả ≥ 40 ký tự&quot;, missing_desc.empty?, missing_desc.empty? ? &quot;OK&quot; : missing_desc.inspect)
+  for (const [name, meta] of Object.entries(scoped)) {
+    const list = owners.get(name) ?? [];
+    const ownerOk = list.length === 1 &amp;&amp; list[0] === meta.owner;
+    const desc = agents[meta.owner].tools.find((t) =&gt; t.name === name)?.description ?? &quot;&quot;;
+    add(`scoped ${name} chỉ ở ${meta.owner} và mô tả có giới hạn`,
+      ownerOk &amp;&amp; desc.includes(&quot;[SCOPED]&quot;) &amp;&amp; desc.includes(&quot;coordinator&quot;),
+      `owner=${JSON.stringify(list)}`);
+  }
 
-    first = agents[&quot;doc_analysis&quot;][:tool_choice].call(1)
-    second = agents[&quot;doc_analysis&quot;][:tool_choice].call(2)
-    add.(&quot;doc_analysis: lượt 1 ép extract_metadata, lượt 2 auto&quot;,
-         first == { type: &quot;tool&quot;, name: &quot;extract_metadata&quot; } &amp;&amp; second == { type: &quot;auto&quot; },
-         &quot;#{first.inspect} → #{second.inspect}&quot;)
-    out
-  end
-end
+  const allNames = [...owners.keys()];
+  const generic = allNames.filter((n) =&gt; GENERIC_NAMES.includes(n));
+  add(&quot;không có tên tool chung chung / fetch_url&quot;, generic.length === 0, generic.length === 0 ? &quot;OK&quot; : JSON.stringify(generic));
 
-if $PROGRAM_NAME == __FILE__
-  rows = ConfigCheck.checks
-  puts &quot;== Bảng tool theo agent ==&quot;
-  ToolConfig::AGENTS.each do |a, cfg|
-    names = cfg[:tools].map { |t| ToolConfig::SCOPED_CROSS_ROLE.key?(t[:name]) ? &quot;#{t[:name]}*&quot; : t[:name] }
-    puts format(&quot;  %-13s %d tool  %s&quot;, a, names.size, names.join(&quot;, &quot;))
-  end
-  puts &quot;  (* = scoped cross-role)&quot;
-  puts &quot;\n== Kiểm tra ==&quot;
-  rows.each { |r| puts &quot;  #{r[:ok] ? &#x27;PASS&#x27; : &#x27;FAIL&#x27;}  #{r[:name]}  [#{r[:detail]}]&quot; }
-  failed = rows.count { |r| !r[:ok] }
-  puts &quot;\n#{rows.size - failed}/#{rows.size} đạt&quot;
-  exit(failed.zero? ? 0 : 1)
-end
-</code></pre></details>
-<details><summary><b>multi_agent_run.rb</b></summary><pre><code># frozen_string_literal: true
+  const domain = SUBAGENTS.flatMap((a) =&gt; agents[a].tools.map((t) =&gt; t.name));
+  const leaked = agents.coordinator.tools.map((t) =&gt; t.name).filter((n) =&gt; domain.includes(n));
+  add(&quot;coordinator không giữ tool nghiệp vụ&quot;, leaked.length === 0, leaked.length === 0 ? &quot;OK&quot; : JSON.stringify(leaked));
 
-# Bài 2.3 – Build Exercise: chạy end-to-end hệ coordinator + 3 subagent với tool phân theo vai trò.
-#
-# Dùng Claude Messages API trực tiếp (Net::HTTP, không cần gem) vì tool_choice là tham số của
-# Messages API và cần đổi theo TỪNG LƯỢT (doc_analysis: lượt 1 ép extract_metadata, sau đó auto).
-# Agent SDK / Claude Code không cho đặt tool_choice từng lượt như vậy.
-#
-# Mỗi agent là một vòng lặp agent riêng (bài 1.1): stop_reason &quot;tool_use&quot; → chạy tool → lặp;
-# &quot;end_turn&quot; → xong. Riêng synthesis dùng tool_choice &quot;any&quot; nên không bao giờ end_turn: phiên kết thúc
-# khi gọi terminal tool compile_report.
-#
-# Lớp audit: MỌI tool_use đều được đối chiếu với allowlist của agent đang chạy. Tool ngoài bộ
-# → ghi vi phạm, trả tool_result is_error, KHÔNG thực thi.
-#
-# Chạy:  ruby multi_agent_run.rb                 # client GIẢ LẬP (stub), mặc định
-#        ruby multi_agent_run.rb --misuse-demo   # stub: synthesis cố gọi search_web → audit chặn
-#        ANTHROPIC_API_KEY=... ruby multi_agent_run.rb --real   # Claude thật (CHƯA chạy)
+  const allTools = Object.values(agents).flatMap((c) =&gt; c.tools);
+  const shortDesc = allNames.filter((n) =&gt; (allTools.find((t) =&gt; t.name === n)?.description ?? &quot;&quot;).length &lt; 40);
+  add(&quot;mọi tool có mô tả ≥ 40 ký tự&quot;, shortDesc.length === 0, shortDesc.length === 0 ? &quot;OK&quot; : JSON.stringify(shortDesc));
 
-require &quot;json&quot;
-require &quot;net/http&quot;
-require &quot;uri&quot;
-require &quot;fileutils&quot;
-require_relative &quot;tool_config&quot;
-require_relative &quot;load_document&quot;
+  const first = agents.doc_analysis.tool_choice(1);
+  const second = agents.doc_analysis.tool_choice(2);
+  add(&quot;doc_analysis: lượt 1 ép extract_metadata, lượt 2 auto&quot;,
+    first.type === &quot;tool&quot; &amp;&amp; first.name === &quot;extract_metadata&quot; &amp;&amp; second.type === &quot;auto&quot;,
+    `${JSON.stringify(first)} → ${JSON.stringify(second)}`);
+  return out;
+}
 
-MODEL = ENV.fetch(&quot;MODEL&quot;, &quot;claude-haiku-5-5&quot;)
-MAX_TURNS = 10 # lưới an toàn, không phải điều kiện dừng chính
-QUESTION = &quot;Làm việc hybrid ảnh hưởng thế nào tới năng suất nhân viên văn phòng ở Việt Nam năm 2026? &quot; \
-           &quot;Cần số liệu có nguồn.&quot;
+if (import.meta.url === pathToFileURL(process.argv[1] ?? &quot;&quot;).href) {
+  const rows = checks();
+  console.log(&quot;== Bảng tool theo agent ==&quot;);
+  for (const [a, cfg] of Object.entries(AGENTS)) {
+    const names = cfg.tools.map((t) =&gt; (Object.hasOwn(SCOPED_CROSS_ROLE, t.name) ? `${t.name}*` : t.name));
+    console.log(`  ${a.padEnd(13)} ${names.length} tool  ${names.join(&quot;, &quot;)}`);
+  }
+  console.log(&quot;  (* = scoped cross-role)&quot;);
+  console.log(&quot;\n== Kiểm tra ==&quot;);
+  for (const r of rows) console.log(`  ${r.ok ? &quot;PASS&quot; : &quot;FAIL&quot;}  ${r.name}  [${r.detail}]`);
+  const failed = rows.filter((r) =&gt; !r.ok).length;
+  console.log(`\n${rows.length - failed}/${rows.length} đạt`);
+  process.exitCode = failed === 0 ? 0 : 1;
+}</code></pre></details>
+<details><summary><b>multi_agent_run.ts</b></summary><pre><code>// Bài 2.3 – Build Exercise: chạy end-to-end hệ coordinator + 3 subagent với tool phân theo vai trò.
+//
+// Dùng Claude Messages API trực tiếp (fetch, không cần SDK) vì tool_choice là tham số của
+// Messages API và cần đổi theo TỪNG LƯỢT (doc_analysis: lượt 1 ép extract_metadata, sau đó auto).
+// Agent SDK / Claude Code không cho đặt tool_choice từng lượt như vậy.
+//
+// Mỗi agent là một vòng lặp agent riêng (bài 1.1): stop_reason &quot;tool_use&quot; → chạy tool → lặp;
+// &quot;end_turn&quot; → xong. Riêng synthesis dùng tool_choice &quot;any&quot; nên không bao giờ end_turn: phiên kết thúc
+// khi gọi terminal tool compile_report.
+//
+// Lớp audit: MỌI tool_use đều được đối chiếu với allowlist của agent đang chạy. Tool ngoài bộ
+// → ghi vi phạm, trả tool_result is_error, KHÔNG thực thi.
+//
+// Chạy:  node --experimental-strip-types multi_agent_run.ts                 # client GIẢ LẬP (stub), mặc định
+//        node --experimental-strip-types multi_agent_run.ts --misuse-demo   # stub: synthesis cố gọi search_web → audit chặn
+//        ANTHROPIC_API_KEY=... node --experimental-strip-types multi_agent_run.ts --real   # Claude thật (CHƯA chạy)
+import { appendFileSync, mkdirSync, rmSync } from &quot;node:fs&quot;;
+import { join } from &quot;node:path&quot;;
+import { homedir } from &quot;node:os&quot;;
+import { pathToFileURL } from &quot;node:url&quot;;
+import {
+  httpTransport,
+  type ContentBlock,
+  type Message,
+  type MessagesRequest,
+  type MessagesResponse,
+  type ToolChoice,
+  type UserBlock,
+} from &quot;../lib/anthropic.ts&quot;;
+import { AGENTS, allowedNames, type Role } from &quot;./tool_config.ts&quot;;
+import { validate as validateDocument } from &quot;./load_document.ts&quot;;
 
-SYSTEM_PROMPTS = {
-  &quot;coordinator&quot; =&gt; &quot;Bạn là coordinator của hệ nghiên cứu. Chia việc cho subagent bằng tool Agent &quot; \
-                   &quot;(web_search tìm nguồn → doc_analysis phân tích → synthesis viết báo cáo). &quot; \
-                   &quot;Truyền đủ context trong prompt giao việc. Nhận định synthesis đưa vào &quot; \
-                   &quot;needs_coordinator_verification là kiểm chứng phức tạp: giao doc_analysis dùng verify_claim. &quot; \
-                   &quot;Duyệt bằng review_output rồi trả lời người dùng.&quot;,
-  &quot;web_search&quot; =&gt; &quot;Bạn là agent tìm nguồn. Chỉ dùng tool của mình. Lưu mọi trích đoạn bằng save_snippet. &quot; \
-                  &quot;Kết thúc bằng tóm tắt các nguồn kèm document_id và url.&quot;,
-  &quot;doc_analysis&quot; =&gt; &quot;Bạn là agent phân tích tài liệu. Luôn lấy metadata trước, rồi số liệu, tóm tắt. &quot; \
-                    &quot;Kết thúc bằng các phát hiện kèm nguồn.&quot;,
-  &quot;synthesis&quot; =&gt; &quot;Bạn là agent tổng hợp. Tra dữ kiện đơn giản một nguồn bằng verify_fact; nhận định phức tạp &quot; \
-                 &quot;đưa vào needs_coordinator_verification. Kết thúc bằng compile_report.&quot;
-}.freeze
+export const MODEL = process.env.MODEL ?? &quot;claude-haiku-5-5&quot;;
+const MAX_TURNS = 10; // lưới an toàn, không phải điều kiện dừng chính
+export const QUESTION = &quot;Làm việc hybrid ảnh hưởng thế nào tới năng suất nhân viên văn phòng ở Việt Nam năm 2026? &quot; +
+  &quot;Cần số liệu có nguồn.&quot;;
 
-# ---------------------------------------------------------------------------
-# Thế giới giả lập: kết quả tìm kiếm, tài liệu, kho trích đoạn (tool chạy local, dữ liệu mock)
-# ---------------------------------------------------------------------------
-class MockWorld
-  DOCS = {
-    &quot;https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf&quot; =&gt; {
+export const SYSTEM_PROMPTS: Record&lt;Role, string&gt; = {
+  coordinator: &quot;Bạn là coordinator của hệ nghiên cứu. Chia việc cho subagent bằng tool Agent &quot; +
+    &quot;(web_search tìm nguồn → doc_analysis phân tích → synthesis viết báo cáo). &quot; +
+    &quot;Truyền đủ context trong prompt giao việc. Nhận định synthesis đưa vào &quot; +
+    &quot;needs_coordinator_verification là kiểm chứng phức tạp: giao doc_analysis dùng verify_claim. &quot; +
+    &quot;Duyệt bằng review_output rồi trả lời người dùng.&quot;,
+  web_search: &quot;Bạn là agent tìm nguồn. Chỉ dùng tool của mình. Lưu mọi trích đoạn bằng save_snippet. &quot; +
+    &quot;Kết thúc bằng tóm tắt các nguồn kèm document_id và url.&quot;,
+  doc_analysis: &quot;Bạn là agent phân tích tài liệu. Luôn lấy metadata trước, rồi số liệu, tóm tắt. &quot; +
+    &quot;Kết thúc bằng các phát hiện kèm nguồn.&quot;,
+  synthesis: &quot;Bạn là agent tổng hợp. Tra dữ kiện đơn giản một nguồn bằng verify_fact; nhận định phức tạp &quot; +
+    &quot;đưa vào needs_coordinator_verification. Kết thúc bằng compile_report.&quot;,
+};
+
+type Json = Record&lt;string, any&gt;;
+/** [dữ liệu trả về, isError] */
+export type ToolOutcome = [Json, boolean];
+
+// ---------------------------------------------------------------------------
+// Thế giới giả lập: kết quả tìm kiếm, tài liệu, kho trích đoạn (tool chạy local, dữ liệu mock)
+// ---------------------------------------------------------------------------
+interface Doc {
+  id: string; title: string; author: string; date: string; type: string;
+  data: { value: string; what: string; location: string }[];
+  summary: string[];
+}
+
+export class MockWorld {
+  static readonly DOCS: Record&lt;string, Doc&gt; = {
+    &quot;https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf&quot;: {
       id: &quot;doc-gso&quot;, title: &quot;Báo cáo điều tra lao động việc làm 2026&quot;, author: &quot;Tổng cục Thống kê (GSO)&quot;,
       date: &quot;2026-07-15&quot;, type: &quot;báo cáo thống kê&quot;,
       data: [{ value: &quot;62%&quot;, what: &quot;doanh nghiệp văn phòng áp dụng hybrid&quot;, location: &quot;tr. 14&quot; },
-             { value: &quot;2,4 ngày/tuần&quot;, what: &quot;số ngày làm tại nhà trung bình&quot;, location: &quot;tr. 15&quot; }],
+        { value: &quot;2,4 ngày/tuần&quot;, what: &quot;số ngày làm tại nhà trung bình&quot;, location: &quot;tr. 15&quot; }],
       summary: [&quot;Hybrid phổ biến ở doanh nghiệp văn phòng&quot;, &quot;Nhóm 25–35 tuổi chọn hybrid nhiều nhất&quot;,
-                &quot;Báo cáo không đo trực tiếp năng suất&quot;]
+        &quot;Báo cáo không đo trực tiếp năng suất&quot;],
     },
-    &quot;https://www.ilo.org/hybrid-work-asia-2025.pdf&quot; =&gt; {
+    &quot;https://www.ilo.org/hybrid-work-asia-2025.pdf&quot;: {
       id: &quot;doc-ilo&quot;, title: &quot;Hybrid Work in Asia-Pacific 2025&quot;, author: &quot;ILO&quot;, date: &quot;2025-11-02&quot;,
       type: &quot;báo cáo nghiên cứu&quot;,
       data: [{ value: &quot;4–7%&quot;, what: &quot;năng suất tự đánh giá tăng với hybrid 2–3 ngày&quot;, location: &quot;p. 31&quot; },
-             { value: &quot;n = 3.200&quot;, what: &quot;mẫu khảo sát 6 nước, có Việt Nam&quot;, location: &quot;p. 8&quot; }],
+        { value: &quot;n = 3.200&quot;, what: &quot;mẫu khảo sát 6 nước, có Việt Nam&quot;, location: &quot;p. 8&quot; }],
       summary: [&quot;Hybrid 2–3 ngày/tuần gắn với năng suất tự đánh giá cao hơn&quot;, &quot;Toàn thời gian tại nhà không tốt hơn&quot;,
-                &quot;Số liệu tự đánh giá, không phải đo lường khách quan&quot;]
-    }
-  }.freeze
+        &quot;Số liệu tự đánh giá, không phải đo lường khách quan&quot;],
+    },
+  };
 
-  attr_reader :snippets
+  // Heuristic giả lập của verify_fact: nhận định có từ so sánh/nhân quả → coi là phức tạp.
+  static readonly COMPLEX_MARKERS = [&quot;so với&quot;, &quot;dẫn đến&quot;, &quot;làm tăng&quot;, &quot;làm giảm&quot;, &quot;do &quot;, &quot;nhờ&quot;, &quot;vì &quot;];
 
-  def initialize
-    @snippets = []
-    @loaded = {}
-  end
+  snippets: { url: string; quote: string; location: string }[] = [];
+  private loaded = new Set&lt;string&gt;();
 
-  def doc_by_id(id) = DOCS.values.find { |d| d[:id] == id }
+  docById(id: unknown): Doc | undefined {
+    return Object.values(MockWorld.DOCS).find((d) =&gt; d.id === id);
+  }
 
-  def ok(data) = [data, false]
-  def err(h) = [h[:structuredContent], true]
-
-  def execute(name, input)
-    case name
-    when &quot;search_web&quot;
-      ok(results: DOCS.map { |url, d| { title: d[:title], url: url, snippet: d[:summary].first } } +
-                  [{ title: &quot;Biểu đồ hybrid 2026&quot;, url: &quot;https://www.gso.gov.vn/images/hybrid-chart.png&quot;, snippet: &quot;ảnh&quot; }])
-    when &quot;load_document&quot;
-      if (e = LoadDocument.validate(input[&quot;url&quot;])) then return err(e) end
-      d = DOCS[input[&quot;url&quot;]] or
-        return [{ errorCategory: &quot;validation&quot;, isRetryable: false, description: &quot;Không có tài liệu tại URL này.&quot; }, true]
-      @loaded[d[:id]] = true
-      ok(document_id: d[:id], title: d[:title], chars: 18_000)
-    when &quot;extract_links&quot; then ok(links: [])
-    when &quot;save_snippet&quot;
-      @snippets &lt;&lt; input.slice(&quot;url&quot;, &quot;quote&quot;, &quot;location&quot;)
-      ok(saved: true, total: @snippets.size)
-    when &quot;extract_metadata&quot;
-      d = doc_by_id(input[&quot;document_id&quot;]) or return missing_doc(input)
-      ok(d.slice(:title, :author, :date, :type))
-    when &quot;extract_data_points&quot;
-      d = doc_by_id(input[&quot;document_id&quot;]) or return missing_doc(input)
-      ok(data_points: d[:data])
-    when &quot;summarize_content&quot;
-      d = doc_by_id(input[&quot;document_id&quot;]) or return missing_doc(input)
-      ok(summary: d[:summary])
-    when &quot;verify_claim&quot;
-      ok(claim: input[&quot;claim&quot;], verdict: &quot;một phần đúng&quot;, confidence: &quot;trung bình&quot;,
-         reasoning: &quot;ILO đo năng suất TỰ ĐÁNH GIÁ, mẫu 6 nước; GSO không đo năng suất. &quot; \
-                    &quot;Không đủ cơ sở khẳng định con số 4–7% cho riêng Việt Nam.&quot;,
-         sources: input[&quot;document_ids&quot;])
-    when &quot;verify_fact&quot; then verify_fact(input)
-    when &quot;format_citation&quot;
-      ok(citation: &quot;#{input[&#x27;author&#x27;]} (#{input[&#x27;year&#x27;]}). #{input[&#x27;title&#x27;]}. #{input[&#x27;url&#x27;]}&quot;)
-    when &quot;assess_coverage&quot; then ok(missing: [], covered: input[&quot;draft_outline&quot;])
-    when &quot;compile_report&quot; then ok(accepted: true)
-    when &quot;review_output&quot;, &quot;request_revision&quot; then ok(recorded: true)
-    else [{ errorCategory: &quot;validation&quot;, isRetryable: false, description: &quot;Tool không tồn tại: #{name}&quot; }, true]
-    end
-  end
-
-  # verify_fact là tool SCOPED: chỉ tra một dữ kiện đơn trong MỘT nguồn đã lưu.
-  # Heuristic giả lập: nhận định có từ so sánh/nhân quả → coi là phức tạp, trả về coordinator.
-  COMPLEX_MARKERS = [&quot;so với&quot;, &quot;dẫn đến&quot;, &quot;làm tăng&quot;, &quot;làm giảm&quot;, &quot;do &quot;, &quot;nhờ&quot;, &quot;vì &quot;].freeze
-  def verify_fact(input)
-    fact = input[&quot;fact&quot;].to_s
-    if COMPLEX_MARKERS.any? { |m| fact.downcase.include?(m) }
-      return [{ errorCategory: &quot;business&quot;, isRetryable: false,
-                description: &quot;Ngoài phạm vi verify_fact (nhận định so sánh/nhân quả cần nhiều nguồn). &quot; \
-                             &quot;Đưa vào needs_coordinator_verification.&quot; }, true]
-    end
-    hit = @snippets.find { |s| s[&quot;url&quot;] == input[&quot;source_url&quot;] &amp;&amp; fact.split.any? { |w| w =~ /\d/ &amp;&amp; s[&quot;quote&quot;].include?(w) } }
-    hit ? ok(verified: true, source_url: hit[&quot;url&quot;], quote: hit[&quot;quote&quot;], location: hit[&quot;location&quot;])
-        : ok(verified: false, note: &quot;Không thấy dữ kiện trong trích đoạn đã lưu của nguồn này.&quot;)
-  end
-
-  def missing_doc(input)
-    [{ errorCategory: &quot;validation&quot;, isRetryable: false, description: &quot;document_id &#x27;#{input[&#x27;document_id&#x27;]}&#x27; chưa được tải.&quot; }, true]
-  end
-end
-
-# ---------------------------------------------------------------------------
-# Payload: tool_choice theo lượt + ràng buộc API
-# ---------------------------------------------------------------------------
-def build_payload(agent, turn, messages, thinking: nil)
-  cfg = ToolConfig::AGENTS.fetch(agent)
-  choice = cfg[:tool_choice].call(turn)
-  # Ràng buộc của Messages API: khi bật extended thinking, tool_choice chỉ được auto hoặc none.
-  if thinking &amp;&amp; %w[any tool].include?(choice[:type])
-    raise ArgumentError, &quot;tool_choice #{choice[:type]} không dùng được cùng extended thinking (chỉ auto/none)&quot;
-  end
-
-  payload = { model: MODEL, max_tokens: 2048, system: SYSTEM_PROMPTS.fetch(agent),
-              tools: cfg[:tools], tool_choice: choice, messages: messages }
-  payload[:thinking] = thinking if thinking
-  payload
-end
-
-# ---------------------------------------------------------------------------
-# Transport thật (CHƯA chạy) và transport giả lập
-# ---------------------------------------------------------------------------
-class RealClient
-  URL = URI(&quot;https://api.anthropic.com/v1/messages&quot;)
-  def initialize(key) = @key = key
-
-  def create(payload, agent:, session:)
-    req = Net::HTTP::Post.new(URL, &quot;content-type&quot; =&gt; &quot;application/json&quot;, &quot;x-api-key&quot; =&gt; @key,
-                                   &quot;anthropic-version&quot; =&gt; &quot;2023-06-01&quot;)
-    req.body = JSON.generate(payload)
-    res = Net::HTTP.start(URL.host, URL.port, use_ssl: true, read_timeout: 120) { |h| h.request(req) }
-    raise &quot;HTTP #{res.code}: #{res.body[0, 300]}&quot; unless res.is_a?(Net::HTTPSuccess)
-    JSON.parse(res.body)
-  end
-end
-
-# GIẢ LẬP: đóng vai Claude theo kịch bản cố định. Tôn trọng tool_choice như API thật:
-# forced → trả đúng tool đó; any → luôn trả tool_use; auto → có thể trả text.
-# Kết quả phản ánh KỊCH BẢN, không phải hành vi của Claude.
-class StubClient
-  GSO = &quot;https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf&quot;
-  ILO = &quot;https://www.ilo.org/hybrid-work-asia-2025.pdf&quot;
-  COMPLEX = &quot;Hybrid làm tăng năng suất 4–7% so với làm toàn thời gian tại văn phòng ở Việt Nam&quot;
-
-  def initialize(misuse_demo: false)
-    @misuse = misuse_demo
-    @seq = 0
-  end
-
-  def create(payload, agent:, session:)
-    turn = payload[:messages].count { |m| m[:role] == &quot;assistant&quot; } + 1
-    calls = script(agent, session, turn, payload)
-    choice = payload[:tool_choice]
-    if choice[:type] == &quot;tool&quot; &amp;&amp; (calls.is_a?(String) || calls.map(&amp;:first) != [choice[:name]])
-      raise &quot;stub sai kịch bản: lượt #{turn} của #{agent} bị ép #{choice[:name]}&quot;
-    end
-    raise &quot;stub sai kịch bản: #{agent} bị ép any nhưng trả text&quot; if choice[:type] == &quot;any&quot; &amp;&amp; calls.is_a?(String)
-
-    if calls.is_a?(String)
-      { &quot;stop_reason&quot; =&gt; &quot;end_turn&quot;, &quot;content&quot; =&gt; [{ &quot;type&quot; =&gt; &quot;text&quot;, &quot;text&quot; =&gt; calls }] }
-    else
-      { &quot;stop_reason&quot; =&gt; &quot;tool_use&quot;,
-        &quot;content&quot; =&gt; calls.map { |name, input| { &quot;type&quot; =&gt; &quot;tool_use&quot;, &quot;id&quot; =&gt; &quot;toolu_#{@seq += 1}&quot;, &quot;name&quot; =&gt; name, &quot;input&quot; =&gt; input } } }
-    end
-  end
-
-  private
-
-  def last_results(payload)
-    m = payload[:messages].reverse.find { |x| x[:role] == &quot;user&quot; &amp;&amp; x[:content].is_a?(Array) }
-    m ? m[:content].map { |b| b[:content] }.join(&quot;\n&quot;) : &quot;&quot;
-  end
-
-  def script(agent, session, turn, payload)
-    case agent
-    when &quot;coordinator&quot; then coordinator(turn, payload)
-    when &quot;web_search&quot;
-      [[[&quot;search_web&quot;, { &quot;query&quot; =&gt; &quot;năng suất làm việc hybrid Việt Nam 2026&quot; }]],
-        [[&quot;load_document&quot;, { &quot;url&quot; =&gt; GSO }], [&quot;load_document&quot;, { &quot;url&quot; =&gt; ILO }],
-         [&quot;load_document&quot;, { &quot;url&quot; =&gt; &quot;https://www.gso.gov.vn/images/hybrid-chart.png&quot; }]],
-        [[&quot;save_snippet&quot;, { &quot;url&quot; =&gt; GSO, &quot;quote&quot; =&gt; &quot;62% doanh nghiệp văn phòng áp dụng hybrid&quot;, &quot;location&quot; =&gt; &quot;tr. 14&quot; }],
-         [&quot;save_snippet&quot;, { &quot;url&quot; =&gt; ILO, &quot;quote&quot; =&gt; &quot;năng suất tự đánh giá tăng 4–7% với hybrid 2–3 ngày&quot;, &quot;location&quot; =&gt; &quot;p. 31&quot; }]],
-        &quot;Nguồn: doc-gso (#{GSO}), doc-ilo (#{ILO}). Bỏ ảnh hybrid-chart.png vì load_document từ chối (không phải tài liệu).&quot;][turn - 1]
-    when &quot;doc_analysis&quot;
-      if session.include?(&quot;verify&quot;)
-        [[[&quot;extract_metadata&quot;, { &quot;document_id&quot; =&gt; &quot;doc-ilo&quot; }]],
-         [[&quot;verify_claim&quot;, { &quot;claim&quot; =&gt; COMPLEX, &quot;document_ids&quot; =&gt; %w[doc-gso doc-ilo] }]],
-         &quot;Kiểm chứng: một phần đúng. Con số 4–7% là năng suất tự đánh giá, mẫu 6 nước; không dùng như số đo của riêng Việt Nam.&quot;][turn - 1]
-      else
-        [[[&quot;extract_metadata&quot;, { &quot;document_id&quot; =&gt; &quot;doc-gso&quot; }]],
-         [[&quot;extract_metadata&quot;, { &quot;document_id&quot; =&gt; &quot;doc-ilo&quot; }],
-          [&quot;extract_data_points&quot;, { &quot;document_id&quot; =&gt; &quot;doc-gso&quot;, &quot;topic&quot; =&gt; &quot;hybrid&quot; }],
-          [&quot;extract_data_points&quot;, { &quot;document_id&quot; =&gt; &quot;doc-ilo&quot;, &quot;topic&quot; =&gt; &quot;năng suất&quot; }]],
-         [[&quot;summarize_content&quot;, { &quot;document_id&quot; =&gt; &quot;doc-gso&quot; }], [&quot;summarize_content&quot;, { &quot;document_id&quot; =&gt; &quot;doc-ilo&quot; }]],
-         &quot;Phát hiện: GSO 62% doanh nghiệp áp dụng hybrid (tr. 14); ILO năng suất tự đánh giá +4–7% (p. 31).&quot;][turn - 1]
-      end
-    when &quot;synthesis&quot;
-      steps = [
-        [[&quot;verify_fact&quot;, { &quot;fact&quot; =&gt; &quot;62% doanh nghiệp văn phòng áp dụng hybrid&quot;, &quot;source_url&quot; =&gt; GSO }],
-         [&quot;verify_fact&quot;, { &quot;fact&quot; =&gt; COMPLEX, &quot;source_url&quot; =&gt; ILO }]],
-        [[&quot;format_citation&quot;, { &quot;author&quot; =&gt; &quot;Tổng cục Thống kê&quot;, &quot;year&quot; =&gt; &quot;2026&quot;, &quot;title&quot; =&gt; &quot;Báo cáo điều tra lao động việc làm 2026&quot;, &quot;url&quot; =&gt; GSO }],
-         [&quot;format_citation&quot;, { &quot;author&quot; =&gt; &quot;ILO&quot;, &quot;year&quot; =&gt; &quot;2025&quot;, &quot;title&quot; =&gt; &quot;Hybrid Work in Asia-Pacific 2025&quot;, &quot;url&quot; =&gt; ILO }]],
-        [[&quot;assess_coverage&quot;, { &quot;question&quot; =&gt; QUESTION, &quot;draft_outline&quot; =&gt; [&quot;Mức độ phổ biến&quot;, &quot;Tác động năng suất&quot;, &quot;Giới hạn số liệu&quot;] }]],
-        [[&quot;compile_report&quot;, {
-          &quot;title&quot; =&gt; &quot;Làm việc hybrid và năng suất văn phòng tại Việt Nam (2026)&quot;,
-          &quot;sections&quot; =&gt; [
-            { &quot;heading&quot; =&gt; &quot;Mức độ phổ biến&quot;, &quot;body&quot; =&gt; &quot;62% doanh nghiệp văn phòng áp dụng hybrid.&quot;, &quot;citations&quot; =&gt; [GSO] },
-            { &quot;heading&quot; =&gt; &quot;Tác động năng suất&quot;, &quot;body&quot; =&gt; &quot;Khảo sát khu vực cho thấy năng suất tự đánh giá cao hơn với hybrid 2–3 ngày.&quot;, &quot;citations&quot; =&gt; [ILO] }
+  execute(name: string, input: Json): ToolOutcome {
+    const ok = (data: Json): ToolOutcome =&gt; [data, false];
+    const doc = () =&gt; this.docById(input.document_id);
+    switch (name) {
+      case &quot;search_web&quot;:
+        return ok({
+          results: [
+            ...Object.entries(MockWorld.DOCS).map(([url, d]) =&gt; ({ title: d.title, url, snippet: d.summary[0] })),
+            { title: &quot;Biểu đồ hybrid 2026&quot;, url: &quot;https://www.gso.gov.vn/images/hybrid-chart.png&quot;, snippet: &quot;ảnh&quot; },
           ],
-          &quot;needs_coordinator_verification&quot; =&gt; [COMPLEX]
-        }]]
-      ]
-      steps.unshift([[&quot;search_web&quot;, { &quot;query&quot; =&gt; &quot;năng suất hybrid&quot; }]]) if @misuse
-      steps[turn - 1]
-    end
-  end
+        });
+      case &quot;load_document&quot;: {
+        const e = validateDocument(input.url);
+        if (e) return [e.structuredContent, true];
+        const d = MockWorld.DOCS[String(input.url)];
+        if (!d) return [{ errorCategory: &quot;validation&quot;, isRetryable: false, description: &quot;Không có tài liệu tại URL này.&quot; }, true];
+        this.loaded.add(d.id);
+        return ok({ document_id: d.id, title: d.title, chars: 18_000 });
+      }
+      case &quot;extract_links&quot;:
+        return ok({ links: [] });
+      case &quot;save_snippet&quot;:
+        this.snippets.push({ url: input.url, quote: input.quote, location: input.location });
+        return ok({ saved: true, total: this.snippets.length });
+      case &quot;extract_metadata&quot;: {
+        const d = doc();
+        return d ? ok({ title: d.title, author: d.author, date: d.date, type: d.type }) : this.missingDoc(input);
+      }
+      case &quot;extract_data_points&quot;: {
+        const d = doc();
+        return d ? ok({ data_points: d.data }) : this.missingDoc(input);
+      }
+      case &quot;summarize_content&quot;: {
+        const d = doc();
+        return d ? ok({ summary: d.summary }) : this.missingDoc(input);
+      }
+      case &quot;verify_claim&quot;:
+        return ok({
+          claim: input.claim, verdict: &quot;một phần đúng&quot;, confidence: &quot;trung bình&quot;,
+          reasoning: &quot;ILO đo năng suất TỰ ĐÁNH GIÁ, mẫu 6 nước; GSO không đo năng suất. &quot; +
+            &quot;Không đủ cơ sở khẳng định con số 4–7% cho riêng Việt Nam.&quot;,
+          sources: input.document_ids,
+        });
+      case &quot;verify_fact&quot;:
+        return this.verifyFact(input);
+      case &quot;format_citation&quot;:
+        return ok({ citation: `${input.author} (${input.year}). ${input.title}. ${input.url}` });
+      case &quot;assess_coverage&quot;:
+        return ok({ missing: [], covered: input.draft_outline });
+      case &quot;compile_report&quot;:
+        return ok({ accepted: true });
+      case &quot;review_output&quot;:
+      case &quot;request_revision&quot;:
+        return ok({ recorded: true });
+      default:
+        return [{ errorCategory: &quot;validation&quot;, isRetryable: false, description: `Tool không tồn tại: ${name}` }, true];
+    }
+  }
 
-  def coordinator(turn, payload)
-    prev = last_results(payload)
-    [
-      [[&quot;Agent&quot;, { &quot;agent_type&quot; =&gt; &quot;web_search&quot;, &quot;prompt&quot; =&gt; &quot;Tìm 2–3 nguồn tài liệu đáng tin về: #{QUESTION}&quot; }]],
-      [[&quot;Agent&quot;, { &quot;agent_type&quot; =&gt; &quot;doc_analysis&quot;, &quot;prompt&quot; =&gt; &quot;Phân tích các tài liệu sau, trích số liệu kèm vị trí.\n#{prev}&quot; }]],
-      [[&quot;Agent&quot;, { &quot;agent_type&quot; =&gt; &quot;synthesis&quot;, &quot;prompt&quot; =&gt; &quot;Viết báo cáo trả lời: #{QUESTION}\nPhát hiện:\n#{prev}&quot; }]],
-      [[&quot;Agent&quot;, { &quot;agent_type&quot; =&gt; &quot;doc_analysis&quot;, &quot;prompt&quot; =&gt; &quot;Kiểm chứng đầy đủ nhận định: #{COMPLEX}. Tài liệu: doc-gso, doc-ilo.&quot; }]],
-      [[&quot;review_output&quot;, { &quot;agent_type&quot; =&gt; &quot;synthesis&quot;, &quot;verdict&quot; =&gt; &quot;pass&quot;, &quot;reason&quot; =&gt; &quot;Đủ nguồn; nhận định phức tạp đã kiểm chứng và ghi giới hạn.&quot; }]],
-      &quot;Báo cáo hoàn tất: 62% doanh nghiệp áp dụng hybrid (GSO 2026). Con số năng suất +4–7% là tự đánh giá, mẫu khu vực (ILO 2025), không phải số đo riêng của Việt Nam.&quot;
-    ][turn - 1]
-  end
-end
+  // verify_fact là tool SCOPED: chỉ tra một dữ kiện đơn trong MỘT nguồn đã lưu.
+  verifyFact(input: Json): ToolOutcome {
+    const fact = String(input.fact ?? &quot;&quot;);
+    if (MockWorld.COMPLEX_MARKERS.some((m) =&gt; fact.toLowerCase().includes(m))) {
+      return [{
+        errorCategory: &quot;business&quot;, isRetryable: false,
+        description: &quot;Ngoài phạm vi verify_fact (nhận định so sánh/nhân quả cần nhiều nguồn). &quot; +
+          &quot;Đưa vào needs_coordinator_verification.&quot;,
+      }, true];
+    }
+    const hit = this.snippets.find((s) =&gt;
+      s.url === input.source_url &amp;&amp; fact.split(/\s+/).some((w) =&gt; /\d/.test(w) &amp;&amp; s.quote.includes(w)));
+    return hit
+      ? [{ verified: true, source_url: hit.url, quote: hit.quote, location: hit.location }, false]
+      : [{ verified: false, note: &quot;Không thấy dữ kiện trong trích đoạn đã lưu của nguồn này.&quot; }, false];
+  }
 
-# ---------------------------------------------------------------------------
-# Runner: vòng lặp agent + audit allowlist + log JSONL
-# ---------------------------------------------------------------------------
-class Runner
-  attr_reader :log, :violations, :world
+  missingDoc(input: Json): ToolOutcome {
+    return [{ errorCategory: &quot;validation&quot;, isRetryable: false, description: `document_id &#x27;${input.document_id}&#x27; chưa được tải.` }, true];
+  }
+}
 
-  def initialize(client, log_path: nil)
-    @client = client
-    @world = MockWorld.new
-    @log = []
-    @violations = []
-    @sessions = Hash.new(0)
-    @log_path = log_path
-  end
+// ---------------------------------------------------------------------------
+// Payload: tool_choice theo lượt + ràng buộc API
+// ---------------------------------------------------------------------------
+export function buildPayload(
+  agent: Role, turn: number, messages: Message[],
+  { thinking }: { thinking?: MessagesRequest[&quot;thinking&quot;] } = {},
+): MessagesRequest &amp; { tool_choice: ToolChoice } {
+  const cfg = AGENTS[agent];
+  const choice = cfg.tool_choice(turn);
+  // Ràng buộc của Messages API: khi bật extended thinking, tool_choice chỉ được auto hoặc none.
+  if (thinking &amp;&amp; (choice.type === &quot;any&quot; || choice.type === &quot;tool&quot;)) {
+    throw new RangeError(`tool_choice ${choice.type} không dùng được cùng extended thinking (chỉ auto/none)`);
+  }
+  const payload: MessagesRequest &amp; { tool_choice: ToolChoice } = {
+    model: MODEL, max_tokens: 2048, system: SYSTEM_PROMPTS[agent],
+    tools: cfg.tools, tool_choice: choice, messages,
+  };
+  if (thinking) payload.thinking = thinking;
+  return payload;
+}
 
-  def record(entry)
-    @log &lt;&lt; entry
-    File.open(@log_path, &quot;a&quot;) { |f| f.puts(JSON.generate(entry)) } if @log_path
-  end
+// ---------------------------------------------------------------------------
+// Client: thật (CHƯA chạy) và giả lập
+// ---------------------------------------------------------------------------
+export interface Client {
+  create(payload: MessagesRequest &amp; { tool_choice: ToolChoice }, ctx: { agent: Role; session: string }): Promise&lt;MessagesResponse&gt;;
+}
 
-  # Trả [kết quả text hoặc input của terminal tool, session_id]
-  def run_agent(agent, prompt, session_tag: nil)
-    session = &quot;#{agent}##{@sessions[agent] += 1}#{session_tag ? &quot;-#{session_tag}&quot; : &#x27;&#x27;}&quot;
-    cfg = ToolConfig::AGENTS.fetch(agent)
-    allowed = ToolConfig.allowed_names(agent)
-    messages = [{ role: &quot;user&quot;, content: prompt }]
+/** Transport thật qua lib/anthropic.ts (cần ANTHROPIC_API_KEY). */
+export class RealClient implements Client {
+  private send = httpTransport();
+  create(payload: MessagesRequest) {
+    return this.send(payload);
+  }
+}
 
-    (1..MAX_TURNS).each do |turn|
-      payload = build_payload(agent, turn, messages)
-      resp = @client.create(payload, agent: agent, session: session)
-      uses = resp[&quot;content&quot;].select { |b| b[&quot;type&quot;] == &quot;tool_use&quot; }
-      record(agent: agent, session: session, turn: turn, tool_choice: payload[:tool_choice],
-             tools_offered: allowed, stop_reason: resp[&quot;stop_reason&quot;], tool_calls: uses.map { |u| u[&quot;name&quot;] })
-      messages &lt;&lt; { role: &quot;assistant&quot;, content: resp[&quot;content&quot;] }
+type Call = [string, Json];
+type Step = Call[] | string;
 
-      if resp[&quot;stop_reason&quot;] != &quot;tool_use&quot;
-        return [resp[&quot;content&quot;].select { |b| b[&quot;type&quot;] == &quot;text&quot; }.map { |b| b[&quot;text&quot;] }.join, session]
-      end
+// GIẢ LẬP: đóng vai Claude theo kịch bản cố định. Tôn trọng tool_choice như API thật:
+// forced → trả đúng tool đó; any → luôn trả tool_use; auto → có thể trả text.
+// Kết quả phản ánh KỊCH BẢN, không phải hành vi của Claude.
+export class StubClient implements Client {
+  static readonly GSO = &quot;https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf&quot;;
+  static readonly ILO = &quot;https://www.ilo.org/hybrid-work-asia-2025.pdf&quot;;
+  static readonly COMPLEX = &quot;Hybrid làm tăng năng suất 4–7% so với làm toàn thời gian tại văn phòng ở Việt Nam&quot;;
 
-      terminal_input = nil
-      results = uses.map do |u|
-        content, is_err = dispatch(agent, session, allowed, u)
-        if is_err &amp;&amp; allowed.include?(u[&quot;name&quot;])
-          record(type: &quot;tool_error&quot;, agent: agent, session: session, tool: u[&quot;name&quot;], error: content)
-        end
-        terminal_input = u[&quot;input&quot;] if u[&quot;name&quot;] == cfg[:terminal_tool] &amp;&amp; !is_err
-        { type: &quot;tool_result&quot;, tool_use_id: u[&quot;id&quot;], content: JSON.generate(content), is_error: is_err }
-      end
-      messages &lt;&lt; { role: &quot;user&quot;, content: results }
-      return [terminal_input, session] if terminal_input
-    end
-    raise &quot;#{session} vượt #{MAX_TURNS} lượt&quot;
-  end
+  private misuse: boolean;
+  private seq = 0;
 
-  def dispatch(agent, session, allowed, use)
-    name = use[&quot;name&quot;]
-    unless allowed.include?(name)
-      @violations &lt;&lt; { agent: agent, session: session, tool: name }
-      record(type: &quot;violation&quot;, agent: agent, session: session, tool: name)
-      return [{ errorCategory: &quot;permission&quot;, isRetryable: false,
-                description: &quot;Tool &#x27;#{name}&#x27; không thuộc bộ tool của #{agent}. Dùng tool của bạn hoặc trả việc về coordinator.&quot; }, true]
-    end
-    if name == &quot;Agent&quot;
-      sub = use[&quot;input&quot;][&quot;agent_type&quot;]
-      tag = use[&quot;input&quot;][&quot;prompt&quot;].start_with?(&quot;Kiểm chứng&quot;) ? &quot;verify&quot; : nil
-      out, _sid = run_agent(sub, use[&quot;input&quot;][&quot;prompt&quot;], session_tag: tag)
-      return [out.is_a?(String) ? { result: out } : { report: out }, false]
-    end
-    @world.execute(name, use[&quot;input&quot;])
-  end
+  constructor({ misuseDemo = false }: { misuseDemo?: boolean } = {}) {
+    this.misuse = misuseDemo;
+  }
 
-  def run(question = QUESTION)
-    final, = run_agent(&quot;coordinator&quot;, question)
-    final
-  end
-end
+  async create(payload: MessagesRequest &amp; { tool_choice: ToolChoice }, { agent, session }: { agent: Role; session: string }) {
+    const turn = payload.messages.filter((m) =&gt; m.role === &quot;assistant&quot;).length + 1;
+    const calls = this.script(agent, session, turn, payload);
+    if (calls === undefined) throw new Error(`stub hết kịch bản: ${agent} lượt ${turn}`);
+    const choice = payload.tool_choice;
+    if (choice.type === &quot;tool&quot; &amp;&amp; (typeof calls === &quot;string&quot; || calls.map((c) =&gt; c[0]).join() !== choice.name)) {
+      throw new Error(`stub sai kịch bản: lượt ${turn} của ${agent} bị ép ${choice.name}`);
+    }
+    if (choice.type === &quot;any&quot; &amp;&amp; typeof calls === &quot;string&quot;) throw new Error(`stub sai kịch bản: ${agent} bị ép any nhưng trả text`);
 
-# ---------------------------------------------------------------------------
-# Báo cáo kiểm tra từ log
-# ---------------------------------------------------------------------------
-def verify_log(runner)
-  calls = runner.log.reject { |e| e[:type] }
-  checks = []
-  add = -&gt;(name, ok, detail = &quot;&quot;) { checks &lt;&lt; { name: name, ok: ok, detail: detail } }
+    const res: MessagesResponse = typeof calls === &quot;string&quot;
+      ? { id: `msg_stub_${this.seq}`, role: &quot;assistant&quot;, stop_reason: &quot;end_turn&quot;, content: [{ type: &quot;text&quot;, text: calls }] }
+      : {
+        id: `msg_stub_${this.seq}`, role: &quot;assistant&quot;, stop_reason: &quot;tool_use&quot;,
+        content: calls.map(([name, input]) =&gt; ({ type: &quot;tool_use&quot;, id: `toolu_${++this.seq}`, name, input })),
+      };
+    return res;
+  }
 
-  used = Hash.new { |h, k| h[k] = [] }
-  calls.each { |e| used[e[:agent]].concat(e[:tool_calls]) }
-  outside = used.flat_map { |a, names| (names.uniq - ToolConfig.allowed_names(a)).map { |n| &quot;#{a}→#{n}&quot; } }
-  add.(&quot;mỗi agent chỉ dùng tool trong bộ của mình&quot;, outside.empty?, outside.empty? ? &quot;OK&quot; : outside.join(&quot;, &quot;))
+  private lastResults(payload: MessagesRequest): string {
+    const m = [...payload.messages].reverse().find((x) =&gt; x.role === &quot;user&quot; &amp;&amp; Array.isArray(x.content));
+    return m &amp;&amp; Array.isArray(m.content) ? m.content.map((b) =&gt; (&quot;content&quot; in b ? b.content : &quot;&quot;)).join(&quot;\n&quot;) : &quot;&quot;;
+  }
 
-  doc_sessions = calls.select { |e| e[:agent] == &quot;doc_analysis&quot; }.group_by { |e| e[:session] }
-  first_ok = doc_sessions.all? do |_s, es|
-    f = es.min_by { |e| e[:turn] }
-    f[:tool_choice] == { type: &quot;tool&quot;, name: &quot;extract_metadata&quot; } &amp;&amp; f[:tool_calls] == [&quot;extract_metadata&quot;] &amp;&amp;
-      es.reject { |e| e[:turn] == 1 }.all? { |e| e[:tool_choice] == { type: &quot;auto&quot; } }
-  end
-  add.(&quot;doc_analysis: lượt 1 forced extract_metadata, các lượt sau auto (#{doc_sessions.size} phiên)&quot;, first_ok)
+  private script(agent: Role, session: string, turn: number, payload: MessagesRequest): Step | undefined {
+    const { GSO, ILO, COMPLEX } = StubClient;
+    switch (agent) {
+      case &quot;coordinator&quot;:
+        return this.coordinator(turn, payload);
+      case &quot;web_search&quot;:
+        return [
+          [[&quot;search_web&quot;, { query: &quot;năng suất làm việc hybrid Việt Nam 2026&quot; }]],
+          [[&quot;load_document&quot;, { url: GSO }], [&quot;load_document&quot;, { url: ILO }],
+            [&quot;load_document&quot;, { url: &quot;https://www.gso.gov.vn/images/hybrid-chart.png&quot; }]],
+          [[&quot;save_snippet&quot;, { url: GSO, quote: &quot;62% doanh nghiệp văn phòng áp dụng hybrid&quot;, location: &quot;tr. 14&quot; }],
+            [&quot;save_snippet&quot;, { url: ILO, quote: &quot;năng suất tự đánh giá tăng 4–7% với hybrid 2–3 ngày&quot;, location: &quot;p. 31&quot; }]],
+          `Nguồn: doc-gso (${GSO}), doc-ilo (${ILO}). Bỏ ảnh hybrid-chart.png vì load_document từ chối (không phải tài liệu).`,
+        ][turn - 1] as Step | undefined;
+      case &quot;doc_analysis&quot;:
+        if (session.includes(&quot;verify&quot;)) {
+          return [
+            [[&quot;extract_metadata&quot;, { document_id: &quot;doc-ilo&quot; }]],
+            [[&quot;verify_claim&quot;, { claim: COMPLEX, document_ids: [&quot;doc-gso&quot;, &quot;doc-ilo&quot;] }]],
+            &quot;Kiểm chứng: một phần đúng. Con số 4–7% là năng suất tự đánh giá, mẫu 6 nước; không dùng như số đo của riêng Việt Nam.&quot;,
+          ][turn - 1] as Step | undefined;
+        }
+        return [
+          [[&quot;extract_metadata&quot;, { document_id: &quot;doc-gso&quot; }]],
+          [[&quot;extract_metadata&quot;, { document_id: &quot;doc-ilo&quot; }],
+            [&quot;extract_data_points&quot;, { document_id: &quot;doc-gso&quot;, topic: &quot;hybrid&quot; }],
+            [&quot;extract_data_points&quot;, { document_id: &quot;doc-ilo&quot;, topic: &quot;năng suất&quot; }]],
+          [[&quot;summarize_content&quot;, { document_id: &quot;doc-gso&quot; }], [&quot;summarize_content&quot;, { document_id: &quot;doc-ilo&quot; }]],
+          &quot;Phát hiện: GSO 62% doanh nghiệp áp dụng hybrid (tr. 14); ILO năng suất tự đánh giá +4–7% (p. 31).&quot;,
+        ][turn - 1] as Step | undefined;
+      case &quot;synthesis&quot;: {
+        const steps: Call[][] = [
+          [[&quot;verify_fact&quot;, { fact: &quot;62% doanh nghiệp văn phòng áp dụng hybrid&quot;, source_url: GSO }],
+            [&quot;verify_fact&quot;, { fact: COMPLEX, source_url: ILO }]],
+          [[&quot;format_citation&quot;, { author: &quot;Tổng cục Thống kê&quot;, year: &quot;2026&quot;, title: &quot;Báo cáo điều tra lao động việc làm 2026&quot;, url: GSO }],
+            [&quot;format_citation&quot;, { author: &quot;ILO&quot;, year: &quot;2025&quot;, title: &quot;Hybrid Work in Asia-Pacific 2025&quot;, url: ILO }]],
+          [[&quot;assess_coverage&quot;, { question: QUESTION, draft_outline: [&quot;Mức độ phổ biến&quot;, &quot;Tác động năng suất&quot;, &quot;Giới hạn số liệu&quot;] }]],
+          [[&quot;compile_report&quot;, {
+            title: &quot;Làm việc hybrid và năng suất văn phòng tại Việt Nam (2026)&quot;,
+            sections: [
+              { heading: &quot;Mức độ phổ biến&quot;, body: &quot;62% doanh nghiệp văn phòng áp dụng hybrid.&quot;, citations: [GSO] },
+              { heading: &quot;Tác động năng suất&quot;, body: &quot;Khảo sát khu vực cho thấy năng suất tự đánh giá cao hơn với hybrid 2–3 ngày.&quot;, citations: [ILO] },
+            ],
+            needs_coordinator_verification: [COMPLEX],
+          }]],
+        ];
+        if (this.misuse) steps.unshift([[&quot;search_web&quot;, { query: &quot;năng suất hybrid&quot; }]]);
+        return steps[turn - 1];
+      }
+    }
+  }
 
-  syn = used[&quot;synthesis&quot;]
-  add.(&quot;synthesis dùng compile_report + verify_fact&quot;, syn.include?(&quot;compile_report&quot;) &amp;&amp; syn.include?(&quot;verify_fact&quot;),
-       syn.tally.map { |k, v| &quot;#{k}×#{v}&quot; }.join(&quot;, &quot;))
-  add.(&quot;synthesis luôn chạy với tool_choice any&quot;,
-       calls.select { |e| e[:agent] == &quot;synthesis&quot; }.all? { |e| e[:tool_choice] == { type: &quot;any&quot; } })
+  private coordinator(turn: number, payload: MessagesRequest): Step | undefined {
+    const prev = this.lastResults(payload);
+    return [
+      [[&quot;Agent&quot;, { agent_type: &quot;web_search&quot;, prompt: `Tìm 2–3 nguồn tài liệu đáng tin về: ${QUESTION}` }]],
+      [[&quot;Agent&quot;, { agent_type: &quot;doc_analysis&quot;, prompt: `Phân tích các tài liệu sau, trích số liệu kèm vị trí.\n${prev}` }]],
+      [[&quot;Agent&quot;, { agent_type: &quot;synthesis&quot;, prompt: `Viết báo cáo trả lời: ${QUESTION}\nPhát hiện:\n${prev}` }]],
+      [[&quot;Agent&quot;, { agent_type: &quot;doc_analysis&quot;, prompt: `Kiểm chứng đầy đủ nhận định: ${StubClient.COMPLEX}. Tài liệu: doc-gso, doc-ilo.` }]],
+      [[&quot;review_output&quot;, { agent_type: &quot;synthesis&quot;, verdict: &quot;pass&quot;, reason: &quot;Đủ nguồn; nhận định phức tạp đã kiểm chứng và ghi giới hạn.&quot; }]],
+      &quot;Báo cáo hoàn tất: 62% doanh nghiệp áp dụng hybrid (GSO 2026). Con số năng suất +4–7% là tự đánh giá, mẫu khu vực (ILO 2025), không phải số đo riêng của Việt Nam.&quot;,
+    ][turn - 1] as Step | undefined;
+  }
+}
 
-  routed = doc_sessions.keys.any? { |s| s.end_with?(&quot;-verify&quot;) } &amp;&amp; used[&quot;doc_analysis&quot;].include?(&quot;verify_claim&quot;)
-  add.(&quot;nhận định phức tạp được chuyển coordinator → doc_analysis verify_claim&quot;, routed)
-  add.(&quot;không có vi phạm audit&quot;, runner.violations.empty?, &quot;#{runner.violations.size} vi phạm&quot;)
-  [checks, used]
-end
+// ---------------------------------------------------------------------------
+// Runner: vòng lặp agent + audit allowlist + log JSONL
+// ---------------------------------------------------------------------------
+export interface CallEntry {
+  type?: undefined;
+  agent: Role; session: string; turn: number; tool_choice: ToolChoice;
+  tools_offered: string[]; stop_reason: string; tool_calls: string[];
+}
+export interface ToolErrorEntry { type: &quot;tool_error&quot;; agent: Role; session: string; tool: string; error: Json }
+export interface ViolationEntry { type: &quot;violation&quot;; agent: Role; session: string; tool: string }
+export type LogEntry = CallEntry | ToolErrorEntry | ViolationEntry;
 
-if $PROGRAM_NAME == __FILE__
-  real = ARGV.include?(&quot;--real&quot;)
-  client = if real
-             RealClient.new(ENV.fetch(&quot;ANTHROPIC_API_KEY&quot;) { abort &quot;Thiếu ANTHROPIC_API_KEY&quot; })
-           else
-             StubClient.new(misuse_demo: ARGV.include?(&quot;--misuse-demo&quot;))
-           end
-  FileUtils.mkdir_p(File.join(__dir__, &quot;logs&quot;))
-  log_path = File.join(__dir__, &quot;logs&quot;, &quot;#{real ? &#x27;real&#x27; : &#x27;stub&#x27;}#{ARGV.include?(&#x27;--misuse-demo&#x27;) ? &#x27;-misuse&#x27; : &#x27;&#x27;}.jsonl&quot;)
-  File.delete(log_path) if File.exist?(log_path)
+type ToolUse = Extract&lt;ContentBlock, { type: &quot;tool_use&quot; }&gt;;
 
-  puts real ? &quot;== Chạy với Claude thật (#{MODEL}) ==&quot; : &quot;== Chạy với client GIẢ LẬP (kịch bản cố định, không phải Claude) ==&quot;
-  runner = Runner.new(client, log_path: log_path)
-  final = runner.run
-  puts &quot;\n-- Log từng lượt --&quot;
-  runner.log.each do |e|
-    if e[:type] == &quot;tool_error&quot;
-      puts &quot;     ↳ #{e[:tool]} trả lỗi #{e[:error][:errorCategory]}: #{e[:error][:description]}&quot;
-    elsif e[:type] == &quot;violation&quot;
-      puts &quot;  !! VI PHẠM  #{e[:session]} gọi #{e[:tool]} (không thuộc bộ) → trả is_error, không thực thi&quot;
-    else
-      tc = e[:tool_choice][:type] == &quot;tool&quot; ? &quot;tool:#{e[:tool_choice][:name]}&quot; : e[:tool_choice][:type]
-      puts format(&quot;  %-22s lượt %d  tool_choice=%-22s %s&quot;, e[:session], e[:turn], tc,
-                  e[:tool_calls].empty? ? &quot;(end_turn)&quot; : e[:tool_calls].join(&quot;, &quot;))
-    end
-  end
-  checks, used = verify_log(runner)
-  puts &quot;\n-- Tool đã dùng theo agent --&quot;
-  used.each { |a, names| puts format(&quot;  %-13s %s&quot;, a, names.tally.map { |k, v| v &gt; 1 ? &quot;#{k}×#{v}&quot; : k }.join(&quot;, &quot;)) }
-  puts &quot;\n-- Kiểm tra --&quot;
-  checks.each { |c| puts &quot;  #{c[:ok] ? &#x27;PASS&#x27; : &#x27;FAIL&#x27;}  #{c[:name]}#{c[:detail].to_s.empty? ? &#x27;&#x27; : &quot;  [#{c[:detail]}]&quot;}&quot; }
-  puts &quot;\nTrả lời cuối: #{final}&quot;
-  puts &quot;Log: #{log_path}&quot;
-end
-</code></pre></details>
-<details><summary><b>test/run_tests.rb</b></summary><pre><code># frozen_string_literal: true
+export class Runner {
+  log: LogEntry[] = [];
+  violations: { agent: Role; session: string; tool: string }[] = [];
+  world = new MockWorld();
+  private client: Client;
+  private logPath?: string;
+  private sessions = new Map&lt;Role, number&gt;();
 
-# Kiểm thử bài 2.3. Chạy: ruby test/run_tests.rb
-# Phần config_check, load_document, payload tool_choice, audit là kiểm thử THẬT (code tất định).
-# Phần end-to-end dùng StubClient (GIẢ LẬP Claude theo kịch bản).
+  constructor(client: Client, { logPath }: { logPath?: string } = {}) {
+    this.client = client;
+    this.logPath = logPath;
+  }
 
-require_relative &quot;../multi_agent_run&quot;
-require_relative &quot;../config_check&quot;
+  record(entry: LogEntry): void {
+    this.log.push(entry);
+    if (this.logPath) appendFileSync(this.logPath, JSON.stringify(entry) + &quot;\n&quot;);
+  }
 
-$pass = 0
-$fail = 0
-def check(name, cond)
-  if cond
-    $pass += 1
-    puts &quot;PASS  #{name}&quot;
-  else
-    $fail += 1
-    puts &quot;FAIL  #{name}&quot;
-  end
-end
+  /** Trả [kết quả text hoặc input của terminal tool, session_id] */
+  async runAgent(agent: Role, prompt: string, { sessionTag }: { sessionTag?: string } = {}): Promise&lt;[string | Json, string]&gt; {
+    const n = (this.sessions.get(agent) ?? 0) + 1;
+    this.sessions.set(agent, n);
+    const session = `${agent}#${n}${sessionTag ? `-${sessionTag}` : &quot;&quot;}`;
+    const cfg = AGENTS[agent];
+    const allowed = allowedNames(agent);
+    const messages: Message[] = [{ role: &quot;user&quot;, content: prompt }];
 
+    for (let turn = 1; turn &lt;= MAX_TURNS; turn++) {
+      const payload = buildPayload(agent, turn, messages);
+      const resp = await this.client.create(payload, { agent, session });
+      const uses = resp.content.filter((b): b is ToolUse =&gt; b.type === &quot;tool_use&quot;);
+      this.record({
+        agent, session, turn, tool_choice: payload.tool_choice,
+        tools_offered: allowed, stop_reason: resp.stop_reason, tool_calls: uses.map((u) =&gt; u.name),
+      });
+      messages.push({ role: &quot;assistant&quot;, content: resp.content });
 
-puts &quot;== config_check ==&quot;
-ConfigCheck.checks.each { |r| check(&quot;config: #{r[:name]}&quot;, r[:ok]) }
+      if (resp.stop_reason !== &quot;tool_use&quot;) {
+        return [resp.content.flatMap((b) =&gt; (b.type === &quot;text&quot; ? [b.text] : [])).join(&quot;&quot;), session];
+      }
 
-# Cấu hình hỏng phải bị bắt: thêm search_web vào synthesis, đưa extract_metadata cho coordinator, thêm fetch_url.
-bad = ToolConfig::AGENTS.transform_values(&amp;:dup)
-bad[&quot;synthesis&quot;] = bad[&quot;synthesis&quot;].merge(tools: bad[&quot;synthesis&quot;][:tools] + [ToolConfig::WEB_SEARCH_TOOLS[0]])
-bad[&quot;coordinator&quot;] = bad[&quot;coordinator&quot;].merge(tools: bad[&quot;coordinator&quot;][:tools] + [ToolConfig::DOC_ANALYSIS_TOOLS[0]])
-bad[&quot;web_search&quot;] = bad[&quot;web_search&quot;].merge(tools: bad[&quot;web_search&quot;][:tools] + [ToolConfig.tool(&quot;fetch_url&quot;, &quot;x&quot; * 50, {}, []),
-                                                                               ToolConfig.tool(&quot;extra_one&quot;, &quot;y&quot; * 50, {}, [])])
-failed = ConfigCheck.checks(bad).reject { |r| r[:ok] }.map { |r| r[:name] }
-check(&quot;config hỏng: bắt tool trùng role&quot;, failed.any? { |n| n.include?(&quot;trùng&quot;) })
-check(&quot;config hỏng: bắt fetch_url&quot;, failed.any? { |n| n.include?(&quot;fetch_url&quot;) })
-check(&quot;config hỏng: bắt coordinator giữ tool nghiệp vụ&quot;, failed.any? { |n| n.include?(&quot;coordinator&quot;) })
-check(&quot;config hỏng: bắt web_search 6 tool&quot;, failed.any? { |n| n.start_with?(&quot;web_search: 4–5&quot;) })
+      let terminalInput: Json | null = null;
+      const results: UserBlock[] = [];
+      for (const u of uses) {
+        const [content, isErr] = await this.dispatch(agent, session, allowed, u);
+        if (isErr &amp;&amp; allowed.includes(u.name)) {
+          this.record({ type: &quot;tool_error&quot;, agent, session, tool: u.name, error: content });
+        }
+        if (u.name === cfg.terminal_tool &amp;&amp; !isErr) terminalInput = u.input;
+        results.push({ type: &quot;tool_result&quot;, tool_use_id: u.id, content: JSON.stringify(content), is_error: isErr });
+      }
+      messages.push({ role: &quot;user&quot;, content: results });
+      if (terminalInput) return [terminalInput, session];
+    }
+    throw new Error(`${session} vượt ${MAX_TURNS} lượt`);
+  }
 
-puts &quot;\n== load_document ==&quot;
-{
-  &quot;https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf&quot; =&gt; nil,
-  &quot;https://www.ilo.org/hybrid-work-asia-2025.pdf&quot; =&gt; nil,
-  &quot;https://hbr.org/2026/03/hybrid.html&quot; =&gt; nil,
-  &quot;https://docs.example.vn/docs/chinh-sach-hybrid-v2.md&quot; =&gt; nil,
-  &quot;http://www.gso.gov.vn/bao-cao.pdf&quot; =&gt; &quot;validation&quot;,
-  &quot;https://www.gso.gov.vn/images/chart.png&quot; =&gt; &quot;validation&quot;,
-  &quot;https://www.gso.gov.vn/api/stats.json&quot; =&gt; &quot;validation&quot;,
-  &quot;https://www.gso.gov.vn/api/stats&quot; =&gt; &quot;validation&quot;,
-  &quot;https://localhost/report.pdf&quot; =&gt; &quot;permission&quot;,
-  &quot;https://169.254.169.254/latest/meta-data/iam.txt&quot; =&gt; &quot;permission&quot;,
-  &quot;https://10.0.0.5/secret.pdf&quot; =&gt; &quot;permission&quot;,
-  &quot;https://evil.example.com/report.pdf&quot; =&gt; &quot;permission&quot;,
-  &quot;https://gso.gov.vn.evil.com/report.pdf&quot; =&gt; &quot;permission&quot;,
-  &quot;không phải url&quot; =&gt; &quot;validation&quot;
-}.each do |url, want|
-  e = LoadDocument.validate(url)
-  got = e &amp;&amp; e[:structuredContent][:errorCategory]
-  ok = got == want &amp;&amp; (e.nil? || (e[:isError] == true &amp;&amp; e[:structuredContent][:isRetryable] == false &amp;&amp;
-                                  e[:structuredContent][:description].size &gt; 20))
-  check(&quot;load_document #{url} → #{want || &#x27;hợp lệ&#x27;}&quot;, ok)
-end
+  async dispatch(agent: Role, session: string, allowed: string[], use: Pick&lt;ToolUse, &quot;name&quot; | &quot;input&quot;&gt;): Promise&lt;ToolOutcome&gt; {
+    const { name } = use;
+    if (!allowed.includes(name)) {
+      this.violations.push({ agent, session, tool: name });
+      this.record({ type: &quot;violation&quot;, agent, session, tool: name });
+      return [{
+        errorCategory: &quot;permission&quot;, isRetryable: false,
+        description: `Tool &#x27;${name}&#x27; không thuộc bộ tool của ${agent}. Dùng tool của bạn hoặc trả việc về coordinator.`,
+      }, true];
+    }
+    if (name === &quot;Agent&quot;) {
+      const sub = use.input.agent_type as Role;
+      const prompt = String(use.input.prompt);
+      const tag = prompt.startsWith(&quot;Kiểm chứng&quot;) ? &quot;verify&quot; : undefined;
+      const [out] = await this.runAgent(sub, prompt, { sessionTag: tag });
+      return [typeof out === &quot;string&quot; ? { result: out } : { report: out }, false];
+    }
+    return this.world.execute(name, use.input);
+  }
 
-puts &quot;\n== payload tool_choice ==&quot;
-p1 = build_payload(&quot;doc_analysis&quot;, 1, [])
-p2 = build_payload(&quot;doc_analysis&quot;, 2, [])
-check(&quot;doc_analysis lượt 1: tool_choice {type: tool, name: extract_metadata}&quot;, p1[:tool_choice] == { type: &quot;tool&quot;, name: &quot;extract_metadata&quot; })
-check(&quot;doc_analysis lượt 2: tool_choice auto&quot;, p2[:tool_choice] == { type: &quot;auto&quot; })
-check(&quot;synthesis: tool_choice any&quot;, build_payload(&quot;synthesis&quot;, 3, [])[:tool_choice] == { type: &quot;any&quot; })
-check(&quot;web_search: tool_choice auto&quot;, build_payload(&quot;web_search&quot;, 1, [])[:tool_choice] == { type: &quot;auto&quot; })
-check(&quot;payload chỉ gửi đúng bộ tool của agent&quot;, p1[:tools].map { |t| t[:name] } == ToolConfig.allowed_names(&quot;doc_analysis&quot;))
-thinking = { type: &quot;enabled&quot;, budget_tokens: 2048 }
-raised = begin; build_payload(&quot;doc_analysis&quot;, 1, [], thinking: thinking); false; rescue ArgumentError; true; end
-check(&quot;forced + extended thinking bị từ chối&quot;, raised)
-raised = begin; build_payload(&quot;synthesis&quot;, 1, [], thinking: thinking); false; rescue ArgumentError; true; end
-check(&quot;any + extended thinking bị từ chối&quot;, raised)
-check(&quot;auto + extended thinking được phép&quot;, build_payload(&quot;doc_analysis&quot;, 2, [], thinking: thinking)[:thinking] == thinking)
+  async run(question = QUESTION): Promise&lt;string&gt; {
+    const [final] = await this.runAgent(&quot;coordinator&quot;, question);
+    return String(final);
+  }
+}
 
-puts &quot;\n== verify_fact (scoped) ==&quot;
-w = MockWorld.new
-w.execute(&quot;save_snippet&quot;, { &quot;url&quot; =&gt; StubClient::GSO, &quot;quote&quot; =&gt; &quot;62% doanh nghiệp văn phòng áp dụng hybrid&quot;, &quot;location&quot; =&gt; &quot;tr. 14&quot; })
-r, err = w.execute(&quot;verify_fact&quot;, { &quot;fact&quot; =&gt; &quot;62% doanh nghiệp áp dụng hybrid&quot;, &quot;source_url&quot; =&gt; StubClient::GSO })
-check(&quot;dữ kiện đơn 1 nguồn → verified&quot;, !err &amp;&amp; r[:verified] == true &amp;&amp; r[:location] == &quot;tr. 14&quot;)
-r, err = w.execute(&quot;verify_fact&quot;, { &quot;fact&quot; =&gt; StubClient::COMPLEX, &quot;source_url&quot; =&gt; StubClient::ILO })
-check(&quot;nhận định so sánh → lỗi business, chuyển coordinator&quot;, err &amp;&amp; r[:errorCategory] == &quot;business&quot; &amp;&amp; r[:description].include?(&quot;coordinator&quot;))
+// ---------------------------------------------------------------------------
+// Báo cáo kiểm tra từ log
+// ---------------------------------------------------------------------------
+export interface LogCheck { name: string; ok: boolean; detail: string }
 
-puts &quot;\n== audit ==&quot;
-runner = Runner.new(StubClient.new)
-content, is_err = runner.dispatch(&quot;synthesis&quot;, &quot;synthesis#1&quot;, ToolConfig.allowed_names(&quot;synthesis&quot;),
-                                  { &quot;name&quot; =&gt; &quot;search_web&quot;, &quot;input&quot; =&gt; { &quot;query&quot; =&gt; &quot;x&quot; } })
-check(&quot;tool ngoài bộ → is_error permission&quot;, is_err &amp;&amp; content[:errorCategory] == &quot;permission&quot;)
-check(&quot;tool ngoài bộ → ghi vi phạm, không thực thi&quot;, runner.violations.size == 1 &amp;&amp; runner.world.snippets.empty?)
+const tally = (xs: string[]) =&gt; xs.reduce&lt;Record&lt;string, number&gt;&gt;((m, x) =&gt; ((m[x] = (m[x] ?? 0) + 1), m), {});
 
-puts &quot;\n== end-to-end (STUB) ==&quot;
-runner = Runner.new(StubClient.new)
-final = runner.run
-checks, used = verify_log(runner)
-checks.each { |c| check(&quot;e2e: #{c[:name]}&quot;, c[:ok]) }
+export function verifyLog(runner: Runner): [LogCheck[], Record&lt;string, string[]&gt;] {
+  const calls = runner.log.filter((e): e is CallEntry =&gt; !e.type);
+  const checks: LogCheck[] = [];
+  const add = (name: string, ok: boolean, detail = &quot;&quot;) =&gt; checks.push({ name, ok, detail });
+
+  const used: Record&lt;string, string[]&gt; = {};
+  for (const e of calls) (used[e.agent] ??= []).push(...e.tool_calls);
+  const outside = Object.entries(used).flatMap(([a, names]) =&gt;
+    [...new Set(names)].filter((n) =&gt; !allowedNames(a).includes(n)).map((n) =&gt; `${a}→${n}`));
+  add(&quot;mỗi agent chỉ dùng tool trong bộ của mình&quot;, outside.length === 0, outside.length === 0 ? &quot;OK&quot; : outside.join(&quot;, &quot;));
+
+  const docSessions = new Map&lt;string, CallEntry[]&gt;();
+  for (const e of calls.filter((e) =&gt; e.agent === &quot;doc_analysis&quot;)) docSessions.set(e.session, [...(docSessions.get(e.session) ?? []), e]);
+  const firstOk = [...docSessions.values()].every((es) =&gt; {
+    const f = es.reduce((a, b) =&gt; (b.turn &lt; a.turn ? b : a));
+    return f.tool_choice.type === &quot;tool&quot; &amp;&amp; f.tool_choice.name === &quot;extract_metadata&quot; &amp;&amp;
+      f.tool_calls.join() === &quot;extract_metadata&quot; &amp;&amp;
+      es.filter((e) =&gt; e.turn !== 1).every((e) =&gt; e.tool_choice.type === &quot;auto&quot;);
+  });
+  add(`doc_analysis: lượt 1 forced extract_metadata, các lượt sau auto (${docSessions.size} phiên)`, firstOk);
+
+  const syn = used.synthesis ?? [];
+  add(&quot;synthesis dùng compile_report + verify_fact&quot;, syn.includes(&quot;compile_report&quot;) &amp;&amp; syn.includes(&quot;verify_fact&quot;),
+    Object.entries(tally(syn)).map(([k, v]) =&gt; `${k}×${v}`).join(&quot;, &quot;));
+  add(&quot;synthesis luôn chạy với tool_choice any&quot;,
+    calls.filter((e) =&gt; e.agent === &quot;synthesis&quot;).every((e) =&gt; e.tool_choice.type === &quot;any&quot;));
+
+  const routed = [...docSessions.keys()].some((s) =&gt; s.endsWith(&quot;-verify&quot;)) &amp;&amp; (used.doc_analysis ?? []).includes(&quot;verify_claim&quot;);
+  add(&quot;nhận định phức tạp được chuyển coordinator → doc_analysis verify_claim&quot;, routed);
+  add(&quot;không có vi phạm audit&quot;, runner.violations.length === 0, `${runner.violations.length} vi phạm`);
+  return [checks, used];
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? &quot;&quot;).href) {
+  const argv = process.argv.slice(2);
+  const real = argv.includes(&quot;--real&quot;);
+  const misuse = argv.includes(&quot;--misuse-demo&quot;);
+  const client: Client = real ? new RealClient() : new StubClient({ misuseDemo: misuse });
+  const logDir = join(import.meta.dirname, &quot;logs&quot;);
+  mkdirSync(logDir, { recursive: true });
+  const logPath = join(logDir, `${real ? &quot;real&quot; : &quot;stub&quot;}${misuse ? &quot;-misuse&quot; : &quot;&quot;}.jsonl`);
+  rmSync(logPath, { force: true });
+
+  console.log(real ? `== Chạy với Claude thật (${MODEL}) ==` : &quot;== Chạy với client GIẢ LẬP (kịch bản cố định, không phải Claude) ==&quot;);
+  const runner = new Runner(client, { logPath });
+  const final = await runner.run();
+  console.log(&quot;\n-- Log từng lượt --&quot;);
+  for (const e of runner.log) {
+    if (e.type === &quot;tool_error&quot;) {
+      console.log(`     ↳ ${e.tool} trả lỗi ${e.error.errorCategory}: ${e.error.description}`);
+    } else if (e.type === &quot;violation&quot;) {
+      console.log(`  !! VI PHẠM  ${e.session} gọi ${e.tool} (không thuộc bộ) → trả is_error, không thực thi`);
+    } else {
+      const tc = e.tool_choice.type === &quot;tool&quot; ? `tool:${e.tool_choice.name}` : e.tool_choice.type;
+      console.log(`  ${e.session.padEnd(22)} lượt ${e.turn}  tool_choice=${tc.padEnd(22)} ${e.tool_calls.length ? e.tool_calls.join(&quot;, &quot;) : &quot;(end_turn)&quot;}`);
+    }
+  }
+  const [checks, used] = verifyLog(runner);
+  console.log(&quot;\n-- Tool đã dùng theo agent --&quot;);
+  for (const [a, names] of Object.entries(used)) {
+    console.log(`  ${a.padEnd(13)} ${Object.entries(tally(names)).map(([k, v]) =&gt; (v &gt; 1 ? `${k}×${v}` : k)).join(&quot;, &quot;)}`);
+  }
+  console.log(&quot;\n-- Kiểm tra --&quot;);
+  for (const c of checks) console.log(`  ${c.ok ? &quot;PASS&quot; : &quot;FAIL&quot;}  ${c.name}${c.detail ? `  [${c.detail}]` : &quot;&quot;}`);
+  console.log(`\nTrả lời cuối: ${final}`);
+  console.log(`Log: ${logPath.replace(homedir(), &quot;~&quot;)}`);
+}</code></pre></details>
+<details><summary><b>test/api.test.ts</b></summary><pre><code>// Kiểm thử bài 2.3 (bản Messages API). Chạy: node --experimental-strip-types test/api.test.ts
+// Phần config_check, load_document, payload tool_choice, audit là kiểm thử THẬT (code tất định).
+// Phần end-to-end dùng StubClient (GIẢ LẬP Claude theo kịch bản).
+import { check, section, summary } from &quot;../../lib/check.ts&quot;;
+import { AGENTS, DOC_ANALYSIS_TOOLS, WEB_SEARCH_TOOLS, allowedNames, tool, type AgentConfig, type Role } from &quot;../tool_config.ts&quot;;
+import { checks as configChecks } from &quot;../config_check.ts&quot;;
+import { validate } from &quot;../load_document.ts&quot;;
+import { MockWorld, Runner, StubClient, buildPayload, verifyLog } from &quot;../multi_agent_run.ts&quot;;
+
+section(&quot;config_check&quot;);
+for (const r of configChecks()) check(`config: ${r.name}`, r.ok);
+
+// Cấu hình hỏng phải bị bắt: thêm search_web vào synthesis, đưa extract_metadata cho coordinator, thêm fetch_url.
+const bad = Object.fromEntries(Object.entries(AGENTS).map(([k, v]) =&gt; [k, { ...v }])) as Record&lt;Role, AgentConfig&gt;;
+bad.synthesis.tools = [...bad.synthesis.tools, WEB_SEARCH_TOOLS[0]];
+bad.coordinator.tools = [...bad.coordinator.tools, DOC_ANALYSIS_TOOLS[0]];
+bad.web_search.tools = [...bad.web_search.tools, tool(&quot;fetch_url&quot;, &quot;x&quot;.repeat(50), {}, []), tool(&quot;extra_one&quot;, &quot;y&quot;.repeat(50), {}, [])];
+const failed = configChecks(bad).filter((r) =&gt; !r.ok).map((r) =&gt; r.name);
+check(&quot;config hỏng: bắt tool trùng role&quot;, failed.some((n) =&gt; n.includes(&quot;trùng&quot;)));
+check(&quot;config hỏng: bắt fetch_url&quot;, failed.some((n) =&gt; n.includes(&quot;fetch_url&quot;)));
+check(&quot;config hỏng: bắt coordinator giữ tool nghiệp vụ&quot;, failed.some((n) =&gt; n.includes(&quot;coordinator&quot;)));
+check(&quot;config hỏng: bắt web_search 6 tool&quot;, failed.some((n) =&gt; n.startsWith(&quot;web_search: 4–5&quot;)));
+
+section(&quot;load_document&quot;);
+const urls: [string, string | null][] = [
+  [&quot;https://www.gso.gov.vn/bao-cao-lao-dong-2026.pdf&quot;, null],
+  [&quot;https://www.ilo.org/hybrid-work-asia-2025.pdf&quot;, null],
+  [&quot;https://hbr.org/2026/03/hybrid.html&quot;, null],
+  [&quot;https://docs.example.vn/docs/chinh-sach-hybrid-v2.md&quot;, null],
+  [&quot;http://www.gso.gov.vn/bao-cao.pdf&quot;, &quot;validation&quot;],
+  [&quot;https://www.gso.gov.vn/images/chart.png&quot;, &quot;validation&quot;],
+  [&quot;https://www.gso.gov.vn/api/stats.json&quot;, &quot;validation&quot;],
+  [&quot;https://www.gso.gov.vn/api/stats&quot;, &quot;validation&quot;],
+  [&quot;https://localhost/report.pdf&quot;, &quot;permission&quot;],
+  [&quot;https://169.254.169.254/latest/meta-data/iam.txt&quot;, &quot;permission&quot;],
+  [&quot;https://10.0.0.5/secret.pdf&quot;, &quot;permission&quot;],
+  [&quot;https://evil.example.com/report.pdf&quot;, &quot;permission&quot;],
+  [&quot;https://gso.gov.vn.evil.com/report.pdf&quot;, &quot;permission&quot;],
+  [&quot;không phải url&quot;, &quot;validation&quot;],
+];
+for (const [url, want] of urls) {
+  const e = validate(url);
+  const got = e ? e.structuredContent.errorCategory : null;
+  const ok = got === want &amp;&amp; (e === null ||
+    (e.isError === true &amp;&amp; e.structuredContent.isRetryable === false &amp;&amp; e.structuredContent.description.length &gt; 20));
+  check(`load_document ${url} → ${want ?? &quot;hợp lệ&quot;}`, ok);
+}
+
+section(&quot;payload tool_choice&quot;);
+const p1 = buildPayload(&quot;doc_analysis&quot;, 1, []);
+const p2 = buildPayload(&quot;doc_analysis&quot;, 2, []);
+const eq = (a: unknown, b: unknown) =&gt; JSON.stringify(a) === JSON.stringify(b);
+check(&quot;doc_analysis lượt 1: tool_choice {type: tool, name: extract_metadata}&quot;, eq(p1.tool_choice, { type: &quot;tool&quot;, name: &quot;extract_metadata&quot; }));
+check(&quot;doc_analysis lượt 2: tool_choice auto&quot;, eq(p2.tool_choice, { type: &quot;auto&quot; }));
+check(&quot;synthesis: tool_choice any&quot;, eq(buildPayload(&quot;synthesis&quot;, 3, []).tool_choice, { type: &quot;any&quot; }));
+check(&quot;web_search: tool_choice auto&quot;, eq(buildPayload(&quot;web_search&quot;, 1, []).tool_choice, { type: &quot;auto&quot; }));
+check(&quot;payload chỉ gửi đúng bộ tool của agent&quot;, eq(p1.tools?.map((t) =&gt; t.name), allowedNames(&quot;doc_analysis&quot;)));
+const thinking = { type: &quot;enabled&quot; as const, budget_tokens: 2048 };
+const throws = (f: () =&gt; unknown) =&gt; { try { f(); return false; } catch (e) { return e instanceof RangeError; } };
+check(&quot;forced + extended thinking bị từ chối&quot;, throws(() =&gt; buildPayload(&quot;doc_analysis&quot;, 1, [], { thinking })));
+check(&quot;any + extended thinking bị từ chối&quot;, throws(() =&gt; buildPayload(&quot;synthesis&quot;, 1, [], { thinking })));
+check(&quot;auto + extended thinking được phép&quot;, eq(buildPayload(&quot;doc_analysis&quot;, 2, [], { thinking }).thinking, thinking));
+
+section(&quot;verify_fact (scoped)&quot;);
+const w = new MockWorld();
+w.execute(&quot;save_snippet&quot;, { url: StubClient.GSO, quote: &quot;62% doanh nghiệp văn phòng áp dụng hybrid&quot;, location: &quot;tr. 14&quot; });
+let [r, err] = w.execute(&quot;verify_fact&quot;, { fact: &quot;62% doanh nghiệp áp dụng hybrid&quot;, source_url: StubClient.GSO });
+check(&quot;dữ kiện đơn 1 nguồn → verified&quot;, !err &amp;&amp; r.verified === true &amp;&amp; r.location === &quot;tr. 14&quot;);
+[r, err] = w.execute(&quot;verify_fact&quot;, { fact: StubClient.COMPLEX, source_url: StubClient.ILO });
+check(&quot;nhận định so sánh → lỗi business, chuyển coordinator&quot;, err &amp;&amp; r.errorCategory === &quot;business&quot; &amp;&amp; r.description.includes(&quot;coordinator&quot;));
+
+section(&quot;audit&quot;);
+let runner = new Runner(new StubClient());
+const [content, isErr] = await runner.dispatch(&quot;synthesis&quot;, &quot;synthesis#1&quot;, allowedNames(&quot;synthesis&quot;), { name: &quot;search_web&quot;, input: { query: &quot;x&quot; } });
+check(&quot;tool ngoài bộ → is_error permission&quot;, isErr &amp;&amp; content.errorCategory === &quot;permission&quot;);
+check(&quot;tool ngoài bộ → ghi vi phạm, không thực thi&quot;, runner.violations.length === 1 &amp;&amp; runner.world.snippets.length === 0);
+
+section(&quot;end-to-end (STUB)&quot;);
+runner = new Runner(new StubClient());
+const final = await runner.run();
+let [checks, used] = verifyLog(runner);
+for (const c of checks) check(`e2e: ${c.name}`, c.ok);
 check(&quot;e2e: web_search bị load_document từ chối ảnh .png&quot;,
-      runner.log.any? { |e| e[:type] == &quot;tool_error&quot; &amp;&amp; e[:tool] == &quot;load_document&quot; &amp;&amp; e[:error][:errorCategory] == &quot;validation&quot; })
-check(&quot;e2e: coordinator chỉ dùng Agent/review_output&quot;, (used[&quot;coordinator&quot;].uniq - %w[Agent review_output request_revision]).empty?)
-check(&quot;e2e: câu trả lời cuối có nguồn và giới hạn số liệu&quot;, final.include?(&quot;GSO&quot;) &amp;&amp; final.include?(&quot;tự đánh giá&quot;))
+  runner.log.some((e) =&gt; e.type === &quot;tool_error&quot; &amp;&amp; e.tool === &quot;load_document&quot; &amp;&amp; e.error.errorCategory === &quot;validation&quot;));
+check(&quot;e2e: coordinator chỉ dùng Agent/review_output&quot;,
+  (used.coordinator ?? []).every((n) =&gt; [&quot;Agent&quot;, &quot;review_output&quot;, &quot;request_revision&quot;].includes(n)));
+check(&quot;e2e: câu trả lời cuối có nguồn và giới hạn số liệu&quot;, final.includes(&quot;GSO&quot;) &amp;&amp; final.includes(&quot;tự đánh giá&quot;));
 
-puts &quot;\n== misuse demo (STUB) ==&quot;
-runner = Runner.new(StubClient.new(misuse_demo: true))
-runner.run
-checks, = verify_log(runner)
+section(&quot;misuse demo (STUB)&quot;);
+runner = new Runner(new StubClient({ misuseDemo: true }));
+await runner.run();
+[checks] = verifyLog(runner);
 check(&quot;misuse: audit ghi đúng 1 vi phạm synthesis→search_web&quot;,
-      runner.violations.map { |v| &quot;#{v[:agent]}→#{v[:tool]}&quot; } == [&quot;synthesis→search_web&quot;])
-check(&quot;misuse: kiểm tra &#x27;không vi phạm&#x27; báo FAIL&quot;, checks.find { |c| c[:name] == &quot;không có vi phạm audit&quot; }[:ok] == false)
+  eq(runner.violations.map((v) =&gt; `${v.agent}→${v.tool}`), [&quot;synthesis→search_web&quot;]));
+check(&quot;misuse: kiểm tra &#x27;không vi phạm&#x27; báo FAIL&quot;, checks.find((c) =&gt; c.name === &quot;không có vi phạm audit&quot;)?.ok === false);
 check(&quot;misuse: synthesis vẫn hoàn tất compile_report sau khi bị chặn&quot;,
-      runner.log.any? { |e| e[:agent] == &quot;synthesis&quot; &amp;&amp; e[:tool_calls]&amp;.include?(&quot;compile_report&quot;) })
+  runner.log.some((e) =&gt; !e.type &amp;&amp; e.agent === &quot;synthesis&quot; &amp;&amp; e.tool_calls.includes(&quot;compile_report&quot;)));
 
-puts &quot;\n#{$pass} PASS, #{$fail} FAIL&quot;
-exit($fail.zero? ? 0 : 1)
-</code></pre></details>
+summary();</code></pre></details>
 
 <h2>8. Kiểm thử</h2>
-<div class="card ok"><b>Đã chạy thật (code tất định, không cần model):</b> kiểm tra cấu hình, <code>load_document</code> với 14 URL, payload <code>tool_choice</code> theo lượt, ràng buộc thinking, <code>verify_fact</code> scoped, lớp audit. Tổng <code>ruby test/run_tests.rb</code>: <b>51 PASS, 0 FAIL</b>.
-<h3>config_check.rb</h3><pre><code>== Bảng tool theo agent ==
+<div class="card ok"><b>Đã chạy thật (code tất định, không cần model):</b> kiểm tra cấu hình, <code>load_document</code> với 14 URL, payload <code>tool_choice</code> theo lượt, ràng buộc thinking, <code>verify_fact</code> scoped, lớp audit. Tổng <code>test/api.test.ts</code>: <b>51 PASS, 0 FAIL</b>.
+<h3>config_check.ts</h3><pre><code>== Bảng tool theo agent ==
   coordinator   3 tool  Agent, review_output, request_revision
   web_search    4 tool  search_web, load_document, extract_links, save_snippet
   doc_analysis  4 tool  extract_metadata, extract_data_points, summarize_content, verify_claim
@@ -918,7 +1024,7 @@ exit($fail.zero? ? 0 : 1)
   PASS  không có tên tool chung chung / fetch_url  [OK]
   PASS  coordinator không giữ tool nghiệp vụ  [OK]
   PASS  mọi tool có mô tả ≥ 40 ký tự  [OK]
-  PASS  doc_analysis: lượt 1 ép extract_metadata, lượt 2 auto  [{:type=&gt;&quot;tool&quot;, :name=&gt;&quot;extract_metadata&quot;} → {:type=&gt;&quot;auto&quot;}]
+  PASS  doc_analysis: lượt 1 ép extract_metadata, lượt 2 auto  [{&quot;type&quot;:&quot;tool&quot;,&quot;name&quot;:&quot;extract_metadata&quot;} → {&quot;type&quot;:&quot;auto&quot;}]
 
 9/9 đạt</code></pre></div>
 <div class="card"><b>End-to-end với client GIẢ LẬP.</b> <code>StubClient</code> đóng vai Claude theo <b>kịch bản cố định</b> và tôn trọng <code>tool_choice</code> như API (forced → đúng tool đó; any → luôn tool_use). Phần thật trong log là: payload gửi đi, lớp audit, tool chạy local (load_document từ chối ảnh .png, verify_fact từ chối nhận định so sánh), và bộ kiểm tra cuối. <b>Việc chọn tool trong log là của kịch bản, không phải của Claude.</b>
@@ -979,7 +1085,7 @@ Log: ~/Downloads/claude-cert/2.3/logs/stub.jsonl</code></pre>
   PASS  synthesis luôn chạy với tool_choice any
   PASS  nhận định phức tạp được chuyển coordinator → doc_analysis verify_claim
   FAIL  không có vi phạm audit  [1 vi phạm]</code></pre>
-<p class="meta">Với API thật, Claude gần như chỉ gọi tool có trong danh sách được gửi, nên kiểm soát chính là <b>không đưa tool thừa vào bộ</b> (<code>config_check.rb</code>). Audit là lớp phòng thủ thứ hai, và là nguồn log để chứng minh không có lạm dụng.</p></div>
+<p class="meta">Với API thật, Claude gần như chỉ gọi tool có trong danh sách được gửi, nên kiểm soát chính là <b>không đưa tool thừa vào bộ</b> (<code>config_check.ts</code>). Audit là lớp phòng thủ thứ hai, và là nguồn log để chứng minh không có lạm dụng.</p></div>
 <div class="card warn"><b>Chưa chạy với Claude thật.</b> Chưa có key Claude API hợp lệ. Lệnh <code>--real</code> dùng model <code>claude-haiku-5-5</code> (đổi bằng biến <code>MODEL</code>), khoảng 15–20 lần gọi cho một câu hỏi.</div>
 
 <h2>9. Kết quả quan sát</h2>
@@ -1019,20 +1125,20 @@ Log: ~/Downloads/claude-cert/2.3/logs/stub.jsonl</code></pre>
 <p><span class="grn">Đáp án A.</span> B bỏ mất năng lực cần thiết. C lần đầu vẫn phải đi vòng và không giải quyết mẫu 85%. D chỉ giảm hàng đợi, không bớt số vòng.</p></div>
 
 <h2>12. Bản chạy bằng CLI (không cần API key)</h2>
-<p>Bản này chạy bằng Claude Code CLI, dùng phiên đăng nhập claude.ai của máy nên <b>không cần API key</b>. Chi phí tính vào quota gói. Cả hệ chạy trong <b>một lệnh <code>claude -p</code></b>: luồng chính là coordinator, gọi 3 subagent bằng tool <code>Agent</code>. Tool nghiệp vụ do MCP server <code>research</code> phục vụ, dùng cùng dữ liệu giả với <code>multi_agent_run.rb</code>.</p>
+<p>Bản này chạy bằng Claude Code CLI, dùng phiên đăng nhập claude.ai của máy nên <b>không cần API key</b>. Chi phí tính vào quota gói. Cả hệ chạy trong <b>một lệnh <code>claude -p</code></b>: luồng chính là coordinator, gọi 3 subagent bằng tool <code>Agent</code>. Tool nghiệp vụ do MCP server <code>research</code> phục vụ, dùng cùng dữ liệu giả với <code>multi_agent_run.ts</code>.</p>
 <pre><code>cd ~/Downloads/claude-cert/2.3
 ./run_cli.sh run              # cấu hình đúng → logs/cli/run/
 ./run_cli.sh misuse           # CỐ Ý cấp nhầm search_web cho synthesis → hook phải chặn
 ./run_cli.sh audit run        # chấm lại từ log có sẵn
-ruby test/run_cli_tests.rb    # 50 test (hook, server, config, audit: thật; e2e: claude giả)</code></pre>
+node --experimental-strip-types --no-warnings test/cli.test.ts   # 50 test (hook, server, config, audit: thật; e2e: claude giả)</code></pre>
 
 <h3>Ánh xạ Messages API → CLI</h3>
-<div class="tw"><table><tr><th>Bản Messages API (<code>multi_agent_run.rb</code>)</th><th>Bản CLI</th><th>Tương đương?</th></tr>
-<tr><td>Mỗi agent một vòng lặp, gửi <code>tools</code> riêng</td><td><code>--agents agents.json</code>: mỗi subagent có <code>tools</code> = đúng tên <code>mcp__research__&lt;tool&gt;</code> của role (sinh từ <code>tool_config.rb</code>). Coordinator chạy bằng <code>--agent coordinator</code> nên luồng chính chỉ thấy <code>Agent</code> + <code>review_output</code> + <code>request_revision</code></td><td class="grn">Có</td></tr>
-<tr><td><code>tool_choice: {type:"tool", name:"extract_metadata"}</code> ở lượt 1 của doc_analysis</td><td>Hook PreToolUse <code>guard_hook.rb</code>: trong mỗi subagent doc-analysis (phân biệt bằng <code>agent_id</code>), <b>chặn</b> mọi tool khác tới khi <code>extract_metadata</code> được gọi, kèm lý do để model tự sửa</td><td class="red">Gần đúng</td></tr>
+<div class="tw"><table><tr><th>Bản Messages API (<code>multi_agent_run.ts</code>)</th><th>Bản CLI</th><th>Tương đương?</th></tr>
+<tr><td>Mỗi agent một vòng lặp, gửi <code>tools</code> riêng</td><td><code>--agents agents.json</code>: mỗi subagent có <code>tools</code> = đúng tên <code>mcp__research__&lt;tool&gt;</code> của role (sinh từ <code>tool_config.ts</code>). Coordinator chạy bằng <code>--agent coordinator</code> nên luồng chính chỉ thấy <code>Agent</code> + <code>review_output</code> + <code>request_revision</code></td><td class="grn">Có</td></tr>
+<tr><td><code>tool_choice: {type:"tool", name:"extract_metadata"}</code> ở lượt 1 của doc_analysis</td><td>Hook PreToolUse <code>guard_hook.ts</code>: trong mỗi subagent doc-analysis (phân biệt bằng <code>agent_id</code>), <b>chặn</b> mọi tool khác tới khi <code>extract_metadata</code> được gọi, kèm lý do để model tự sửa</td><td class="red">Gần đúng</td></tr>
 <tr><td><code>tool_choice: any</code> cho synthesis</td><td>Không có. Chỉ dựa vào prompt "kết thúc bằng compile_report"; audit kiểm có <code>compile_report</code> trong log</td><td class="red">Không</td></tr>
 <tr><td>Lớp audit trong code: tool ngoài allowlist → <code>is_error</code>, không thực thi</td><td>Lớp 1: <code>agents.tools</code> (agent không thấy tool lạ). Lớp 2: hook deny + ghi <code>hook.jsonl</code>. Audit đối chiếu <code>hook.jsonl</code> với <code>server.jsonl</code>: server chỉ được thực thi lệnh đã qua hook</td><td class="grn">Có (2 lớp)</td></tr>
-<tr><td>Tool chạy local trong tiến trình Ruby</td><td>MCP server stdio <code>cli/research_mcp_server.rb</code>. Subagent dùng chung server của phiên, nên kho trích đoạn của <code>save_snippet</code> được <code>verify_fact</code> thấy</td><td class="grn">Có</td></tr>
+<tr><td>Tool chạy local trong tiến trình Node</td><td>MCP server stdio <code>cli/research_mcp_server.ts</code>. Subagent dùng chung server của phiên, nên kho trích đoạn của <code>save_snippet</code> được <code>verify_fact</code> thấy</td><td class="grn">Có</td></tr>
 <tr><td>Chỉ có tool của bài</td><td><code>--tools Agent</code> (tắt Bash/Read/WebSearch…), <code>--strict-mcp-config</code>, <code>--setting-sources project</code> (không nạp hook/plugin của user), subagent đặt <code>omitClaudeMd</code></td><td class="grn">Có</td></tr>
 </table></div>
 
@@ -1041,11 +1147,11 @@ ruby test/run_cli_tests.rb    # 50 test (hook, server, config, audit: thật; e2
 <h3>File</h3>
 <div class="tw"><table><tr><th>File</th><th>Vai trò</th></tr>
 <tr><td><code>run_cli.sh</code></td><td>Sinh cấu hình, chạy <code>claude -p</code>, gọi audit. Biến: <code>CLI_MODEL</code> (mặc định haiku), <code>MAX_BUDGET</code> (mặc định 1.5 USD), <code>CLAUDE_BIN</code></td></tr>
-<tr><td><code>cli/cli_config.rb</code></td><td>Sinh <code>agents.json</code>, <code>mcp.json</code>, <code>settings.json</code>, <code>allowed_tools.txt</code> từ <code>tool_config.rb</code>. <code>--misuse</code>: cố ý thêm <code>search_web</code> cho synthesis</td></tr>
-<tr><td><code>cli/guard_hook.rb</code></td><td>Hook PreToolUse (matcher <code>*</code>): allowlist theo vai + cổng <code>extract_metadata</code>; deny bằng JSON <code>permissionDecision</code>, ghi <code>hook.jsonl</code></td></tr>
-<tr><td><code>cli/research_mcp_server.rb</code></td><td>MCP server stdio, 14 tool (12 nghiệp vụ + 2 điều phối), ghi <code>server.jsonl</code>. Tool lạ → lỗi giao thức <code>-32602</code></td></tr>
-<tr><td><code>audit_cli.rb</code></td><td>Đọc <code>hook.jsonl</code> + <code>server.jsonl</code> + <code>stream.jsonl</code>: bảng tool theo agent, cổng metadata, vi phạm, chi phí, 10 kiểm tra</td></tr>
-<tr><td><code>test/run_cli_tests.rb</code>, <code>test/bin/claude</code></td><td>50 test; <code>claude</code> giả chạy MCP server và hook thật theo kịch bản cố định</td></tr>
+<tr><td><code>cli/cli_config.ts</code></td><td>Sinh <code>agents.json</code>, <code>mcp.json</code>, <code>settings.json</code>, <code>allowed_tools.txt</code> từ <code>tool_config.ts</code>. <code>--misuse</code>: cố ý thêm <code>search_web</code> cho synthesis</td></tr>
+<tr><td><code>cli/guard_hook.ts</code></td><td>Hook PreToolUse (matcher <code>*</code>): allowlist theo vai + cổng <code>extract_metadata</code>; deny bằng JSON <code>permissionDecision</code>, ghi <code>hook.jsonl</code></td></tr>
+<tr><td><code>cli/research_mcp_server.ts</code></td><td>MCP server stdio, 14 tool (12 nghiệp vụ + 2 điều phối), ghi <code>server.jsonl</code>. Tool lạ → lỗi giao thức <code>-32602</code></td></tr>
+<tr><td><code>audit_cli.ts</code></td><td>Đọc <code>hook.jsonl</code> + <code>server.jsonl</code> + <code>stream.jsonl</code>: bảng tool theo agent, cổng metadata, vi phạm, chi phí, 10 kiểm tra</td></tr>
+<tr><td><code>test/cli.test.ts</code>, <code>test/bin/claude</code> → <code>test/bin/fake_claude.ts</code></td><td>50 test; <code>claude</code> giả chạy MCP server và hook thật theo kịch bản cố định</td></tr>
 </table></div>
 
 <h3>Kiểm thử</h3>
@@ -1065,13 +1171,22 @@ Tool theo agent (lệnh được cho qua):
   synthesis     verify_fact×2, format_citation×1, compile_report×1
 
 Cổng extract_metadata đã chặn:
-  doc-analysis (agent_…) → extract_data_points
+  doc-analysis (agent_c25589) → extract_data_points
 
-10/10 đạt
+Chi phí: 0 USD · số lượt: 23
 
-# ./run_cli.sh misuse
-Vi phạm bị hook chặn:
-  synthesis → search_web [outside_allowlist]
+Kiểm tra:
+  ĐẠT  có log hook (hook PreToolUse thực sự chạy) — 23 lệnh gọi tool
+  ĐẠT  mọi lệnh được cho qua đều nằm trong bộ tool của agent gọi
+  ĐẠT  server chỉ thực thi lệnh đã qua hook
+  ĐẠT  lệnh vi phạm không được thực thi
+  ĐẠT  doc-analysis: lệnh đầu tiên được thực thi trong mỗi phiên là extract_metadata (2 phiên) — extract_metadata×2; cổng hook chặn 1 lệnh sai thứ tự
+  ĐẠT  synthesis dùng compile_report + verify_fact — verify_fact×2, format_citation×1, compile_report×1
+  ĐẠT  nhận định phức tạp được chuyển coordinator → doc-analysis verify_claim — 1 nhận định chờ, verify_claim: true
+  ĐẠT  coordinator không tự dùng tool nghiệp vụ
+  ĐẠT  không có vi phạm — 0 vi phạm
+  ĐẠT  claude kết thúc không lỗi — subtype=success
+
 10/10 đạt</code></pre>
 
 <h3>Giới hạn và điều chưa kiểm chứng</h3>

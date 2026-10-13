@@ -1,3 +1,5 @@
+
+== Server
 PASS  notification không được trả lời (11 message, 10 có id → 10 response)
 PASS  tools/list có 2 tool
 PASS  customer_id không khai báo pattern trong schema
@@ -12,6 +14,8 @@ PASS  thiếu tham số bắt buộc → JSON-RPC error
 PASS  method lạ → -32601
 PASS  flaky:2: lần 1,2 transient, lần 3 thành công
 PASS  ERROR_STYLE=bad: rỗng và business đều chỉ là "Error", không metadata
+
+== Agent structured
 PASS  structured #1 Tra khách bình thường: success sau 1 lần gọi
 PASS  structured #2 Khách không tồn tại (rỗng hợp lệ): not_found sau 1 lần gọi
 PASS  structured #3 DB chập chờn: timeout 2 lần rồi được: success sau 3 lần gọi
@@ -28,12 +32,20 @@ PASS  backoff tăng dần ×2 (0.2 → 0.4 → 0.8, đã scale)
 PASS  flaky:2 thành công ở lần gọi thứ 3 với 2 delay
 PASS  validation sửa được: lần 2 dùng CUS-0012
 PASS  handoff business có mã khách, số tiền, lý do
-PASS  fix_customer_id
+PASS  fixCustomerId
 PASS  lan truyền: báo cáo có kết quả 1 phần + khách lỗi + khách rỗng tách riêng
+
+== Agent với lỗi kiểu cũ (ERROR_STYLE=bad)
 PASS  bad: rỗng hợp lệ bị retry vô ích rồi escalate (4 lần)
 PASS  bad: business bị retry (4 lần gọi hoàn tiền)
 PASS  bad: validation sửa được nhưng không sửa (escalate)
-PASS  bad: tổng số lần gọi nhiều hơn structured
+PASS  bad: tổng số lần gọi nhiều hơn structured (30 > 16)
 PASS  bad: lan truyền lẫn khách không tồn tại vào nhóm lỗi
 
-37 PASS, 0 FAIL
+== run_llm.sh với claude GIẢ (không gọi model, chỉ kiểm đường ống)
+PASS  run_llm.sh all thoát 0
+PASS  mcp-config trỏ tới server TS chạy bằng node
+PASS  report: p0 structured gọi get_customer 1 lần, kết quả rỗng hợp lệ
+PASS  report: p1 bad hoàn tiền chỉ thấy "Error"
+
+41 PASS, 0 FAIL

@@ -2,15 +2,15 @@
   "hooks": {
     "PreToolUse": [
       { "matcher": "mcp__ops__process_refund",
-        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/pre_refund_limit.rb\"" }] },
+        "hooks": [{ "type": "command", "command": "node --experimental-strip-types --no-warnings \"$CLAUDE_PROJECT_DIR/cli/hooks/pre_refund_limit.ts\"" }] },
       { "matcher": "mcp__ops__transfer_funds",
-        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/pre_aml_gate.rb\"" }] }
+        "hooks": [{ "type": "command", "command": "node --experimental-strip-types --no-warnings \"$CLAUDE_PROJECT_DIR/cli/hooks/pre_aml_gate.ts\"" }] }
     ],
     "PostToolUse": [
       { "matcher": "mcp__ops__get_.*",
-        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/post_normalize.rb\"" }] },
+        "hooks": [{ "type": "command", "command": "node --experimental-strip-types --no-warnings \"$CLAUDE_PROJECT_DIR/cli/hooks/post_normalize.ts\"" }] },
       { "matcher": "mcp__ops__aml_check",
-        "hooks": [{ "type": "command", "command": "ruby \"$CLAUDE_PROJECT_DIR/cli/hooks/post_aml_record.rb\"" }] }
+        "hooks": [{ "type": "command", "command": "node --experimental-strip-types --no-warnings \"$CLAUDE_PROJECT_DIR/cli/hooks/post_aml_record.ts\"" }] }
     ]
   }
 }

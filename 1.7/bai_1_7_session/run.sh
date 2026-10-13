@@ -29,6 +29,8 @@ MODEL="${MODEL:-sonnet}"
 BUDGET="${BUDGET_USD:-1}"
 PROJECTS_DIR="${CLAUDE_PROJECTS_DIR:-$HOME/.claude/projects}"
 NAME="cca-1-7-review"
+# Đọc JSON output / transcript bằng helper TypeScript lib.ts (cần Node ≥ 22.6)
+ts() { node --experimental-strip-types --no-warnings "$ROOT/lib.ts" "$@"; }
 CHANGED=(auth.rb session.rb middleware.rb)
 
 # Cờ chung: chạy không tương tác, output JSON, chỉ cho đọc file.
@@ -47,12 +49,7 @@ ask() {
   mkdir -p "$OUT"
   echo "▶ $out: $CLAUDE ${flags[*]} $* -- \"<prompt>\""
   (cd "$WORK" && "$CLAUDE" "${flags[@]}" "$@" -- "$prompt") > "$OUT/$out.json"
-  ruby -rjson -e '
-    d = JSON.parse(File.read(ARGV[0]))
-    File.write(ARGV[1], d["result"].to_s)
-    printf("  session_id=%s  cost=$%.4f  turns=%s  subtype=%s\n",
-           d["session_id"], d["total_cost_usd"].to_f, d["num_turns"], d["subtype"])
-  ' "$OUT/$out.json" "$OUT/$out.md"
+  ts result "$OUT/$out.json" "$OUT/$out.md"
 }
 
 need_session() {
@@ -124,7 +121,7 @@ cmd_step6() {
   ask step6 "Giả sử chọn hướng thay toàn bộ Auth tự viết bằng Devise. Phác thảo kế hoạch 5 bước, không sửa file." \
     --resume "$sid" --fork-session
   local after; after=$(wc -l < "$tr" 2>/dev/null || echo 0)
-  local fork_sid; fork_sid=$(ruby -rjson -e 'puts JSON.parse(File.read(ARGV[0]))["session_id"]' "$OUT/step6.json")
+  local fork_sid; fork_sid=$(ts session-id "$OUT/step6.json")
   echo "Phiên gốc $sid: $before → $after dòng transcript (fork không ghi vào phiên gốc)"
   echo "Phiên fork mới: $fork_sid ($( [[ "$fork_sid" != "$sid" ]] && echo 'khác ID gốc ✓' || echo 'TRÙNG ID ✗'))"
 }
@@ -139,16 +136,7 @@ transcript() {
 reads_of() {
   local tr; tr="$(transcript "$1")"
   [[ -f "$tr" ]] || { echo "(không tìm thấy transcript $tr)"; return; }
-  ruby -rjson -e '
-    skip = ARGV[1].to_i
-    files = File.readlines(ARGV[0]).drop(skip).flat_map do |l|
-      m = (JSON.parse(l)["message"] rescue nil) or next []
-      c = m["content"]; next [] unless c.is_a?(Array)
-      c.select { |b| b["type"] == "tool_use" && b["name"] == "Read" }
-       .map { |b| File.basename(b.dig("input", "file_path").to_s) }
-    end
-    puts files.empty? ? "(không đọc file nào)" : files.tally.map { |f, n| n > 1 ? "#{f}×#{n}" : f }.join(", ")
-  ' "$tr" "${2:-0}"
+  ts reads "$tr" "${2:-0}"
 }
 
 cmd_compare() {

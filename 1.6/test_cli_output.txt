@@ -1,20 +1,6 @@
    | == single-pass
-   | [single] lấy output từ structured_output · cost 0 USD
    | == multi-pass: per-file (song song 4)
-   | [file_01_db.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_04_favorites_repo.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_02_users_repo.js] lấy output từ result text · cost 0 USD
-   | [file_03_notify_matches.js] lấy output từ structured_output · cost 0 USD
-   | [file_06_matching_service.js] lấy output từ structured_output · cost 0 USD
-   | [file_08_pagination.js] lấy output từ result text · cost 0 USD
-   | [file_07_user_profile.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_05_api_client.js] lấy output từ result text · cost 0 USD
-   | [file_09_favorites_controller.js] lấy output từ structured_output · cost 0 USD
-   | [file_12_mailer.js] lấy output từ structured_output · cost 0 USD
-   | [file_10_search.js] lấy output từ StructuredOutput tool_use · cost 0 USD
-   | [file_11_reminder_job.js] lấy output từ result text · cost 0 USD
    | == multi-pass: integration (chỉ summary/exports/imports)
-   | [integration] lấy output từ StructuredOutput tool_use · cost 0 USD
    | == compare
    | Độ sâu theo thứ tự file (số issue | độ dài mô tả TB):
    |   file                                 single          multi
@@ -30,11 +16,26 @@
    |   10_search.js                      0 |     0       1 |    47
    |   11_reminder_job.js                0 |     0       1 |    50
    |   12_mailer.js                      0 |     0       1 |    59
-   | single: lỗi trong file 5/8 ["B1", "B2", "B3", "B4", "B5"], lỗi chéo file 0/2 []
-   | multi : lỗi trong file 8/8 ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"], lỗi chéo file 2/2 ["C1", "C2"]
-   | Đoạn forEach y hệt ở 03 & 11 – single: {"03_notify_matches.js"=>true, "11_reminder_job.js"=>false} → KHÔNG nhất quán (dilution)
-   | Đoạn forEach y hệt ở 03 & 11 – multi: {"03_notify_matches.js"=>true, "11_reminder_job.js"=>true} → nhất quán
-   | Lỗi chéo file chỉ integration pass bắt được: ["C1", "C2"]
+   | single: lỗi trong file 5/8 ["B1","B2","B3","B4","B5"], lỗi chéo file 0/2 []
+   | multi : lỗi trong file 8/8 ["B1","B2","B3","B4","B5","B6","B7","B8"], lỗi chéo file 2/2 ["C1","C2"]
+   | Đoạn forEach y hệt ở 03 & 11 – single: {"03_notify_matches.js":true,"11_reminder_job.js":false} → KHÔNG nhất quán (dilution)
+   | Đoạn forEach y hệt ở 03 & 11 – multi: {"03_notify_matches.js":true,"11_reminder_job.js":true} → nhất quán
+   | Lỗi chéo file chỉ integration pass bắt được: ["C1","C2"]
+   | [single] lấy output từ structured_output · cost 0 USD
+   | [file_02_users_repo.js] lấy output từ result text · cost 0 USD
+   | [file_01_db.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_04_favorites_repo.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_03_notify_matches.js] lấy output từ structured_output · cost 0 USD
+   | [file_05_api_client.js] lấy output từ result text · cost 0 USD
+   | [file_06_matching_service.js] lấy output từ structured_output · cost 0 USD
+   | [file_08_pagination.js] lấy output từ result text · cost 0 USD
+   | [file_07_user_profile.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_10_search.js] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | [file_11_reminder_job.js] lấy output từ result text · cost 0 USD
+   | [file_09_favorites_controller.js] lấy output từ structured_output · cost 0 USD
+   | [file_12_mailer.js] lấy output từ structured_output · cost 0 USD
+   | [integration] lấy output từ StructuredOutput tool_use · cost 0 USD
+   | 
 PASS  run_cli.sh all chạy xong (mã 0)
 PASS  đúng 14 lệnh claude (1 single + 12 per-file + 1 integration)
 PASS  mọi lệnh: -p, --json-schema, --tools "", dontAsk, stream-json, --no-session-persistence

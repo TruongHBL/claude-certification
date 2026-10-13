@@ -9,3 +9,8 @@ bai-tap-leader/
 **/bai_1_6_results_cli/
 **/node_modules/
 *.err
+1.7/bai_1_7_session/work/
+1.7/bai_1_7_session/out/
+1.7/bai_1_7_session/.session_id
+1.7/bai_1_7_session/.fresh_session_id
+1.7/bai_1_7_session/.step4_mark
