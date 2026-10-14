@@ -1,0 +1,48 @@
+# Chạy thật ngày 14/10/2026, Claude Code 2.1.299, trong 2.4/demo-project, GITHUB_TOKEN/CRM_DB_URL chưa đặt.
+# Chỉ giữ các dòng của 2 server project; các server cá nhân của máy đã lược bỏ. Lệnh này chỉ health-check, không gọi model.
+
+$ claude mcp list
+Checking MCP server health…
+github: https://api.githubcopilot.com/mcp/ (HTTP) - ⏸ Pending approval (run `claude` to approve)
+crm-db: node --experimental-strip-types --no-warnings ${CLAUDE_CERT_DIR}/crm_db_server.ts - ⏸ Pending approval (run `claude` to approve)
+ └ [Warning] [github] mcpServers.github: Missing environment variables: GITHUB_TOKEN
+
+$ claude mcp get crm-db
+crm-db:
+  Scope: Project config (shared via .mcp.json)
+  Status: ⏸ Pending approval (run `claude` to approve)
+  Type: stdio
+  Command: node
+  Args: --experimental-strip-types --no-warnings ${CLAUDE_CERT_DIR}/crm_db_server.ts
+  Environment:
+    CRM_DB_URL=${CRM_DB_URL}
+    DESC=${CRM_DESC}
+
+To remove this server, run: claude mcp remove crm-db -s project
+
+$ claude mcp get github
+github:
+  Scope: Project config (shared via .mcp.json)
+  Status: ⏸ Pending approval (run `claude` to approve)
+  Type: http
+  URL: https://api.githubcopilot.com/mcp/
+  Headers:
+    Authorization: Bearer ${GITHUB_TOKEN}
+
+To remove this server, run: claude mcp remove github -s project
+
+# Cùng lệnh với bad.mcp.json được chép thành .mcp.json trong một thư mục tạm:
+$ claude mcp list
+Checking MCP server health…
+
+
+MCP config diagnostics ⚠
+
+For help configuring MCP servers, see: https://code.claude.com/docs/en/mcp
+
+[Contains warnings] Project config (shared via .mcp.json)
+Location: <tmp>/.mcp.json
+ ├ [Warning] [github] mcpServers.github: Skipped — MCP server "github" has a "url" but no "type"; add "type": "http" (or "sse" / "ws") to this entry
+ └ [Warning] [crm-db] mcpServers.crm-db: Skipped — invalid MCP server config for "crm-db": command: expected string, received undefined
+
+# Lưu ý: Claude Code KHÔNG cảnh báo token viết cứng (ghp_…, sk-…) — việc đó do check_config.ts / secret_guard.sh làm.

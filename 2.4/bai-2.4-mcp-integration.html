@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 2.4 – MCP Integration</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+<style>details{margin:10px 0}summary{cursor:pointer;font-weight:600;color:var(--accent)}.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}.two>*{min-width:0}</style>
+</head><body><main>
+<h1>Bài tập 2.4 — MCP Server Integration</h1>
+<div class="meta">Domain 2 · Tool Design &amp; MCP Integration · Mục 2.4 MCP Server Integration<br>Người thực hiện: TruongNQ · Ngày nộp: 14/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Cấu hình MCP server ở hai mức: <b>project</b> (<code>.mcp.json</code> trong repo, chia sẻ cho team) và <b>user</b> (<code>~/.claude.json</code>, cá nhân). Giữ credential ngoài git bằng <code>${VAR}</code>. Đưa schema DB ra thành <b>resource</b> để agent khỏi phải gọi tool dò từng bảng. Viết mô tả tool đủ tốt để Claude chọn tool MCP thay vì Grep/Read built-in.</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 800 330" role="img" aria-label="Project scope và user scope">
+<rect class="c" x="20" y="20" width="360" height="200" rx="10"/>
+<text x="200" y="46" text-anchor="middle" font-weight="700">Project scope · .mcp.json (gốc repo)</text>
+<text x="200" y="68" text-anchor="middle" class="m">commit vào git → cả team clone là có</text>
+<rect class="b" x="40" y="84" width="150" height="56" rx="6"/><text x="115" y="106" text-anchor="middle">github</text><text x="115" y="126" text-anchor="middle" class="m">type: http + url</text>
+<rect class="b" x="210" y="84" width="150" height="56" rx="6"/><text x="285" y="106" text-anchor="middle">crm-db</text><text x="285" y="126" text-anchor="middle" class="m">command + args (stdio)</text>
+<text x="200" y="166" text-anchor="middle" class="m">Token: "Bearer ${GITHUB_TOKEN}" — chỉ TÊN biến</text>
+<text x="200" y="186" text-anchor="middle" class="m">${CRM_DB_URL:-sqlite://./crm.db} — có giá trị mặc định</text>
+<text x="200" y="206" text-anchor="middle" class="m">lần đầu mở: ⏸ Pending approval, phải duyệt</text>
+<rect class="u" x="420" y="20" width="360" height="200" rx="10"/>
+<text x="600" y="46" text-anchor="middle" font-weight="700">User scope · ~/.claude.json (máy bạn)</text>
+<text x="600" y="68" text-anchor="middle" class="m">không nằm trong repo → chỉ mình bạn thấy</text>
+<rect class="b" x="440" y="84" width="150" height="56" rx="6"/><text x="515" y="106" text-anchor="middle">crm-db-experimental</text><text x="515" y="126" text-anchor="middle" class="m">thử nghiệm cá nhân</text>
+<rect class="b" x="610" y="84" width="150" height="56" rx="6"/><text x="685" y="106" text-anchor="middle">backlog</text><text x="685" y="126" text-anchor="middle" class="m">(máy TruongNQ)</text>
+<text x="600" y="166" text-anchor="middle" class="m">Giá trị token thật: shell profile / .env / secrets manager</text>
+<text x="600" y="186" text-anchor="middle" class="m">thêm: claude mcp add --scope user …</text>
+<rect class="h" x="160" y="245" width="480" height="66" rx="10"/>
+<text x="400" y="270" text-anchor="middle" font-weight="600">Claude Code nạp tool của CẢ HAI mức khi khởi động</text>
+<text x="400" y="292" text-anchor="middle" class="m">không cần bật tay; tên tool dạng mcp__&lt;server&gt;__&lt;tool&gt;</text>
+<path class="l" d="M200 220 L330 245"/><path class="l" d="M600 220 L470 245"/>
+</svg>
+<p class="meta">Đề thi (exam guide v1.0) dùng 2 mức như hình. Claude Code hiện có 3 scope: <code>local</code> (mặc định, riêng bạn trong một project), <code>project</code> và <code>user</code>; <code>local</code> và <code>user</code> đều lưu trong <code>~/.claude.json</code> (<code>claude mcp add --help</code>: “-s, --scope … (local, user, or project) (default: "local")”).</p></div>
+
+<h2>3. Năm bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td><code>.mcp.json</code> ở gốc project, dùng server chính thức cho tích hợp chuẩn</td><td><code>demo-project/.mcp.json</code>: <code>github</code> là server remote chính thức của GitHub (<code>type: "http"</code>, <code>url: https://api.githubcopilot.com/mcp/</code>) — không tự viết; <code>crm-db</code> là server local tự viết (<code>command</code> + <code>args</code>) vì DB nội bộ không có server cộng đồng</td></tr>
+<tr><td>2</td><td>Credential qua biến môi trường</td><td><code>"Authorization": "Bearer ${GITHUB_TOKEN}"</code>; <code>${CRM_DB_URL:-sqlite://./crm.db}</code> minh hoạ default. <code>.env.example</code> + <code>.gitignore</code> chặn <code>.env</code>. <code>check_config.ts</code> và <code>secret_guard.sh</code> bắt token viết cứng</td></tr>
+<tr><td>3</td><td>Server cá nhân ở <code>~/.claude.json</code></td><td><code>setup_user_scope.sh</code>: mặc định <b>chỉ in lệnh</b> <code>claude mcp add --scope user crm-db-experimental …</code>; <code>--apply</code> mới chạy, <code>--remove --apply</code> để gỡ. Không tự sửa config của máy</td></tr>
+<tr><td>4</td><td>Resource catalogue nội dung</td><td><code>crm_db_server.ts</code> khai báo <code>db://schema/main</code> (name, description, <code>application/json</code>): 4 bảng, cột + kiểu + khoá ngoại, quan hệ. <code>lib/mcp_server.ts</code> được mở rộng thêm <code>resources/list</code>, <code>resources/read</code> (tương thích ngược)</td></tr>
+<tr><td>5</td><td>Mô tả tool 3–5 câu, so với built-in</td><td><code>DESC=clear</code>: mỗi tool 4–5 câu (làm gì, trả gì, khi nào dùng, vì sao thay Grep/Bash). <code>DESC=sparse</code>: 1 câu (“Searches data.”) để đối chiếu</td></tr>
+</table></div>
+
+<h2>4. Cấu hình</h2>
+<div class="two"><div><details open><summary>.mcp.json (đúng)</summary><pre><code>{
+  &quot;mcpServers&quot;: {
+    &quot;github&quot;: {
+      &quot;type&quot;: &quot;http&quot;,
+      &quot;url&quot;: &quot;https://api.githubcopilot.com/mcp/&quot;,
+      &quot;headers&quot;: {
+        &quot;Authorization&quot;: &quot;Bearer ${GITHUB_TOKEN}&quot;
+      }
+    },
+    &quot;crm-db&quot;: {
+      &quot;command&quot;: &quot;node&quot;,
+      &quot;args&quot;: [&quot;--experimental-strip-types&quot;, &quot;--no-warnings&quot;, &quot;${CLAUDE_CERT_DIR:-..}/crm_db_server.ts&quot;],
+      &quot;env&quot;: {
+        &quot;CRM_DB_URL&quot;: &quot;${CRM_DB_URL:-sqlite://./crm.db}&quot;,
+        &quot;DESC&quot;: &quot;${CRM_DESC:-clear}&quot;
+      }
+    }
+  }
+}
+</code></pre></details></div><div><details open><summary>bad.mcp.json (cố ý sai)</summary><pre><code>{
+  &quot;mcpServers&quot;: {
+    &quot;github&quot;: {
+      &quot;url&quot;: &quot;https://api.githubcopilot.com/mcp/&quot;,
+      &quot;headers&quot;: {
+        &quot;Authorization&quot;: &quot;Bearer ghp_DEMO_KHONG_PHAI_TOKEN_THAT_0000&quot;
+      }
+    },
+    &quot;crm-db&quot;: {
+      &quot;args&quot;: [&quot;crm_db_server.ts&quot;],
+      &quot;env&quot;: { &quot;CRM_DB_PASSWORD&quot;: &quot;sk-test-1234567890abcdefghij&quot; }
+    }
+  }
+}
+</code></pre></details></div></div>
+<p><b>Env var expansion:</b> <code>${VAR}</code> lấy từ môi trường của người chạy <code>claude</code>; <code>${VAR:-mặc định}</code> dùng giá trị mặc định khi biến chưa đặt. File chỉ chứa <b>tên</b> biến nên commit an toàn, mỗi dev dùng token của mình, đổi token không phải sửa config.</p>
+<div class="card warn"><b>Biến thiếu chỉ là CẢNH BÁO.</b> Đã kiểm chứng thật (mục 8): thiếu <code>GITHUB_TOKEN</code> thì <code>claude mcp list</code> chỉ in <code>[Warning] … Missing environment variables: GITHUB_TOKEN</code> và vẫn nạp config. Token thiếu sẽ không “kêu” lỗi, nên phải tự kiểm (<code>check_config.ts</code>).</div>
+
+<h2>5. Resource và tool</h2>
+<div class="tw"><table><tr><th></th><th>Resource <code>db://schema/main</code></th><th>Tool <code>query_matching_projects</code></th></tr>
+<tr><td>Trả lời câu hỏi</td><td>DB có <b>những gì</b>: bảng, cột, kiểu, quan hệ</td><td><b>Làm gì đó</b> với dữ liệu: lọc dự án, join chủ dự án</td></tr>
+<tr><td>Ai quyết định đưa vào context</td><td>Ứng dụng/client (application-controlled): trong Claude Code là <code>@crm-db:db://schema/main</code> hoặc tool đọc resource</td><td>Model tự chọn gọi (model-controlled)</td></tr>
+<tr><td>Không có thì sao</td><td>Agent phải gọi <code>list_tables</code> rồi <code>describe_table</code> cho từng bảng — nhiều lượt dò</td><td>—</td></tr></table></div>
+
+<h2>6. Mô tả tool: sparse và clear</h2>
+<div class="tw"><table><tr><th>Tool</th><th>DESC=sparse</th><th>DESC=clear</th></tr>
+<tr><td><code>query_matching_projects</code></td><td>Searches data.</td><td>Truy vấn bảng matching_projects của DB CRM theo ngành nghề (trade), trạng thái (status) và ngân sách tối thiểu. Trả về JSON gồm id, title, trade, budget_jpy, status và owner_company đã join sẵn từ users. Dùng khi câu hỏi về DỮ LIỆU dự án đang có trong hệ thống (vd 'dự án điện nào đang mở trên 1 triệu yên'). Nên dùng tool này thay cho Grep/Read: dữ liệu nằm trong DB chứ không nằm trong file mã nguồn, và thay cho Bash + sqlite vì tool đã chặn câu lệnh ghi và tự join bảng. Muốn biết DB có bảng/cột gì thì đọc resource db://schema/main trước.</td></tr>
+<tr><td><code>find_user</code></td><td>Gets a user.</td><td>Tìm MỘT người dùng CRM theo email hoặc id, trả về id, email, company_name, role, prefecture. Dùng khi cần biết ai sở hữu dự án hoặc thông tin một nhà thầu. Không tìm được thì trả resultCount 0 (không phải lỗi, không cần gọi lại). Không dùng Grep để tìm người dùng: email thật nằm trong DB, không có trong repo.</td></tr></table></div>
+<p>Lý do: built-in như Grep có mô tả rất dài và rõ. Tool MCP mô tả một câu sẽ “thua” — Claude đi Grep mã nguồn (<code>demo-project/src/</code> có nhắc tên bảng) thay vì hỏi DB.</p>
+
+<h2>7. Mã nguồn</h2>
+<p>TypeScript, chạy bằng <code>node --experimental-strip-types --no-warnings</code> (Node ≥ 22.6). Server dùng <code>lib/mcp_server.ts</code> chung của repo.</p>
+<details><summary>crm_db_server.ts</summary><pre><code>// Bài 2.4 – MCP server &quot;crm-db&quot; (stdio) cho module CRM matching.
+//
+//   - Resource db://schema/main: catalogue schema (bảng, cột, kiểu, quan hệ). Agent đọc một lần là biết
+//     DB có gì, không phải gọi list_tables rồi describe_table cho từng bảng.
+//   - Tool query_matching_projects, find_user: thao tác trên dữ liệu (dữ liệu giả lập trong bộ nhớ).
+//   - DESC=sparse → mô tả 1 câu (dễ thua Grep/Bash có mô tả dài); mặc định DESC=clear → 3–5 câu.
+//   - CRM_DB_URL chỉ để minh hoạ ${VAR:-default} trong .mcp.json: server in ra nguồn dữ liệu, không kết nối thật.
+//
+// Chạy:  node --experimental-strip-types --no-warnings crm_db_server.ts
+import { appendFileSync } from &quot;node:fs&quot;;
+import { pathToFileURL } from &quot;node:url&quot;;
+import { runServer, textResult, type ToolDef, type ResourceDef } from &quot;../lib/mcp_server.ts&quot;;
+
+const DB_URL = process.env.CRM_DB_URL ?? &quot;(chưa đặt)&quot;;
+const STYLE = process.env.DESC === &quot;sparse&quot; ? &quot;sparse&quot; : &quot;clear&quot;;
+
+export const SCHEMA = {
+  database: &quot;crm_matching&quot;,
+  source: DB_URL,
+  tables: [
+    {
+      name: &quot;users&quot;,
+      description: &quot;Người dùng CRM: công ty đăng dự án hoặc nhà thầu nhận dự án&quot;,
+      columns: [
+        { name: &quot;id&quot;, type: &quot;integer&quot;, primaryKey: true },
+        { name: &quot;email&quot;, type: &quot;varchar(255)&quot;, unique: true },
+        { name: &quot;company_name&quot;, type: &quot;varchar(255)&quot; },
+        { name: &quot;role&quot;, type: &quot;enum(&#x27;owner&#x27;,&#x27;contractor&#x27;,&#x27;admin&#x27;)&quot; },
+        { name: &quot;prefecture&quot;, type: &quot;varchar(32)&quot; },
+        { name: &quot;created_at&quot;, type: &quot;datetime&quot; },
+      ],
+    },
+    {
+      name: &quot;matching_projects&quot;,
+      description: &quot;Dự án đăng lên để tìm nhà thầu&quot;,
+      columns: [
+        { name: &quot;id&quot;, type: &quot;integer&quot;, primaryKey: true },
+        { name: &quot;owner_id&quot;, type: &quot;integer&quot;, references: &quot;users.id&quot; },
+        { name: &quot;title&quot;, type: &quot;varchar(255)&quot; },
+        { name: &quot;trade&quot;, type: &quot;varchar(64)&quot;, note: &quot;ngành nghề, vd &#x27;điện&#x27;, &#x27;nội thất&#x27;&quot; },
+        { name: &quot;budget_jpy&quot;, type: &quot;integer&quot; },
+        { name: &quot;status&quot;, type: &quot;enum(&#x27;open&#x27;,&#x27;matched&#x27;,&#x27;closed&#x27;)&quot; },
+        { name: &quot;published_at&quot;, type: &quot;datetime&quot; },
+      ],
+    },
+    {
+      name: &quot;favorites&quot;,
+      description: &quot;Nhà thầu đánh dấu ♡ một dự án&quot;,
+      columns: [
+        { name: &quot;user_id&quot;, type: &quot;integer&quot;, references: &quot;users.id&quot; },
+        { name: &quot;project_id&quot;, type: &quot;integer&quot;, references: &quot;matching_projects.id&quot; },
+        { name: &quot;created_at&quot;, type: &quot;datetime&quot; },
+      ],
+      unique: [[&quot;user_id&quot;, &quot;project_id&quot;]],
+    },
+    {
+      name: &quot;applications&quot;,
+      description: &quot;Nhà thầu ứng tuyển vào dự án&quot;,
+      columns: [
+        { name: &quot;id&quot;, type: &quot;integer&quot;, primaryKey: true },
+        { name: &quot;project_id&quot;, type: &quot;integer&quot;, references: &quot;matching_projects.id&quot; },
+        { name: &quot;contractor_id&quot;, type: &quot;integer&quot;, references: &quot;users.id&quot; },
+        { name: &quot;status&quot;, type: &quot;enum(&#x27;pending&#x27;,&#x27;accepted&#x27;,&#x27;rejected&#x27;)&quot; },
+      ],
+    },
+  ],
+  relationships: [
+    &quot;users 1—n matching_projects (owner_id)&quot;,
+    &quot;users n—n matching_projects qua favorites&quot;,
+    &quot;users 1—n applications (contractor_id); matching_projects 1—n applications&quot;,
+  ],
+};
+
+const USERS = [
+  { id: 1, email: &quot;owner@tanaka-kensetsu.example&quot;, company_name: &quot;Tanaka Kensetsu&quot;, role: &quot;owner&quot;, prefecture: &quot;Tokyo&quot; },
+  { id: 2, email: &quot;info@sato-denki.example&quot;, company_name: &quot;Sato Denki&quot;, role: &quot;contractor&quot;, prefecture: &quot;Kanagawa&quot; },
+  { id: 3, email: &quot;hello@yamada-interior.example&quot;, company_name: &quot;Yamada Interior&quot;, role: &quot;contractor&quot;, prefecture: &quot;Tokyo&quot; },
+];
+
+const PROJECTS = [
+  { id: 101, owner_id: 1, title: &quot;Thi công điện văn phòng 3F&quot;, trade: &quot;điện&quot;, budget_jpy: 1_200_000, status: &quot;open&quot; },
+  { id: 102, owner_id: 1, title: &quot;Nội thất cửa hàng Shibuya&quot;, trade: &quot;nội thất&quot;, budget_jpy: 3_500_000, status: &quot;open&quot; },
+  { id: 103, owner_id: 1, title: &quot;Sửa hệ thống chiếu sáng kho&quot;, trade: &quot;điện&quot;, budget_jpy: 600_000, status: &quot;matched&quot; },
+];
+
+const DESCRIPTIONS = {
+  sparse: {
+    query_matching_projects: &quot;Searches data.&quot;,
+    find_user: &quot;Gets a user.&quot;,
+  },
+  clear: {
+    query_matching_projects:
+      &quot;Truy vấn bảng matching_projects của DB CRM theo ngành nghề (trade), trạng thái (status) và ngân sách tối thiểu. &quot; +
+      &quot;Trả về JSON gồm id, title, trade, budget_jpy, status và owner_company đã join sẵn từ users. &quot; +
+      &quot;Dùng khi câu hỏi về DỮ LIỆU dự án đang có trong hệ thống (vd &#x27;dự án điện nào đang mở trên 1 triệu yên&#x27;). &quot; +
+      &quot;Nên dùng tool này thay cho Grep/Read: dữ liệu nằm trong DB chứ không nằm trong file mã nguồn, và thay cho &quot; +
+      &quot;Bash + sqlite vì tool đã chặn câu lệnh ghi và tự join bảng. Muốn biết DB có bảng/cột gì thì đọc resource db://schema/main trước.&quot;,
+    find_user:
+      &quot;Tìm MỘT người dùng CRM theo email hoặc id, trả về id, email, company_name, role, prefecture. &quot; +
+      &quot;Dùng khi cần biết ai sở hữu dự án hoặc thông tin một nhà thầu. &quot; +
+      &quot;Không tìm được thì trả resultCount 0 (không phải lỗi, không cần gọi lại). &quot; +
+      &quot;Không dùng Grep để tìm người dùng: email thật nằm trong DB, không có trong repo.&quot;,
+  },
+} as const;
+
+export function toolDefs(style: &quot;sparse&quot; | &quot;clear&quot;): ToolDef[] {
+  const d = DESCRIPTIONS[style];
+  return [
+    {
+      name: &quot;query_matching_projects&quot;,
+      description: d.query_matching_projects,
+      inputSchema: {
+        type: &quot;object&quot;,
+        properties: {
+          trade: { type: &quot;string&quot;, description: &quot;Ngành nghề, vd &#x27;điện&#x27;&quot; },
+          status: { type: &quot;string&quot;, enum: [&quot;open&quot;, &quot;matched&quot;, &quot;closed&quot;] },
+          min_budget_jpy: { type: &quot;integer&quot;, minimum: 0 },
+        },
+      },
+    },
+    {
+      name: &quot;find_user&quot;,
+      description: d.find_user,
+      inputSchema: {
+        type: &quot;object&quot;,
+        properties: { email: { type: &quot;string&quot; }, id: { type: &quot;integer&quot; } },
+      },
+    },
+  ];
+}
+
+export const RESOURCES: ResourceDef[] = [
+  {
+    uri: &quot;db://schema/main&quot;,
+    name: &quot;CRM matching – schema&quot;,
+    description: &quot;Danh sách bảng, cột, kiểu dữ liệu và quan hệ của DB CRM matching. Đọc trước khi truy vấn.&quot;,
+    mimeType: &quot;application/json&quot;,
+    read: () =&gt; JSON.stringify(SCHEMA, null, 2),
+  },
+];
+
+function logCall(name: string, args: Record&lt;string, unknown&gt;): void {
+  const log = process.env.CRM_LOG;
+  if (log) appendFileSync(log, JSON.stringify({ at: new Date().toISOString(), style: STYLE, tool: name, args }) + &quot;\n&quot;);
+}
+
+const companyOf = (id: number) =&gt; USERS.find((u) =&gt; u.id === id)?.company_name ?? null;
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? &quot;&quot;).href) {
+  runServer({
+    name: &quot;crm-db&quot;,
+    tools: toolDefs(STYLE),
+    resources: RESOURCES,
+    onCall: logCall,
+    handlers: {
+      query_matching_projects: (a) =&gt; {
+        const rows = PROJECTS.filter(
+          (p) =&gt;
+            (a.trade === undefined || p.trade === a.trade) &amp;&amp;
+            (a.status === undefined || p.status === a.status) &amp;&amp;
+            (a.min_budget_jpy === undefined || p.budget_jpy &gt;= Number(a.min_budget_jpy)),
+        ).map((p) =&gt; ({ ...p, owner_company: companyOf(p.owner_id) }));
+        return textResult({ results: rows, resultCount: rows.length, source: DB_URL });
+      },
+      find_user: (a) =&gt; {
+        const u = USERS.find((x) =&gt; (a.email !== undefined &amp;&amp; x.email === a.email) || (a.id !== undefined &amp;&amp; x.id === Number(a.id)));
+        return textResult({ results: u ? [u] : [], resultCount: u ? 1 : 0 });
+      },
+    },
+  });
+}
+</code></pre></details>
+<details><summary>check_config.ts</summary><pre><code>// Bài 2.4 – kiểm tĩnh một file .mcp.json trước khi commit.
+//
+//   LỖI (exit 1):   thiếu mcpServers · entry có url mà thiếu type http/sse · entry local thiếu command/args
+//                   · giá trị trông như secret thật (ghp_, github_pat_, sk-, xoxb-, AKIA…, &quot;Bearer &lt;chuỗi dài&gt;&quot;)
+//   CẢNH BÁO:       biến ${VAR} không có default và chưa đặt trong env hiện tại. Giống Claude Code: chỉ cảnh báo,
+//                   không dừng nạp config → token thiếu sẽ không &quot;kêu&quot; lỗi, phải tự kiểm.
+//
+// Chạy:  node --experimental-strip-types --no-warnings check_config.ts demo-project/.mcp.json
+import { readFileSync } from &quot;node:fs&quot;;
+import { pathToFileURL } from &quot;node:url&quot;;
+
+export interface Finding {
+  level: &quot;error&quot; | &quot;warn&quot; | &quot;info&quot;;
+  where: string;
+  message: string;
+}
+
+const SECRET_PATTERNS: [RegExp, string][] = [
+  [/\bghp_[A-Za-z0-9_]{16,}/, &quot;GitHub personal access token (ghp_…)&quot;],
+  [/\bgithub_pat_[A-Za-z0-9_]{16,}/, &quot;GitHub fine-grained token (github_pat_…)&quot;],
+  [/\bsk-[A-Za-z0-9_-]{16,}/, &quot;API key dạng sk-…&quot;],
+  [/\bxox[abp]-[A-Za-z0-9-]{10,}/, &quot;Slack token&quot;],
+  [/\bAKIA[0-9A-Z]{16}\b/, &quot;AWS access key&quot;],
+  [/Bearer\s+(?!\$\{)[A-Za-z0-9._~+\/-]{20,}/, &quot;Bearer token viết cứng&quot;],
+];
+
+const VAR_RE = /\$\{([A-Za-z_][A-Za-z0-9_]*)(:-([^}]*))?\}/g;
+
+export interface VarRef {
+  name: string;
+  default?: string;
+  where: string;
+}
+
+/** Duyệt mọi chuỗi trong object, gọi fn(chuỗi, đường dẫn). */
+function walkStrings(v: unknown, path: string, fn: (s: string, path: string) =&gt; void): void {
+  if (typeof v === &quot;string&quot;) fn(v, path);
+  else if (Array.isArray(v)) v.forEach((x, i) =&gt; walkStrings(x, `${path}[${i}]`, fn));
+  else if (v &amp;&amp; typeof v === &quot;object&quot;) for (const [k, x] of Object.entries(v)) walkStrings(x, `${path}.${k}`, fn);
+}
+
+/** Mở rộng ${VAR} và ${VAR:-default} giống Claude Code (biến thiếu, không default → giữ nguyên chuỗi). */
+export function expand(s: string, env: Record&lt;string, string | undefined&gt;): string {
+  return s.replace(VAR_RE, (whole, name: string, _d, def: string | undefined) =&gt;
+    env[name] !== undefined &amp;&amp; env[name] !== &quot;&quot; ? env[name]! : def !== undefined ? def : whole,
+  );
+}
+
+export function checkConfig(config: unknown, env: Record&lt;string, string | undefined&gt; = process.env): {
+  findings: Finding[];
+  vars: VarRef[];
+} {
+  const findings: Finding[] = [];
+  const vars: VarRef[] = [];
+  const servers = (config as { mcpServers?: Record&lt;string, Record&lt;string, unknown&gt;&gt; } | null)?.mcpServers;
+  if (!servers || typeof servers !== &quot;object&quot;) {
+    findings.push({ level: &quot;error&quot;, where: &quot;(root)&quot;, message: &quot;Thiếu object mcpServers&quot; });
+    return { findings, vars };
+  }
+  if (Object.keys(servers).length === 0) findings.push({ level: &quot;error&quot;, where: &quot;mcpServers&quot;, message: &quot;Không có server nào&quot; });
+
+  for (const [name, entry] of Object.entries(servers)) {
+    const where = `mcpServers.${name}`;
+    const type = entry.type as string | undefined;
+    if (entry.url !== undefined) {
+      if (type !== &quot;http&quot; &amp;&amp; type !== &quot;sse&quot; &amp;&amp; type !== &quot;ws&quot;)
+        findings.push({
+          level: &quot;error&quot;,
+          where,
+          message: `Có url nhưng ${type === undefined ? &quot;thiếu&quot; : `type=&quot;${type}&quot; sai,`} type: &quot;http&quot; (hoặc &quot;sse&quot;/&quot;ws&quot;). Claude Code sẽ coi là stdio và bỏ qua server này`,
+        });
+      else findings.push({ level: &quot;info&quot;, where, message: `Remote server (${type}) → ${entry.url}` });
+    } else {
+      if (typeof entry.command !== &quot;string&quot; || !entry.command)
+        findings.push({ level: &quot;error&quot;, where, message: &quot;Local (stdio) server thiếu command&quot; });
+      if (entry.args !== undefined &amp;&amp; !Array.isArray(entry.args))
+        findings.push({ level: &quot;error&quot;, where, message: &quot;args phải là mảng&quot; });
+      else if (entry.args === undefined)
+        findings.push({ level: &quot;warn&quot;, where, message: &quot;Local server không có args (hợp lệ nếu command tự đủ)&quot; });
+      if (typeof entry.command === &quot;string&quot;) findings.push({ level: &quot;info&quot;, where, message: `Local server (stdio) → ${entry.command}` });
+    }
+
+    walkStrings(entry, where, (s, path) =&gt; {
+      for (const [re, label] of SECRET_PATTERNS)
+        if (re.test(s)) findings.push({ level: &quot;error&quot;, where: path, message: `Có vẻ là secret viết cứng: ${label}. Dùng \${VAR} thay thế` });
+      for (const m of s.matchAll(VAR_RE)) vars.push({ name: m[1]!, default: m[3], where: path });
+    });
+  }
+
+  for (const v of vars) {
+    const set = env[v.name] !== undefined &amp;&amp; env[v.name] !== &quot;&quot;;
+    if (!set &amp;&amp; v.default === undefined)
+      findings.push({
+        level: &quot;warn&quot;,
+        where: v.where,
+        message: `\${${v.name}} chưa đặt và không có default → Claude Code chỉ cảnh báo, giá trị sẽ hỏng (vd header &quot;Bearer \${${v.name}}&quot;)`,
+      });
+    else if (!set)
+      findings.push({ level: &quot;info&quot;, where: v.where, message: `\${${v.name}} chưa đặt → dùng default &quot;${v.default}&quot;` });
+  }
+  return { findings, vars };
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? &quot;&quot;).href) {
+  const file = process.argv[2] ?? &quot;.mcp.json&quot;;
+  const { findings, vars } = checkConfig(JSON.parse(readFileSync(file, &quot;utf8&quot;)));
+  console.log(`Kiểm ${file}`);
+  const icon = { error: &quot;✗ LỖI     &quot;, warn: &quot;! CẢNH BÁO&quot;, info: &quot;· info    &quot; };
+  for (const f of findings) console.log(`${icon[f.level]} ${f.where}: ${f.message}`);
+  console.log(`Biến môi trường dùng: ${vars.map((v) =&gt; (v.default !== undefined ? `${v.name} (mặc định ${v.default})` : v.name)).join(&quot;, &quot;) || &quot;(không có)&quot;}`);
+  const errors = findings.filter((f) =&gt; f.level === &quot;error&quot;).length;
+  const warns = findings.filter((f) =&gt; f.level === &quot;warn&quot;).length;
+  console.log(`→ ${errors} lỗi, ${warns} cảnh báo`);
+  process.exitCode = errors ? 1 : 0;
+}
+</code></pre></details>
+<details><summary>secret_guard.sh</summary><pre><code>#!/usr/bin/env bash
+# Bài 2.4 – chặn commit secret: quét các dòng ĐƯỢC THÊM trong `git diff --cached` (mặc định)
+# hoặc toàn bộ nội dung các file truyền vào. Có secret → in vị trí, exit 1.
+#
+# Dùng:  ./secret_guard.sh                 # trong một git repo, sau khi git add
+#        ./secret_guard.sh file1 file2     # quét file bất kỳ
+# Gắn làm pre-commit hook:  ln -s &quot;$(pwd)/secret_guard.sh&quot; .git/hooks/pre-commit
+set -euo pipefail
+
+# Cùng bộ mẫu với check_config.ts. &quot;${VAR}&quot; là placeholder hợp lệ, không bị coi là secret.
+PATTERN=&#x27;ghp_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|sk-[A-Za-z0-9_-]{16,}|xox[abp]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|Bearer[[:space:]]+[A-Za-z0-9._~+/-]{20,}&#x27;
+
+if [[ $# -gt 0 ]]; then
+  hits=&quot;$(grep -nHE &quot;$PATTERN&quot; &quot;$@&quot; || true)&quot;
+else
+  # Chỉ lấy dòng thêm mới (+), bỏ header &quot;+++ b/file&quot;; giữ tên file để báo vị trí.
+  hits=&quot;$(git diff --cached --unified=0 --no-color | awk &#x27;
+    /^\+\+\+ b\// { file = substr($0, 7); next }
+    /^@@/ { split($3, a, &quot;,&quot;); line = substr(a[1], 2) + 0; next }
+    /^\+/ { print file &quot;:&quot; line &quot;:&quot; substr($0, 2); line++ }
+  &#x27; | grep -E &quot;$PATTERN&quot; || true)&quot;
+fi
+
+if [[ -n &quot;$hits&quot; ]]; then
+  echo &quot;✗ Phát hiện giá trị trông như secret (dùng \${VAR} trong .mcp.json, để giá trị thật trong .env/shell):&quot;
+  echo &quot;$hits&quot; | sed &#x27;s/^/  /&#x27;
+  exit 1
+fi
+echo &quot;✓ Không thấy secret&quot;
+</code></pre></details>
+<details><summary>setup_user_scope.sh</summary><pre><code>#!/usr/bin/env bash
+# Bài 2.4 – bước 3: thêm một server CÁ NHÂN / thử nghiệm ở user scope (~/.claude.json, ngoài repo).
+# Mặc định chỉ IN lệnh (dry-run). Không tự sửa ~/.claude.json của bạn.
+#
+# Dùng:  ./setup_user_scope.sh            # in lệnh add sẽ chạy
+#        ./setup_user_scope.sh --apply    # chạy thật: claude mcp add --scope user …
+#        ./setup_user_scope.sh --remove   # in lệnh gỡ; thêm --apply để gỡ thật
+#        ./setup_user_scope.sh --check    # claude mcp get &lt;tên&gt; (health check, không gọi model)
+#
+# Server mẫu: crm-db bản thử nghiệm với mô tả sparse, chỉ mình bạn thấy, mọi project đều dùng được.
+# Muốn chia sẻ cho team thì KHÔNG dùng user scope, mà khai báo trong .mcp.json của repo (demo-project/).
+set -euo pipefail
+
+ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+CLAUDE=&quot;${CLAUDE_BIN:-claude}&quot;
+NAME=&quot;${SERVER_NAME:-crm-db-experimental}&quot;
+NODE=&quot;$(command -v node)&quot;
+
+ADD=(&quot;$CLAUDE&quot; mcp add --scope user &quot;$NAME&quot;
+     -e DESC=sparse -e &quot;CRM_DB_URL=sqlite://$HOME/.local/share/crm-experimental.db&quot;
+     -- &quot;$NODE&quot; --experimental-strip-types --no-warnings &quot;$ROOT/crm_db_server.ts&quot;)
+REMOVE=(&quot;$CLAUDE&quot; mcp remove --scope user &quot;$NAME&quot;)
+GET=(&quot;$CLAUDE&quot; mcp get &quot;$NAME&quot;)
+
+mode=add apply=0
+for a in &quot;$@&quot;; do
+  case &quot;$a&quot; in
+    --apply) apply=1 ;;
+    --remove) mode=remove ;;
+    --check) mode=check ;;
+    *) echo &quot;Tham số lạ: $a&quot;; sed -n &#x27;2,10p&#x27; &quot;$0&quot;; exit 1 ;;
+  esac
+done
+
+show() { printf &#x27;  %q&#x27; &quot;$@&quot;; echo; }
+case &quot;$mode&quot; in
+  add)    cmd=(&quot;${ADD[@]}&quot;) ;;
+  remove) cmd=(&quot;${REMOVE[@]}&quot;) ;;
+  check)  &quot;${GET[@]}&quot;; exit $? ;;
+esac
+
+if [[ &quot;$apply&quot; == 1 ]]; then
+  echo &quot;▶ Chạy:&quot;; show &quot;${cmd[@]}&quot;
+  &quot;${cmd[@]}&quot;
+  if [[ &quot;$mode&quot; == add ]]; then echo &quot;Gỡ lại bằng: $0 --remove --apply&quot;; fi
+else
+  echo &quot;(dry-run) Lệnh sẽ chạy — thêm --apply để chạy thật:&quot;; show &quot;${cmd[@]}&quot;
+  if [[ &quot;$mode&quot; == add ]]; then echo &quot;Gỡ:&quot;; show &quot;${REMOVE[@]}&quot;; fi
+fi
+</code></pre></details>
+<details><summary>run_cli.sh (tuỳ chọn, chưa chạy)</summary><pre><code>#!/usr/bin/env bash
+# Bài 2.4 – PHẦN TUỲ CHỌN (chưa chạy): xem Claude chọn tool MCP hay tool built-in (Grep/Read)
+# khi mô tả tool MCP sơ sài (DESC=sparse) so với mô tả đầy đủ (DESC=clear).
+#
+# Dùng:  ./run_cli.sh sparse | clear | all     mỗi câu hỏi một lệnh `claude -p` riêng (haiku)
+#        ./run_cli.sh report                   bảng: tool nào được gọi, bao nhiêu lần, có đọc resource không
+#        ./run_cli.sh clean
+#
+# Chi phí ước tính (haiku): 2 câu × 2 kiểu = 4 lệnh, mỗi lệnh 1–6 lượt. Bài 2.1 tốn ~0,002 USD/lệnh,
+# bài này có thêm tool built-in nên ước ~0,01–0,05 USD tổng; mỗi lệnh chặn trần --max-budget-usd.
+#
+# Chạy trong demo-project/ (có mã nguồn giả để Grep &quot;cạnh tranh&quot;) nhưng KHÔNG dùng .mcp.json của project
+# (cần duyệt và GITHUB_TOKEN): cấu hình crm-db được sinh riêng và nạp bằng --mcp-config --strict-mcp-config.
+set -euo pipefail
+
+ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+PROJECT=&quot;$ROOT/demo-project&quot;
+RESULTS=&quot;${RESULTS_DIR:-$ROOT/results_cli}&quot;
+MODEL=&quot;${MODEL:-haiku}&quot;
+BUDGET=&quot;${BUDGET:-0.2}&quot;
+CLAUDE_BIN=&quot;${CLAUDE_BIN:-claude}&quot;
+TS=(node --experimental-strip-types --no-warnings)
+
+QUESTIONS=(
+  &quot;Trong hệ thống CRM hiện có dự án ngành điện nào đang mở với ngân sách từ 1 triệu yên trở lên? Chủ dự án là công ty nào?&quot;
+  &quot;Bảng favorites trong DB CRM có những cột nào và liên kết với bảng nào?&quot;
+)
+
+run_style() {
+  local style=&quot;$1&quot; dir=&quot;$RESULTS/$1&quot; i mcp
+  mkdir -p &quot;$dir&quot;
+  mcp=&quot;$dir/mcp.json&quot;
+  node -e &#x27;const [node, srv, desc, log] = process.argv.slice(1);
+    console.log(JSON.stringify({ mcpServers: { &quot;crm-db&quot;: { type: &quot;stdio&quot;, command: node,
+      args: [&quot;--experimental-strip-types&quot;, &quot;--no-warnings&quot;, srv],
+      env: { DESC: desc, CRM_DB_URL: &quot;sqlite://./crm.db&quot;, CRM_LOG: log } } } }, null, 2))&#x27; \
+    &quot;$(command -v node)&quot; &quot;$ROOT/crm_db_server.ts&quot; &quot;$style&quot; &quot;$dir/calls.log&quot; &gt; &quot;$mcp&quot;
+  echo &quot;== DESC=$style, model=$MODEL&quot;
+  for i in &quot;${!QUESTIONS[@]}&quot;; do
+    echo &quot;  q$i: ${QUESTIONS[$i]}&quot;
+    # Cho phép cả tool built-in (Read/Grep/Glob) lẫn tool MCP và 2 tool đọc resource của Claude Code,
+    # để xem model chọn bên nào. (Tên ListMcpResourcesTool/ReadMcpResourceTool: chưa kiểm chứng với --tools.)
+    (cd &quot;$PROJECT&quot; &amp;&amp; &quot;$CLAUDE_BIN&quot; -p &quot;${QUESTIONS[$i]}&quot; \
+      --model &quot;$MODEL&quot; \
+      --mcp-config &quot;$mcp&quot; --strict-mcp-config \
+      --tools Read Grep Glob ListMcpResourcesTool ReadMcpResourceTool \
+      --allowedTools Read Grep Glob ListMcpResourcesTool ReadMcpResourceTool \
+                     &quot;mcp__crm-db__query_matching_projects&quot; &quot;mcp__crm-db__find_user&quot; \
+      --permission-mode dontAsk \
+      --max-budget-usd &quot;$BUDGET&quot; \
+      --no-session-persistence \
+      --output-format stream-json --verbose \
+      &gt; &quot;$dir/q$i.jsonl&quot; 2&gt; &quot;$dir/q$i.err&quot;) || echo &quot;    (lệnh trả mã lỗi, xem $dir/q$i.err)&quot;
+  done
+}
+
+case &quot;${1:-}&quot; in
+  sparse|clear) run_style &quot;$1&quot; ;;
+  all)    run_style sparse; run_style clear; &quot;${TS[@]}&quot; &quot;$ROOT/report_cli.ts&quot; &quot;$RESULTS&quot; ;;
+  report) &quot;${TS[@]}&quot; &quot;$ROOT/report_cli.ts&quot; &quot;$RESULTS&quot; ;;
+  clean)  rm -rf &quot;$RESULTS&quot; ;;
+  *) sed -n &#x27;2,8p&#x27; &quot;$0&quot;; exit 1 ;;
+esac
+</code></pre></details>
+<details><summary>report_cli.ts</summary><pre><code>// Bài 2.4 – đọc results_cli/&lt;style&gt;/q*.jsonl, in tool nào được gọi theo thứ tự và tổng theo nhóm
+// (MCP / built-in / đọc resource), để so DESC=sparse với DESC=clear.
+import { readdirSync, existsSync } from &quot;node:fs&quot;;
+import { join } from &quot;node:path&quot;;
+import { readStream, toolUses, resultEvent } from &quot;../lib/cli_stream.ts&quot;;
+
+const results = process.argv[2] ?? &quot;results_cli&quot;;
+const kind = (name: string) =&gt;
+  name.startsWith(&quot;mcp__&quot;) ? &quot;mcp&quot; : /McpResource/.test(name) ? &quot;resource&quot; : &quot;built-in&quot;;
+
+for (const style of [&quot;sparse&quot;, &quot;clear&quot;]) {
+  const dir = join(results, style);
+  if (!existsSync(dir)) continue;
+  const total = { mcp: 0, &quot;built-in&quot;: 0, resource: 0 } as Record&lt;string, number&gt;;
+  let cost = 0;
+  console.log(`\n== DESC=${style}`);
+  for (const f of readdirSync(dir).filter((f) =&gt; /^q\d+\.jsonl$/.test(f)).sort()) {
+    const ev = readStream(join(dir, f));
+    const uses = toolUses(ev);
+    for (const u of uses) total[kind(u.name)]!++;
+    cost += Number(resultEvent(ev)?.total_cost_usd ?? 0);
+    const seq = uses.map((u) =&gt; u.name.replace(&quot;mcp__crm-db__&quot;, &quot;mcp:&quot;)).join(&quot; → &quot;) || &quot;(không gọi tool)&quot;;
+    console.log(`  ${f.replace(&quot;.jsonl&quot;, &quot;&quot;)}: ${uses.length} lần gọi · ${seq}`);
+  }
+  console.log(`  Tổng: MCP ${total.mcp}, built-in ${total[&quot;built-in&quot;]}, đọc resource ${total.resource} · chi phí $${cost.toFixed(4)}`);
+}
+</code></pre></details>
+
+<h2>8. Kiểm thử</h2>
+<h3>Chạy thật, không gọi model</h3>
+<p><code>claude mcp list</code> / <code>claude mcp get</code> chỉ health-check, không gọi model. Hai server project ở trạng thái <b>⏸ Pending approval</b> vì chưa mở <code>claude</code> tương tác để duyệt — đúng cơ chế an toàn: server từ <code>.mcp.json</code> của repo không tự chạy khi bạn vừa clone.</p>
+<pre><code># Chạy thật ngày 14/10/2026, Claude Code 2.1.299, trong 2.4/demo-project, GITHUB_TOKEN/CRM_DB_URL chưa đặt.
+# Chỉ giữ các dòng của 2 server project; các server cá nhân của máy đã lược bỏ. Lệnh này chỉ health-check, không gọi model.
+
+$ claude mcp list
+Checking MCP server health…
+github: https://api.githubcopilot.com/mcp/ (HTTP) - ⏸ Pending approval (run `claude` to approve)
+crm-db: node --experimental-strip-types --no-warnings ${CLAUDE_CERT_DIR}/crm_db_server.ts - ⏸ Pending approval (run `claude` to approve)
+ └ [Warning] [github] mcpServers.github: Missing environment variables: GITHUB_TOKEN
+
+$ claude mcp get crm-db
+crm-db:
+  Scope: Project config (shared via .mcp.json)
+  Status: ⏸ Pending approval (run `claude` to approve)
+  Type: stdio
+  Command: node
+  Args: --experimental-strip-types --no-warnings ${CLAUDE_CERT_DIR}/crm_db_server.ts
+  Environment:
+    CRM_DB_URL=${CRM_DB_URL}
+    DESC=${CRM_DESC}
+
+To remove this server, run: claude mcp remove crm-db -s project
+
+$ claude mcp get github
+github:
+  Scope: Project config (shared via .mcp.json)
+  Status: ⏸ Pending approval (run `claude` to approve)
+  Type: http
+  URL: https://api.githubcopilot.com/mcp/
+  Headers:
+    Authorization: Bearer ${GITHUB_TOKEN}
+
+To remove this server, run: claude mcp remove github -s project
+
+# Cùng lệnh với bad.mcp.json được chép thành .mcp.json trong một thư mục tạm:
+$ claude mcp list
+Checking MCP server health…
+
+
+MCP config diagnostics ⚠
+
+For help configuring MCP servers, see: https://code.claude.com/docs/en/mcp
+
+[Contains warnings] Project config (shared via .mcp.json)
+Location: &lt;tmp&gt;/.mcp.json
+ ├ [Warning] [github] mcpServers.github: Skipped — MCP server &quot;github&quot; has a &quot;url&quot; but no &quot;type&quot;; add &quot;type&quot;: &quot;http&quot; (or &quot;sse&quot; / &quot;ws&quot;) to this entry
+ └ [Warning] [crm-db] mcpServers.crm-db: Skipped — invalid MCP server config for &quot;crm-db&quot;: command: expected string, received undefined
+
+# Lưu ý: Claude Code KHÔNG cảnh báo token viết cứng (ghp_…, sk-…) — việc đó do check_config.ts / secret_guard.sh làm.
+</code></pre>
+<p>Hai điều kiểm chứng được: (1) <b>url thiếu type bị bỏ qua</b> kèm cảnh báo, đúng như bài học; (2) Claude Code <b>không</b> cảnh báo token viết cứng — nên vẫn cần <code>check_config.ts</code> / <code>secret_guard.sh</code>.</p>
+<pre><code>$ node --experimental-strip-types check_config.ts demo-project/.mcp.json   # GITHUB_TOKEN, CRM_DB_URL chưa đặt
+Kiểm demo-project/.mcp.json
+· info     mcpServers.github: Remote server (http) → https://api.githubcopilot.com/mcp/
+· info     mcpServers.crm-db: Local server (stdio) → node
+! CẢNH BÁO mcpServers.github.headers.Authorization: ${GITHUB_TOKEN} chưa đặt và không có default → Claude Code chỉ cảnh báo, giá trị sẽ hỏng (vd header &quot;Bearer ${GITHUB_TOKEN}&quot;)
+· info     mcpServers.crm-db.args[2]: ${CLAUDE_CERT_DIR} chưa đặt → dùng default &quot;..&quot;
+· info     mcpServers.crm-db.env.CRM_DB_URL: ${CRM_DB_URL} chưa đặt → dùng default &quot;sqlite://./crm.db&quot;
+· info     mcpServers.crm-db.env.DESC: ${CRM_DESC} chưa đặt → dùng default &quot;clear&quot;
+Biến môi trường dùng: GITHUB_TOKEN, CLAUDE_CERT_DIR (mặc định ..), CRM_DB_URL (mặc định sqlite://./crm.db), CRM_DESC (mặc định clear)
+→ 0 lỗi, 1 cảnh báo
+
+$ node --experimental-strip-types check_config.ts demo-project/bad.mcp.json
+Kiểm demo-project/bad.mcp.json
+✗ LỖI      mcpServers.github: Có url nhưng thiếu type: &quot;http&quot; (hoặc &quot;sse&quot;/&quot;ws&quot;). Claude Code sẽ coi là stdio và bỏ qua server này
+✗ LỖI      mcpServers.github.headers.Authorization: Có vẻ là secret viết cứng: GitHub personal access token (ghp_…). Dùng ${VAR} thay thế
+✗ LỖI      mcpServers.github.headers.Authorization: Có vẻ là secret viết cứng: Bearer token viết cứng. Dùng ${VAR} thay thế
+✗ LỖI      mcpServers.crm-db: Local (stdio) server thiếu command
+✗ LỖI      mcpServers.crm-db.env.CRM_DB_PASSWORD: Có vẻ là secret viết cứng: API key dạng sk-…. Dùng ${VAR} thay thế
+Biến môi trường dùng: (không có)
+→ 5 lỗi, 0 cảnh báo
+</code></pre>
+<h3>Bộ test <code>test/run.test.ts</code></h3>
+<p>Server, <code>check_config</code>, <code>secret_guard</code> (trong git repo tạm), <code>setup_user_scope.sh</code> chạy thật. <code>run_cli.sh</code> dùng <b>claude GIẢ</b>: việc chọn Grep hay tool MCP trong phần đó là heuristic do mình viết, không phải hành vi của Claude.</p>
+<pre><code>
+== Server crm-db: resource
+PASS  initialize khai báo capabilities.resources
+PASS  initialize vẫn khai báo capabilities.tools
+PASS  resources/list có đúng 1 resource db://schema/main
+PASS  resource có name, description, mimeType application/json
+PASS  resources/read trả contents[0] cùng uri + mimeType
+PASS  schema có 4 bảng users, matching_projects, favorites, applications
+PASS  favorites có cột kèm kiểu + khoá ngoại tới users/matching_projects
+PASS  schema ghi quan hệ giữa các bảng
+PASS  schema nhận CRM_DB_URL từ env (minh hoạ ${VAR:-default})
+PASS  URI lạ → lỗi JSON-RPC -32002
+
+== Server crm-db: mô tả tool clear vs sparse
+PASS  2 tool query_matching_projects, find_user
+PASS  mô tả clear 3–5 câu mỗi tool
+PASS  mô tả clear nói khi nào dùng thay Grep (so với built-in)
+PASS  mô tả query nhắc đọc resource db://schema/main
+PASS  query: dự án điện đang mở ≥ 1 triệu yên = #101, đã join owner_company
+PASS  find_user không thấy → resultCount 0, không phải isError
+PASS  DESC=sparse: mô tả 1 câu ngắn
+PASS  DESC=sparse: schema input giữ nguyên (chỉ đổi mô tả)
+
+== lib/mcp_server.ts: tương thích ngược khi KHÔNG có resources
+PASS  server không resources: capabilities chỉ có tools
+PASS  server không resources: resources/list → -32601
+
+== check_config.ts
+PASS  .mcp.json mẫu: 0 lỗi
+PASS  GITHUB_TOKEN chưa đặt → CẢNH BÁO (không phải lỗi)
+PASS  biến có default (CRM_DB_URL, CRM_DESC, CLAUDE_CERT_DIR) không bị cảnh báo
+PASS  liệt kê đủ 4 biến
+PASS  GITHUB_TOKEN đã đặt → hết cảnh báo
+PASS  bad: url thiếu type bị bắt
+PASS  bad: token ghp_ viết cứng bị bắt
+PASS  bad: sk-… trong env bị bắt
+PASS  bad: server local thiếu command bị bắt
+PASS  type: ws được chấp nhận cho remote
+PASS  thiếu mcpServers → lỗi
+PASS  expand: ${VAR:-d} chưa đặt → default
+PASS  expand: ${VAR:-d} đã đặt → giá trị env
+PASS  expand: ${VAR} thiếu, không default → giữ nguyên chuỗi
+PASS  CLI: bad.mcp.json → exit 1
+
+== secret_guard.sh (git repo tạm)
+PASS  staged .mcp.json dùng ${GITHUB_TOKEN} → exit 0
+PASS  staged token cứng → exit 1, báo đúng file:dòng
+PASS  chế độ quét file: .env.example (để trống) → exit 0
+
+== setup_user_scope.sh (claude GIẢ, không đụng ~/.claude.json)
+PASS  dry-run: in lệnh add --scope user, exit 0
+PASS  dry-run: KHÔNG gọi claude
+PASS  --apply: gọi claude mcp add --scope user &lt;tên&gt; -e … -- node …
+PASS  --remove --apply: claude mcp remove --scope user &lt;tên&gt;
+
+== run_cli.sh + report_cli.ts (claude GIẢ)
+PASS  run_cli.sh all chạy xong (exit 0)
+PASS  tạo 2 câu × 2 kiểu = 4 file stream-json
+PASS  config sinh ra là stdio crm-db với DESC=sparse
+PASS  report: sparse có gọi built-in, clear thì không
+PASS  report: câu hỏi schema đi qua ReadMcpResourceTool
+PASS  server thật ghi log lần gọi tool (CRM_LOG)
+
+48 PASS, 0 FAIL
+</code></pre>
+<div class="card warn"><b>Chưa chạy với Claude thật:</b> <code>./run_cli.sh all</code> (4 lệnh <code>claude -p</code> haiku, ước ~0,01–0,05 USD) để xem Claude chọn tool MCP hay Grep khi mô tả sparse/clear. Chưa kiểm chứng: <code>--tools</code> có nhận tên <code>ListMcpResourcesTool</code>/<code>ReadMcpResourceTool</code> không. <code>setup_user_scope.sh --apply</code> cũng chưa chạy (sẽ sửa <code>~/.claude.json</code>).</div>
+
+<h2>9. Kết quả quan sát</h2>
+<div class="card"><p class="meta">(Điền sau khi chạy <code>./run_cli.sh all</code>.)</p>
+<div class="tw"><table><tr><th>Mô tả</th><th>Tool MCP</th><th>Built-in (Grep/Read/Glob)</th><th>Đọc resource</th><th>Ghi chú</th></tr>
+<tr><td>sparse</td><td></td><td></td><td></td><td></td></tr><tr><td>clear</td><td></td><td></td><td></td><td></td></tr></table></div></div>
+
+<h2>10. Áp vào máy mình</h2>
+<ul>
+<li><b>backlog</b> đang khai báo ở <b>user scope</b> (<code>~/.claude.json</code>), nên chỉ máy mình có. Nếu cả team dùng Backlog thì nên chuyển sang <code>.mcp.json</code> của repo, token qua <code>${BACKLOG_API_KEY}</code> (domain cũng có thể là biến), mỗi người tự đặt giá trị của mình.</li>
+<li><b>Connector claude.ai</b> (Google Drive, Figma, Notion…) là nguồn thứ ba: cấu hình trên tài khoản claude.ai, không nằm trong <code>.mcp.json</code> hay <code>~/.claude.json</code>. <code>claude mcp list</code> hiện chúng với tiền tố <code>claude.ai</code>.</li>
+<li>GitHub, Backlog đều đã có server sẵn → <b>dùng, không tự viết</b>. Chỉ tự viết cho hệ thống nội bộ không có server (như <code>crm-db</code> ở đây).</li>
+</ul>
+
+<h2>11. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li><code>.mcp.json</code> ở gốc project có <code>mcpServers</code>; remote có <code>type</code> + <code>url</code>, local có <code>command</code> + <code>args</code></li>
+<li>Xác thực dùng placeholder <code>${GITHUB_TOKEN}</code>; <code>secret_guard.sh</code> trên <code>git diff --cached</code> không thấy secret</li>
+<li>Server cá nhân ở <code>~/.claude.json</code>, ngoài repo (script sẵn, chạy bằng <code>--apply</code>)</li>
+<li>Resource <code>db://schema/main</code> có name, description, MIME type, nội dung là bảng + cột + kiểu</li>
+<li>Mô tả tool 3–5 câu, nói rõ vì sao dùng thay built-in</li>
+</ul>
+
+<h2>12. Bài học rút ra</h2>
+<ul>
+<li><b>Team dùng chung → <code>.mcp.json</code></b> (commit vào git). <b>Cá nhân / thử nghiệm → <code>~/.claude.json</code></b>.</li>
+<li><b>Không bao giờ viết token vào <code>.mcp.json</code></b>: dùng <code>${VAR}</code>, giá trị để trong shell/.env/secrets manager.</li>
+<li><b>Tích hợp chuẩn (GitHub, Jira, Slack, Linear, Notion) → dùng server có sẵn trước</b>; tự viết chỉ khi có logic/hệ thống riêng.</li>
+<li><b>Resource cho biết “có gì”, tool để “làm gì”</b>: schema dạng resource giúp bớt lượt gọi tool dò dẫm.</li>
+<li><b>Mô tả MCP sơ sài thua built-in</b>: viết mô tả nói rõ trả gì và khi nào nên dùng thay Grep.</li>
+</ul>
+<h3>Bẫy đề</h3>
+<ol>
+<li>Tự viết MCP server cho tích hợp chuẩn (vd Jira) → sai, phải xem server cộng đồng trước.</li>
+<li>Đặt server cả team dùng vào <code>~/.claude.json</code> → sai, file đó cá nhân, không chia sẻ.</li>
+<li>Viết cứng token vào <code>.mcp.json</code> → sai, dùng <code>${VAR}</code>.</li>
+<li>Để mô tả MCP sơ sài → agent chọn tool built-in.</li>
+</ol>
+<h3>Câu luyện tập</h3>
+<div class="card"><p>Team muốn tích hợp Jira vào Claude Code; một dev đề xuất tự viết MCP server. Bước đầu tiên đúng?</p>
+<ol type="A"><li><b>Đánh giá các MCP server cộng đồng cho Jira, chỉ tự viết khi chúng không đáp ứng được workflow riêng.</b> ✅</li>
+<li>Thêm vào <code>~/.claude.json</code> để mỗi dev tự cấu hình. — tích hợp cả team mà để file cá nhân</li>
+<li>Gọi Jira REST API bằng Bash thay vì MCP. — bỏ MCP không cần thiết</li>
+<li>Tự viết server chỉ gồm các endpoint cần. — viết trước khi xem có sẵn</li></ol></div>
+
+<h2>13. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/2-tool-design-mcp/2-4-mcp-server-integration">Lesson 2.4 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/mcp">Claude Code docs: MCP</a> (scope, <code>.mcp.json</code>, env var expansion)</li>
+<li><a href="https://modelcontextprotocol.io/specification">MCP specification</a>: tools, resources (<code>resources/list</code>, <code>resources/read</code>)</li>
+<li><a href="https://github.com/github/github-mcp-server">github/github-mcp-server</a>: server chính thức, remote endpoint <code>https://api.githubcopilot.com/mcp/</code> (theo README; chưa kết nối thử vì không dùng token thật)</li>
+</ul>
+</main></body></html>

@@ -1,0 +1,20 @@
+$ node --experimental-strip-types check_config.ts demo-project/.mcp.json   # GITHUB_TOKEN, CRM_DB_URL chưa đặt
+Kiểm demo-project/.mcp.json
+· info     mcpServers.github: Remote server (http) → https://api.githubcopilot.com/mcp/
+· info     mcpServers.crm-db: Local server (stdio) → node
+! CẢNH BÁO mcpServers.github.headers.Authorization: ${GITHUB_TOKEN} chưa đặt và không có default → Claude Code chỉ cảnh báo, giá trị sẽ hỏng (vd header "Bearer ${GITHUB_TOKEN}")
+· info     mcpServers.crm-db.args[2]: ${CLAUDE_CERT_DIR} chưa đặt → dùng default ".."
+· info     mcpServers.crm-db.env.CRM_DB_URL: ${CRM_DB_URL} chưa đặt → dùng default "sqlite://./crm.db"
+· info     mcpServers.crm-db.env.DESC: ${CRM_DESC} chưa đặt → dùng default "clear"
+Biến môi trường dùng: GITHUB_TOKEN, CLAUDE_CERT_DIR (mặc định ..), CRM_DB_URL (mặc định sqlite://./crm.db), CRM_DESC (mặc định clear)
+→ 0 lỗi, 1 cảnh báo
+
+$ node --experimental-strip-types check_config.ts demo-project/bad.mcp.json
+Kiểm demo-project/bad.mcp.json
+✗ LỖI      mcpServers.github: Có url nhưng thiếu type: "http" (hoặc "sse"/"ws"). Claude Code sẽ coi là stdio và bỏ qua server này
+✗ LỖI      mcpServers.github.headers.Authorization: Có vẻ là secret viết cứng: GitHub personal access token (ghp_…). Dùng ${VAR} thay thế
+✗ LỖI      mcpServers.github.headers.Authorization: Có vẻ là secret viết cứng: Bearer token viết cứng. Dùng ${VAR} thay thế
+✗ LỖI      mcpServers.crm-db: Local (stdio) server thiếu command
+✗ LỖI      mcpServers.crm-db.env.CRM_DB_PASSWORD: Có vẻ là secret viết cứng: API key dạng sk-…. Dùng ${VAR} thay thế
+Biến môi trường dùng: (không có)
+→ 5 lỗi, 0 cảnh báo

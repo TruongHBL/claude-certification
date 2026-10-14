@@ -1,0 +1,62 @@
+Đã tạo ~/Downloads/claude-cert/2.5/.work từ sample/ (33 file)
+▶ claude -p (model=sonnet, tools=Read,Grep,Glob,Edit) trong ~/Downloads/claude-cert/2.5/.work
+  → ~/Downloads/claude-cert/2.5/results/run.jsonl (49 event)
+Tool có trong phiên: Read, Grep, Glob, Edit
+
+Chuỗi tool:
+   1. Grep  processLegacyOrder
+   2. Read  src/orders/legacy.ts
+   3. Read  src/utils/index.ts
+   4. Grep  submitLegacyOrder
+   5. Read  src/orders/apply.ts
+   6. Grep  applyLegacyOrder
+   7. Glob  **/*.test.ts
+   8. Read  src/checkout/checkout_service.ts
+   9. Read  src/crm/customer_reorder.ts
+  10. Read  src/admin/bulk_reprocess.ts
+  11. Read  src/api/order_routes.ts
+  12. Edit  src/checkout/checkout_service.ts
+  13. Edit  src/checkout/checkout_service.ts
+  14. Edit  src/crm/customer_reorder.ts
+  15. Edit  src/crm/customer_reorder.ts
+  16. Edit  src/admin/bulk_reprocess.ts
+  17. Edit  src/admin/bulk_reprocess.ts  ✗ Found 2 matches of the string to replace, but replace_all is false. To
+  18. Edit  src/admin/bulk_reprocess.ts
+  19. Edit  src/orders/apply.ts
+  20. Edit  src/orders/apply.ts
+  21. Edit  src/api/order_routes.ts
+  22. Edit  src/api/order_routes.ts
+  23. Edit  src/utils/index.ts
+
+Đếm: Grep×3, Read×7, Glob×1, Edit×12
+
+Tiêu chí:
+  OK   C1 Tìm kiếm đầu tiên là tìm NỘI DUNG (Grep), không mở đầu bằng Glob hay đọc hàng loạt
+         bước 1: Grep processLegacyOrder; 0 lần Read trước đó
+  OK   C2 Khám phá tăng dần: số file đã Read ≤ 50% tổng số file
+         7/33 file
+  OK   C3 Lần theo barrel đổi tên: có tìm nội dung 'submitLegacyOrder'
+         bước 4
+  OK   C4 Lần theo wrapper: có tìm nội dung 'applyLegacyOrder'
+         bước 6
+  OK   C5 Tìm file test theo ĐƯỜNG DẪN (Glob *.test.*)
+         bước 7: **/*.test.ts
+  OK   C6 Edit thành công ở mọi caller (trực tiếp, wrapper, barrel)
+         6 file đã Edit
+  OK   C7 Không dùng Write (Edit là tool sửa mặc định)
+         0 lần Write
+  OK   O1 Quan sát: Edit báo non-unique match rồi xử lý
+         bước 17 lỗi ở src/admin/bulk_reprocess.ts → bước 18: thử lại bằng replace_all: true
+
+Kết thúc: subtype=success, turns=24, cost=$0.0000
+
+OK   Test của codebase: 6/6 test đạt
+OK   Không còn lời gọi/import hàm deprecated (0 chỗ)
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/checkout/checkout_service.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/crm/customer_reorder.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/admin/bulk_reprocess.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/api/order_routes.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/orders/apply.ts hoặc src/jobs/nightly_sync.ts
+note wrapper applyLegacyOrder vẫn còn (chấp nhận được nếu thân đã gọi processOrder)
+
+KẾT LUẬN: refactor đạt

@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "crm-db": {
+      "command": "node",
+      "args": ["--experimental-strip-types", "--no-warnings", "${CLAUDE_CERT_DIR:-..}/crm_db_server.ts"],
+      "env": {
+        "CRM_DB_URL": "${CRM_DB_URL:-sqlite://./crm.db}",
+        "DESC": "${CRM_DESC:-clear}"
+      }
+    }
+  }
+}

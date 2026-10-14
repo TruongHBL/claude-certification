@@ -1,0 +1,81 @@
+Đã tạo ~/Downloads/claude-cert/2.5/.work từ sample/ (33 file)
+▶ claude -p (model=sonnet, tools=Read,Grep,Glob,Edit) trong ~/Downloads/claude-cert/2.5/.work
+  → ~/Downloads/claude-cert/2.5/results/run.jsonl (77 event)
+Tool có trong phiên: Read, Grep, Glob, Edit
+
+Chuỗi tool:
+   1. Glob  **/*legacy*
+   2. Read  CHANGELOG.md
+   3. Read  docs/migration.md
+   4. Read  run_tests.ts
+   5. Read  src/admin/bulk_reprocess.test.ts
+   6. Read  src/admin/bulk_reprocess.ts
+   7. Read  src/api/order_routes.test.ts
+   8. Read  src/api/order_routes.ts
+   9. Read  src/catalog/products.ts
+  10. Read  src/catalog/search.ts
+  11. Read  src/checkout/checkout_service.test.ts
+  12. Read  src/checkout/checkout_service.ts
+  13. Read  src/config.ts
+  14. Read  src/crm/customer.ts
+  15. Read  src/crm/customer_reorder.test.ts
+  16. Read  src/crm/customer_reorder.ts
+  17. Read  src/crm/segments.ts
+  18. Read  src/i18n/messages.ts
+  19. Read  src/inventory/stock.ts
+  20. Read  src/jobs/nightly_sync.test.ts
+  21. Read  src/jobs/nightly_sync.ts
+  22. Read  src/legacy/legacy_pricing.ts
+  23. Read  src/notifications/mailer.ts
+  24. Read  src/orders/apply.ts
+  25. Read  src/orders/legacy.test.ts
+  26. Read  src/orders/legacy.ts
+  27. Read  src/orders/process.ts
+  28. Read  src/orders/types.ts
+  29. Read  src/pricing/discounts.ts
+  30. Read  src/utils/currency.ts
+  31. Read  src/utils/dates.ts
+  32. Read  src/utils/index.ts
+  33. Read  src/utils/legacy_dates.ts
+  34. Read  test_harness.ts
+  35. Write src/checkout/checkout_service.ts
+  36. Write src/crm/customer_reorder.ts
+  37. Write src/admin/bulk_reprocess.ts
+
+Đếm: Glob×1, Read×33, Write×3
+
+Tiêu chí:
+  FAIL C1 Tìm kiếm đầu tiên là tìm NỘI DUNG (Grep), không mở đầu bằng Glob hay đọc hàng loạt
+         bước 1: Glob **/*legacy*; 0 lần Read trước đó
+  FAIL C2 Khám phá tăng dần: số file đã Read ≤ 50% tổng số file
+         33/33 file
+  FAIL C3 Lần theo barrel đổi tên: có tìm nội dung 'submitLegacyOrder'
+         không thấy
+  FAIL C4 Lần theo wrapper: có tìm nội dung 'applyLegacyOrder'
+         không thấy
+  FAIL C5 Tìm file test theo ĐƯỜNG DẪN (Glob *.test.*)
+         bước 1: **/*legacy*
+  FAIL C6 Edit thành công ở mọi caller (trực tiếp, wrapper, barrel)
+         thiếu: src/checkout/checkout_service.ts, src/crm/customer_reorder.ts, src/admin/bulk_reprocess.ts, src/api/order_routes.ts, src/orders/apply.ts | src/jobs/nightly_sync.ts
+  FAIL C7 Không dùng Write (Edit là tool sửa mặc định)
+         bước 35: src/checkout/checkout_service.ts, bước 36: src/crm/customer_reorder.ts, bước 37: src/admin/bulk_reprocess.ts
+  --   O1 Quan sát: Edit báo non-unique match rồi xử lý
+         không xảy ra (Claude chọn old_string đủ dài ngay từ đầu, hoặc không đụng tới chỗ trùng)
+
+Kết thúc: subtype=success, turns=38, cost=$0.0000
+
+OK   Test của codebase: 6/6 test đạt
+FAIL Không còn lời gọi/import hàm deprecated (4 chỗ)
+       src/api/order_routes.ts:2: import { submitLegacyOrder, formatCurrency } from "../utils/index.ts";
+       src/api/order_routes.ts:5: const result = submitLegacyOrder(req.orderId);
+       src/orders/apply.ts:2: import { processLegacyOrder } from "./legacy.ts";
+       src/orders/apply.ts:9: return processLegacyOrder(order.id);
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/checkout/checkout_service.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/crm/customer_reorder.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/admin/bulk_reprocess.ts
+FAIL Đã chuyển sang processOrder(…, { validate: true }): src/api/order_routes.ts
+FAIL Đã chuyển sang processOrder(…, { validate: true }): src/orders/apply.ts hoặc src/jobs/nightly_sync.ts
+note src/utils/index.ts:5: barrel vẫn re-export tên cũ (không còn ai dùng thì nên xoá)
+note wrapper applyLegacyOrder vẫn còn (chấp nhận được nếu thân đã gọi processOrder)
+
+KẾT LUẬN: refactor CHƯA đạt

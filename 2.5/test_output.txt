@@ -1,0 +1,46 @@
+
+== Codebase mẫu
+PASS  test của codebase mẫu đạt trước refactor
+PASS  verify phát hiện 11 lời gọi/import deprecated ban đầu
+PASS  ban đầu chưa caller nào dùng processOrder
+PASS  bẫy barrel: grep tên gốc KHÔNG thấy consumer order_routes.ts
+PASS  bẫy Glob: có file tên chứa 'legacy' mà không gọi hàm
+PASS  bẫy false positive: CHANGELOG/docs/i18n nhắc tên hàm nhưng không phải lời gọi trong src
+PASS  test liên quan tồn tại cạnh caller
+PASS  có test chỉ gọi qua module nguồn, không nhắc tên hàm
+
+== Mô phỏng Edit + refactor chuẩn
+PASS  Edit old_string khớp 2 chỗ → lỗi non-unique
+PASS  Edit không khớp → lỗi not found
+PASS  refactor chuẩn: đúng 1 Edit lỗi (non-unique) rồi replace_all
+PASS  sau refactor chuẩn: test vẫn đạt
+PASS  sau refactor chuẩn: 0 lời gọi deprecated
+PASS  sau refactor chuẩn: mọi caller dùng processOrder(…, { validate: true })
+PASS  legacy.ts và test của nó giữ nguyên
+
+== Bộ chấm chuỗi tool (sự kiện dựng tay)
+PASS  đường dẫn tuyệt đối → tương đối theo thư mục làm việc
+PASS  Edit non-unique rồi Read + Write → O1 ghi nhận 'Read + Write'
+PASS  có Write → C7 FAIL
+PASS  Bash grep → tìm nội dung, Bash find → tìm đường dẫn
+PASS  Bash khác (cat) → không tính là tìm kiếm
+
+== run_cli.sh đầu-cuối với claude GIẢ
+PASS  kịch bản đúng: run_cli.sh all thoát 0
+PASS  kịch bản đúng: C1–C7 đều OK
+PASS  kịch bản đúng: O1 thấy non-unique → replace_all
+PASS  kịch bản đúng: output có 'KẾT LUẬN: refactor đạt'
+PASS  sample/ không bị sửa sau khi chạy
+PASS  cờ: --tools Read,Grep,Glob,Edit (không Bash/Write)
+PASS  cờ: --allowedTools chỉ Read Grep Glob Edit
+PASS  cờ: dontAsk + safe-mode + max-budget + stream-json + model sonnet
+PASS  prompt không gợi ý tên tool nào
+PASS  kịch bản sai: bắt đủ C1–C7 FAIL
+PASS  kịch bản sai: verify báo CHƯA đạt (sót barrel + wrapper)
+PASS  ALLOW_WRITE=1 thêm Write vào --tools và --allowedTools
+PASS  SEARCH=bash: --tools Read,Edit,Bash
+PASS  SEARCH=bash: Bash chỉ được grep/rg/find/ls
+PASS  SEARCH=bash: cảnh báo không có Grep/Glob riêng
+PASS  SEARCH=bash: grep/find qua Bash vẫn đạt C1–C6
+
+36 PASS, 0 FAIL

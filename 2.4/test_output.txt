@@ -1,0 +1,64 @@
+
+== Server crm-db: resource
+PASS  initialize khai báo capabilities.resources
+PASS  initialize vẫn khai báo capabilities.tools
+PASS  resources/list có đúng 1 resource db://schema/main
+PASS  resource có name, description, mimeType application/json
+PASS  resources/read trả contents[0] cùng uri + mimeType
+PASS  schema có 4 bảng users, matching_projects, favorites, applications
+PASS  favorites có cột kèm kiểu + khoá ngoại tới users/matching_projects
+PASS  schema ghi quan hệ giữa các bảng
+PASS  schema nhận CRM_DB_URL từ env (minh hoạ ${VAR:-default})
+PASS  URI lạ → lỗi JSON-RPC -32002
+
+== Server crm-db: mô tả tool clear vs sparse
+PASS  2 tool query_matching_projects, find_user
+PASS  mô tả clear 3–5 câu mỗi tool
+PASS  mô tả clear nói khi nào dùng thay Grep (so với built-in)
+PASS  mô tả query nhắc đọc resource db://schema/main
+PASS  query: dự án điện đang mở ≥ 1 triệu yên = #101, đã join owner_company
+PASS  find_user không thấy → resultCount 0, không phải isError
+PASS  DESC=sparse: mô tả 1 câu ngắn
+PASS  DESC=sparse: schema input giữ nguyên (chỉ đổi mô tả)
+
+== lib/mcp_server.ts: tương thích ngược khi KHÔNG có resources
+PASS  server không resources: capabilities chỉ có tools
+PASS  server không resources: resources/list → -32601
+
+== check_config.ts
+PASS  .mcp.json mẫu: 0 lỗi
+PASS  GITHUB_TOKEN chưa đặt → CẢNH BÁO (không phải lỗi)
+PASS  biến có default (CRM_DB_URL, CRM_DESC, CLAUDE_CERT_DIR) không bị cảnh báo
+PASS  liệt kê đủ 4 biến
+PASS  GITHUB_TOKEN đã đặt → hết cảnh báo
+PASS  bad: url thiếu type bị bắt
+PASS  bad: token ghp_ viết cứng bị bắt
+PASS  bad: sk-… trong env bị bắt
+PASS  bad: server local thiếu command bị bắt
+PASS  type: ws được chấp nhận cho remote
+PASS  thiếu mcpServers → lỗi
+PASS  expand: ${VAR:-d} chưa đặt → default
+PASS  expand: ${VAR:-d} đã đặt → giá trị env
+PASS  expand: ${VAR} thiếu, không default → giữ nguyên chuỗi
+PASS  CLI: bad.mcp.json → exit 1
+
+== secret_guard.sh (git repo tạm)
+PASS  staged .mcp.json dùng ${GITHUB_TOKEN} → exit 0
+PASS  staged token cứng → exit 1, báo đúng file:dòng
+PASS  chế độ quét file: .env.example (để trống) → exit 0
+
+== setup_user_scope.sh (claude GIẢ, không đụng ~/.claude.json)
+PASS  dry-run: in lệnh add --scope user, exit 0
+PASS  dry-run: KHÔNG gọi claude
+PASS  --apply: gọi claude mcp add --scope user <tên> -e … -- node …
+PASS  --remove --apply: claude mcp remove --scope user <tên>
+
+== run_cli.sh + report_cli.ts (claude GIẢ)
+PASS  run_cli.sh all chạy xong (exit 0)
+PASS  tạo 2 câu × 2 kiểu = 4 file stream-json
+PASS  config sinh ra là stdio crm-db với DESC=sparse
+PASS  report: sparse có gọi built-in, clear thì không
+PASS  report: câu hỏi schema đi qua ReadMcpResourceTool
+PASS  server thật ghi log lần gọi tool (CRM_LOG)
+
+48 PASS, 0 FAIL

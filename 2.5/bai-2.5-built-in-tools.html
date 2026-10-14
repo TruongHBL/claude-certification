@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 2.5 – Built-in Tools</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:24px;font-weight:700;color:var(--accent)}.stat .t{font-size:13px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+<style>details{margin:10px 0}summary{cursor:pointer;font-weight:600;color:var(--accent)}.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}.two>*{min-width:0}</style>
+</head><body><main>
+<h1>Bài tập 2.5 — Built-in Tools: lần theo và refactor hàm deprecated</h1>
+<div class="meta">Domain 2 · Tool Design &amp; MCP Integration · Mục 2.5 Built-in Tools<br>Người thực hiện: TruongNQ · Ngày nộp: 14/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Thay mọi lời gọi hàm deprecated <code>processLegacyOrder(orderId)</code> bằng <code>processOrder(orderId, { validate: true })</code> trong một codebase TypeScript 33 file, <b>đúng tool, đúng thứ tự, tốn ít context</b>:</p>
+<ul>
+<li><b>Grep</b> tìm nội dung (caller).</li>
+<li><b>Glob</b> tìm đường dẫn (file test).</li>
+<li><b>Read</b> chỉ những file đã được chỉ ra là liên quan.</li>
+<li><b>Edit</b> từng chỗ, và xử lý được lỗi <i>non-unique match</i>.</li>
+</ul>
+<p>Codebase mẫu có cài sẵn bẫy (barrel đổi tên, wrapper, hai dòng trùng nhau, file tên “legacy” nhưng không liên quan) và có đáp án, nên có thể <b>chấm tự động</b> hai việc: chuỗi tool Claude đã chọn, và kết quả refactor.</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 800 430" role="img" aria-label="Grep tìm nội dung, Glob tìm đường dẫn; luồng lần theo và sửa hàm deprecated">
+<text x="200" y="24" text-anchor="middle" font-weight="700">Grep: nhìn VÀO TRONG file</text>
+<rect class="b" x="40" y="40" width="320" height="96" rx="8"/>
+<text x="56" y="62" class="m">src/api/order_routes.ts</text>
+<text x="56" y="84">import { submitLegacyOrder } …</text>
+<rect class="c" x="52" y="96" width="296" height="26" rx="4"/>
+<text x="60" y="114">const r = submitLegacyOrder(req.orderId)</text>
+<text x="200" y="156" text-anchor="middle" class="m">“File nào CHỨA chuỗi X?” → caller, import, chuỗi lỗi</text>
+<line x1="400" y1="14" x2="400" y2="166" stroke="var(--line)" stroke-width="1.5"/>
+<text x="600" y="24" text-anchor="middle" font-weight="700">Glob: chỉ nhìn TÊN / đường dẫn</text>
+<rect class="b" x="440" y="40" width="320" height="96" rx="8"/>
+<text x="456" y="62" class="m">**/*.test.ts</text>
+<rect class="c" x="452" y="70" width="296" height="22" rx="4"/><text x="460" y="86">src/checkout/checkout_service.test.ts</text>
+<rect class="c" x="452" y="98" width="296" height="22" rx="4"/><text x="460" y="114">src/api/order_routes.test.ts</text>
+<text x="600" y="156" text-anchor="middle" class="m">“File nào TÊN giống X?” → test, config, *.ts trong thư mục</text>
+<line x1="20" y1="178" x2="780" y2="178" stroke="var(--line)" stroke-width="1.5"/>
+<text x="400" y="202" text-anchor="middle" font-weight="700">Luồng đúng: hẹp trước, mở rộng khi có lý do</text>
+<rect class="c" x="20" y="218" width="130" height="56" rx="8"/><text x="85" y="242" text-anchor="middle" font-weight="600">① Grep</text><text x="85" y="260" text-anchor="middle" class="m">tên hàm gốc</text>
+<rect class="b" x="170" y="218" width="130" height="56" rx="8"/><text x="235" y="242" text-anchor="middle" font-weight="600">② Read</text><text x="235" y="260" text-anchor="middle" class="m">barrel, wrapper</text>
+<rect class="c" x="320" y="218" width="130" height="56" rx="8"/><text x="385" y="242" text-anchor="middle" font-weight="600">③ Grep</text><text x="385" y="260" text-anchor="middle" class="m">tên mới phát hiện</text>
+<rect class="c" x="470" y="218" width="130" height="56" rx="8"/><text x="535" y="242" text-anchor="middle" font-weight="600">④ Glob</text><text x="535" y="260" text-anchor="middle" class="m">test cạnh caller</text>
+<rect class="b" x="620" y="218" width="160" height="56" rx="8"/><text x="700" y="242" text-anchor="middle" font-weight="600">⑤ Read → Edit</text><text x="700" y="260" text-anchor="middle" class="m">từng caller</text>
+<path class="l" d="M150 246 H164"/><polygon points="164,241 170,246 164,251" fill="var(--accent)"/>
+<path class="l" d="M300 246 H314"/><polygon points="314,241 320,246 314,251" fill="var(--accent)"/>
+<path class="l" d="M450 246 H464"/><polygon points="464,241 470,246 464,251" fill="var(--accent)"/>
+<path class="l" d="M600 246 H614"/><polygon points="614,241 620,246 614,251" fill="var(--accent)"/>
+<path class="l" d="M700 274 V300"/><polygon points="695,300 700,306 705,300" fill="var(--accent)"/>
+<rect class="h" x="560" y="306" width="220" height="44" rx="8"/><text x="670" y="326" text-anchor="middle" font-weight="600">Edit: “Found 2 matches…”</text><text x="670" y="342" text-anchor="middle" class="m">old_string không duy nhất</text>
+<path class="l" d="M560 328 H520"/><polygon points="520,323 514,328 520,333" fill="var(--accent)"/>
+<rect class="u" x="250" y="306" width="264" height="44" rx="8"/><text x="382" y="326" text-anchor="middle" font-weight="600">Thực tế: old_string rộng hơn</text><text x="382" y="342" text-anchor="middle" class="m">hoặc replace_all: true</text>
+<path class="lu" d="M382 350 V370"/>
+<rect class="h" x="250" y="370" width="264" height="44" rx="8"/><text x="382" y="390" text-anchor="middle" font-weight="600">Đáp án đề thi: Read + Write</text><text x="382" y="406" text-anchor="middle" class="m">fallback, tốn token cả file</text>
+<rect class="h" x="20" y="306" width="210" height="108" rx="8"/><text x="125" y="330" text-anchor="middle" font-weight="600" class="red">✗ Sai</text><text x="125" y="350" text-anchor="middle" class="m">Glob *legacy* để tìm caller</text><text x="125" y="368" text-anchor="middle" class="m">Read hết 33 file từ đầu</text><text x="125" y="386" text-anchor="middle" class="m">Write cả file cho mọi sửa đổi</text><text x="125" y="404" text-anchor="middle" class="m">Grep tên gốc 1 lần rồi dừng</text>
+</svg></div>
+
+<h2>3. Năm bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu của đề</th><th>Hiện thực</th><th>Chấm bằng</th></tr>
+<tr><td>1</td><td>Grep tìm caller</td><td>Claude tự chọn tool. Prompt <b>không nhắc tên tool nào</b> (đã có test kiểm điều này)</td><td><code>analyze_tools.ts</code> C1: lần tìm kiếm đầu tiên là tìm nội dung; C3/C4: có Grep tên mới <code>submitLegacyOrder</code>, <code>applyLegacyOrder</code></td></tr>
+<tr><td>2</td><td>Glob tìm file test của caller</td><td>Test nằm cạnh source (<code>*.test.ts</code>), có test chỉ gọi qua module nguồn nên Grep không thấy</td><td>C5: có Glob mẫu <code>*.test.*</code></td></tr>
+<tr><td>3</td><td>Read từng caller, chỉ file đã được chỉ ra</td><td>~15 file nhiễu trên tổng 33 file</td><td>C2: số file đã Read ≤ 50%</td></tr>
+<tr><td>4</td><td>Edit từng caller sang API mới</td><td><code>--tools Read,Grep,Glob,Edit</code>, <b>không có Write/Bash</b> nên buộc phải dùng Edit</td><td>C6: Edit thành công ở cả 5 nhóm caller; C7: không Write. <code>verify.ts</code>: test codebase vẫn đạt, 0 lời gọi cũ</td></tr>
+<tr><td>5</td><td>Xử lý non-unique match</td><td><code>bulk_reprocess.ts</code> có 2 dòng <code>results.push(processLegacyOrder(id));</code> giống hệt nhau</td><td>O1 (quan sát): Edit lỗi <code>Found 2 matches…</code> rồi thử lại bằng <code>replace_all</code>, old_string dài hơn, hoặc Read + Write</td></tr>
+</table></div>
+
+<h2>4. Codebase mẫu và bẫy cài sẵn</h2>
+<p><code>sample/</code>: 33 file, 6 test (<code>node --experimental-strip-types run_tests.ts</code>) đạt cả trước và sau refactor. Đáp án đầy đủ ở <code>ANSWER_KEY.md</code>, đặt <b>ngoài</b> <code>sample/</code> để Claude không đọc được.</p>
+<div class="tw"><table><tr><th>Bẫy</th><th>Ở đâu</th><th>Bắt lỗi cách làm nào</th></tr>
+<tr><td>Barrel đổi tên</td><td><code>utils/index.ts</code>: <code>export { processLegacyOrder as submitLegacyOrder }</code> → <code>api/order_routes.ts</code></td><td>Grep tên gốc một lần rồi dừng: sót consumer</td></tr>
+<tr><td>Wrapper</td><td><code>orders/apply.ts</code> (<code>applyLegacyOrder</code>) → <code>jobs/nightly_sync.ts</code></td><td>Không Grep tên wrapper</td></tr>
+<tr><td>Hai dòng giống hệt</td><td><code>admin/bulk_reprocess.ts</code> dòng 8 và 11</td><td>Edit với old_string ngắn → non-unique</td></tr>
+<tr><td>Tên file chứa “legacy”</td><td><code>legacy/legacy_pricing.ts</code>, <code>utils/legacy_dates.ts</code> (không gọi hàm)</td><td>Dùng Glob <code>*legacy*</code> để tìm caller</td></tr>
+<tr><td>Nhắc tên nhưng không phải lời gọi</td><td><code>CHANGELOG.md</code>, <code>docs/migration.md</code>, <code>i18n/messages.ts</code>, comment trong <code>process.ts</code></td><td>Sửa mọi dòng Grep trả về mà không đọc</td></tr>
+<tr><td>Test gián tiếp</td><td><code>checkout_service.test.ts</code> gọi <code>checkoutCart</code>, không nhắc tên hàm</td><td>Chỉ dùng Grep để tìm test</td></tr>
+</table></div>
+
+<h2>5. Grep vs Glob, Edit và non-unique</h2>
+<div class="tw"><table><tr><th></th><th>Grep</th><th>Glob</th></tr>
+<tr><td>Tìm trong</td><td><b>Nội dung</b> file</td><td><b>Tên / đường dẫn</b> file</td></tr>
+<tr><td>Câu hỏi</td><td>“File nào chứa X?”</td><td>“File nào tên giống X?”</td></tr>
+<tr><td>Ví dụ</td><td>Caller của hàm, chuỗi lỗi, import <code>utils/auth</code></td><td><code>**/*.test.tsx</code>, <code>**/config.*</code></td></tr>
+<tr><td>Dùng sai</td><td>Tìm file test theo tên (chạy được nhưng không phải tool đúng)</td><td>Tìm caller: <b>không bao giờ đúng</b>, Glob không nhìn vào trong file</td></tr>
+</table></div>
+<div class="card"><p><b>Edit</b> chỉ sửa đúng đoạn <code>old_string</code> → <code>new_string</code>, nên tốn ít context. Nếu <code>old_string</code> khớp nhiều chỗ, Edit <b>từ chối đoán</b>. Thông báo thật của Claude Code 2.1.299, lấy từ binary:</p>
+<pre><code>Found 2 matches of the string to replace, but replace_all is false. To replace all occurrences, set replace_all to true. To replace only one occurrence, please provide more context to uniquely identify the instance.</code></pre>
+<div class="tw"><table><tr><th>Sau khi Edit báo non-unique</th><th>Khi nào</th></tr>
+<tr><td><b>Đáp án đề thi:</b> Read cả file rồi Write bản đã sửa</td><td>Luôn chạy được, nhưng nạp token của cả file cho một thay đổi nhỏ. Đây là fallback</td></tr>
+<tr><td>Thực tế (docs Edit hiện tại): mở rộng <code>old_string</code> thêm dòng xung quanh</td><td>Chỉ muốn sửa một chỗ</td></tr>
+<tr><td>Thực tế: <code>replace_all: true</code></td><td>Muốn sửa mọi chỗ (như <code>bulk_reprocess.ts</code>)</td></tr>
+</table></div>
+<p class="meta">Thứ tự nên làm: Edit với anchor ngắn mà có vẻ duy nhất → bị non-unique thì mở rộng hoặc dùng replace_all → không phân biệt được nữa mới Read + Write. Nhưng đề hỏi bước tiếp theo sau non-unique thì chọn <b>Read + Write</b>.</p></div>
+<h3>Khám phá tăng dần</h3>
+<p><b>Sai:</b> đọc hết 200 file ngay từ đầu, làm đầy context bằng code không liên quan (bài học gọi đây là lỗi tốn kém nhất). <b>Đúng:</b></p>
+<ol>
+<li>Grep một điểm vào (tên hàm, class, chuỗi lỗi).</li>
+<li>Read file liên quan, lần theo import.</li>
+<li>Grep tiếp những tên mới phát hiện (wrapper, re-export).</li>
+<li>Chỉ Read những file mà bước trước chỉ ra.</li>
+</ol>
+
+<h2>6. Mã nguồn</h2>
+<p>Chạy bằng <code>node --experimental-strip-types</code>, không cần build. Codebase mẫu nằm trong <code>sample/</code>.</p>
+<details><summary><code>run_cli.sh</code></summary><pre><code>#!/usr/bin/env bash
+# Bài 2.5 – để Claude Code (CLI thật) tự lần theo và refactor hàm deprecated, rồi chấm chuỗi tool nó đã chọn.
+#
+# Dùng:  ./run_cli.sh reset     copy sample/ → .work/ (bản gốc không bao giờ bị sửa)
+#        ./run_cli.sh run       claude -p trong .work/, ghi results/run.jsonl
+#        ./run_cli.sh analyze   in chuỗi tool + chấm tiêu chí (Grep trước, Glob tìm test, Edit, non-unique…)
+#        ./run_cli.sh verify    chạy test của codebase trong .work/ + kiểm không còn lời gọi deprecated
+#        ./run_cli.sh all       reset → run → analyze → verify
+#        ./run_cli.sh clean
+#
+# Biến môi trường:
+#   MODEL (mặc định sonnet) · BUDGET (USD, mặc định 1) · CLAUDE_BIN (mặc định claude)
+#   ALLOW_WRITE=1  cho phép thêm tool Write (mặc định KHÔNG: buộc sửa bằng Edit, quan sát cách xử lý non-unique)
+#   SEARCH=bash    nếu bản Claude Code không có Grep/Glob riêng: cho Bash nhưng chỉ lệnh grep/rg/find (read-only)
+#   WORK_DIR, OUT_DIR  (test dùng thư mục tạm)
+# Chi phí ước tính: sonnet, ~15–25 lượt tool → khoảng 0,1–0,5 USD; bị chặn trần bằng --max-budget-usd.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" &amp;&amp; pwd)"
+WORK="${WORK_DIR:-$ROOT/.work}"
+OUT="${OUT_DIR:-$ROOT/results}"
+MODEL="${MODEL:-sonnet}"
+BUDGET="${BUDGET:-1}"
+CLAUDE="${CLAUDE_BIN:-claude}"
+TS=(node --experimental-strip-types --no-warnings)
+
+# Prompt KHÔNG gợi ý tool nào: để quan sát Claude tự chọn Grep/Glob/Read/Edit.
+PROMPT="Hàm processLegacyOrder(orderId) trong src/orders/legacy.ts đã deprecated. \
+Hãy chuyển MỌI nơi đang dùng nó sang API mới processOrder(orderId, { validate: true }) trong src/orders/process.ts, \
+kể cả những nơi dùng gián tiếp (qua hàm bọc hoặc qua tên khác do re-export). \
+Giữ nguyên src/orders/legacy.ts và test của chính nó. \
+Cuối cùng liệt kê các file đã sửa và các file test liên quan tới những chỗ đã sửa."
+
+cmd_reset() {
+  rm -rf "$WORK"
+  mkdir -p "$(dirname "$WORK")"
+  cp -r "$ROOT/sample" "$WORK"
+  echo "Đã tạo $WORK từ sample/ ($(find "$WORK" -type f | wc -l) file)"
+}
+
+cmd_run() {
+  [[ -d "$WORK" ]] || cmd_reset
+  mkdir -p "$OUT"
+  local tools=(Read Grep Glob Edit) allow
+  [[ "${SEARCH:-}" == bash ]] &amp;&amp; tools=(Read Edit Bash)
+  [[ "${ALLOW_WRITE:-0}" == 1 ]] &amp;&amp; tools+=(Write)
+  local IFS=,
+  allow=("${tools[@]}")
+  # Bash (nếu bật) chỉ được chạy lệnh tìm kiếm read-only.
+  [[ "${SEARCH:-}" == bash ]] &amp;&amp; allow=(Read Edit "Bash(grep:*)" "Bash(rg:*)" "Bash(find:*)" "Bash(ls:*)") &amp;&amp; [[ "${ALLOW_WRITE:-0}" == 1 ]] &amp;&amp; allow+=(Write)
+  echo "▶ claude -p (model=$MODEL, tools=${tools[*]}) trong $WORK"
+  (cd "$WORK" &amp;&amp; "$CLAUDE" -p "$PROMPT" \
+    --model "$MODEL" \
+    --tools "${tools[*]}" \
+    --allowedTools "${allow[@]}" \
+    --permission-mode dontAsk \
+    --safe-mode \
+    --max-budget-usd "$BUDGET" \
+    --no-session-persistence \
+    --output-format stream-json --verbose \
+    &gt; "$OUT/run.jsonl" 2&gt; "$OUT/run.err") || echo "  (claude trả mã lỗi, xem $OUT/run.err)"
+  echo "  → $OUT/run.jsonl ($(wc -l &lt; "$OUT/run.jsonl") event)"
+}
+
+cmd_analyze() { "${TS[@]}" "$ROOT/analyze_tools.ts" "$OUT/run.jsonl" "$WORK"; }
+cmd_verify()  { "${TS[@]}" "$ROOT/verify.ts" "$WORK"; }
+
+case "${1:-}" in
+  reset|run|verify) "cmd_$1" ;;
+  analyze) cmd_analyze || true ;;
+  all) cmd_reset; cmd_run; cmd_analyze || true; echo; cmd_verify ;;
+  clean) rm -rf "$WORK" "$OUT" ;;
+  *) sed -n '2,19p' "$0"; exit 1 ;;
+esac
+</code></pre></details>
+<details><summary><code>analyze_tools.ts</code></summary><pre><code>// Đọc stream-json của `claude -p` (bài 2.5) → in chuỗi tool theo thứ tự và chấm theo tiêu chí của đề.
+//   node --experimental-strip-types analyze_tools.ts &lt;run.jsonl&gt; [thư-mục-làm-việc]
+//
+// Bản Claude Code có thể không có tool Grep/Glob riêng (tìm kiếm qua Bash + grep/find), nên lệnh Bash
+// grep/rg/ugrep được tính là "tìm nội dung", find/fd/ls là "tìm đường dẫn".
+import { readdirSync } from "node:fs";
+import { join, relative, isAbsolute } from "node:path";
+import { readStream, resultEvent, type StreamEvent } from "../lib/cli_stream.ts";
+import { CALLER_GROUPS } from "./refactor_reference.ts";
+
+export type Kind = "content-search" | "path-search" | "read" | "edit" | "write" | "other";
+
+export interface Step {
+  n: number;
+  tool: string;
+  kind: Kind;
+  summary: string; // pattern / đường dẫn rút gọn
+  file?: string; // tương đối so với thư mục làm việc
+  isError: boolean;
+  resultText: string;
+  input: Record&lt;string, any&gt;;
+}
+
+export interface Criterion {
+  id: string;
+  label: string;
+  ok: boolean | null; // null = không áp dụng / chỉ quan sát
+  detail: string;
+}
+
+const NON_UNIQUE = /Found \d+ matches of the string to replace|replace_all is false|more context to uniquely/i;
+
+function classify(name: string, input: Record&lt;string, any&gt;): { kind: Kind; summary: string } {
+  if (name === "Grep") return { kind: "content-search", summary: `${input.pattern}${input.glob ? ` (glob ${input.glob})` : ""}` };
+  if (name === "Glob") return { kind: "path-search", summary: String(input.pattern) };
+  if (name === "Read") return { kind: "read", summary: String(input.file_path) };
+  if (name === "Edit") return { kind: "edit", summary: String(input.file_path) };
+  if (name === "Write") return { kind: "write", summary: String(input.file_path) };
+  if (name === "Bash") {
+    const cmd = String(input.command ?? "").trim();
+    if (/^(grep|rg|ugrep|git\s+grep)\b/.test(cmd)) return { kind: "content-search", summary: `$ ${cmd}` };
+    if (/^(find|fd|ls)\b/.test(cmd)) return { kind: "path-search", summary: `$ ${cmd}` };
+    return { kind: "other", summary: `$ ${cmd}` };
+  }
+  return { kind: "other", summary: JSON.stringify(input).slice(0, 80) };
+}
+
+const textOf = (c: unknown): string =&gt;
+  typeof c === "string" ? c : Array.isArray(c) ? c.map((b: any) =&gt; b?.text ?? "").join("\n") : JSON.stringify(c ?? "");
+
+export function steps(events: StreamEvent[], workDir: string): Step[] {
+  const results = new Map&lt;string, { isError: boolean; text: string }&gt;();
+  for (const e of events)
+    if (e.type === "user" &amp;&amp; Array.isArray(e.message?.content))
+      for (const b of e.message!.content)
+        if (b.type === "tool_result") results.set(b.tool_use_id, { isError: b.is_error === true, text: textOf(b.content) });
+
+  const out: Step[] = [];
+  for (const e of events) {
+    if (e.type !== "assistant" || !Array.isArray(e.message?.content)) continue;
+    for (const b of e.message!.content) {
+      if (b.type !== "tool_use") continue;
+      const { kind, summary } = classify(b.name, b.input ?? {});
+      const r = results.get(b.id) ?? { isError: false, text: "" };
+      const fp = b.input?.file_path as string | undefined;
+      const file = fp ? (isAbsolute(fp) ? relative(workDir, fp) : fp.replace(/^\.\//, "")) : undefined;
+      out.push({ n: out.length + 1, tool: b.name, kind, summary, file, isError: r.isError, resultText: r.text, input: b.input ?? {} });
+    }
+  }
+  return out;
+}
+
+export function countFiles(dir: string): number {
+  return (readdirSync(dir, { recursive: true, withFileTypes: true }) as any[]).filter((d) =&gt; d.isFile()).length;
+}
+
+export function grade(st: Step[], totalFiles: number): Criterion[] {
+  const searches = st.filter((s) =&gt; s.kind === "content-search" || s.kind === "path-search");
+  const first = searches[0];
+  const readsBeforeFirst = first ? st.filter((s) =&gt; s.kind === "read" &amp;&amp; s.n &lt; first.n).length : st.filter((s) =&gt; s.kind === "read").length;
+  const readFiles = new Set(st.filter((s) =&gt; s.kind === "read" &amp;&amp; s.file).map((s) =&gt; s.file!));
+  const content = st.filter((s) =&gt; s.kind === "content-search");
+  const editedOk = new Set(st.filter((s) =&gt; s.kind === "edit" &amp;&amp; !s.isError &amp;&amp; s.file).map((s) =&gt; s.file!));
+  const missing = CALLER_GROUPS.filter((g) =&gt; !g.some((f) =&gt; editedOk.has(f)));
+  const writes = st.filter((s) =&gt; s.kind === "write");
+
+  // Edit lỗi non-unique rồi thử lại thành công trên cùng file
+  const nonUnique = st.filter((s) =&gt; s.kind === "edit" &amp;&amp; s.isError &amp;&amp; NON_UNIQUE.test(s.resultText));
+  const recovered = nonUnique.map((err) =&gt; {
+    const retry = st.find((s) =&gt; s.kind === "edit" &amp;&amp; !s.isError &amp;&amp; s.file === err.file &amp;&amp; s.n &gt; err.n);
+    const how = !retry
+      ? "chưa thử lại thành công"
+      : retry.input.replace_all
+        ? "thử lại bằng replace_all: true"
+        : String(retry.input.old_string ?? "").length &gt; String(err.input.old_string ?? "").length
+          ? "thử lại với old_string dài hơn"
+          : "thử lại bằng Edit khác";
+    return { err, retry, how };
+  });
+  const readThenWrite = nonUnique.some((err) =&gt; st.some((s) =&gt; s.kind === "write" &amp;&amp; s.file === err.file &amp;&amp; s.n &gt; err.n));
+
+  return [
+    {
+      id: "C1",
+      label: "Tìm kiếm đầu tiên là tìm NỘI DUNG (Grep), không mở đầu bằng Glob hay đọc hàng loạt",
+      ok: !!first &amp;&amp; first.kind === "content-search" &amp;&amp; readsBeforeFirst &lt;= 2,
+      detail: first ? `bước ${first.n}: ${first.tool} ${first.summary}; ${readsBeforeFirst} lần Read trước đó` : "không có lần tìm kiếm nào",
+    },
+    {
+      id: "C2",
+      label: "Khám phá tăng dần: số file đã Read ≤ 50% tổng số file",
+      ok: readFiles.size &lt;= totalFiles * 0.5,
+      detail: `${readFiles.size}/${totalFiles} file`,
+    },
+    {
+      id: "C3",
+      label: "Lần theo barrel đổi tên: có tìm nội dung 'submitLegacyOrder'",
+      ok: content.some((s) =&gt; /submitLegacyOrder/.test(s.summary)),
+      detail: content.filter((s) =&gt; /submitLegacyOrder/.test(s.summary)).map((s) =&gt; `bước ${s.n}`).join(", ") || "không thấy",
+    },
+    {
+      id: "C4",
+      label: "Lần theo wrapper: có tìm nội dung 'applyLegacyOrder'",
+      ok: content.some((s) =&gt; /applyLegacyOrder/.test(s.summary)),
+      detail: content.filter((s) =&gt; /applyLegacyOrder/.test(s.summary)).map((s) =&gt; `bước ${s.n}`).join(", ") || "không thấy",
+    },
+    {
+      id: "C5",
+      label: "Tìm file test theo ĐƯỜNG DẪN (Glob *.test.*)",
+      ok: st.some((s) =&gt; s.kind === "path-search" &amp;&amp; /test/.test(s.summary)),
+      detail: st.filter((s) =&gt; s.kind === "path-search").map((s) =&gt; `bước ${s.n}: ${s.summary}`).join("; ") || "không có Glob",
+    },
+    {
+      id: "C6",
+      label: "Edit thành công ở mọi caller (trực tiếp, wrapper, barrel)",
+      ok: missing.length === 0,
+      detail: missing.length ? `thiếu: ${missing.map((g) =&gt; g.join(" | ")).join(", ")}` : `${editedOk.size} file đã Edit`,
+    },
+    {
+      id: "C7",
+      label: "Không dùng Write (Edit là tool sửa mặc định)",
+      ok: writes.length === 0,
+      detail: writes.length ? writes.map((s) =&gt; `bước ${s.n}: ${s.file}`).join(", ") : "0 lần Write",
+    },
+    {
+      id: "O1",
+      label: "Quan sát: Edit báo non-unique match rồi xử lý",
+      ok: nonUnique.length === 0 ? null : recovered.every((r) =&gt; r.retry) || readThenWrite,
+      detail:
+        nonUnique.length === 0
+          ? "không xảy ra (Claude chọn old_string đủ dài ngay từ đầu, hoặc không đụng tới chỗ trùng)"
+          : recovered.map((r) =&gt; `bước ${r.err.n} lỗi ở ${r.err.file} → ${r.retry ? `bước ${r.retry.n}: ` : ""}${r.how}`).join("; ") +
+            (readThenWrite ? "; có dùng Read + Write" : ""),
+    },
+  ];
+}
+
+export function report(events: StreamEvent[], workDir: string, totalFiles: number): { text: string; criteria: Criterion[] } {
+  const st = steps(events, workDir);
+  const init = events.find((e) =&gt; e.type === "system" &amp;&amp; e.subtype === "init");
+  const tools: string[] = init?.tools ?? [];
+  const lines: string[] = [];
+  if (init) {
+    lines.push(`Tool có trong phiên: ${tools.join(", ") || "(không có)"}`);
+    if (!tools.includes("Grep") || !tools.includes("Glob"))
+      lines.push("⚠ Phiên này KHÔNG có tool Grep/Glob riêng: tìm kiếm phải đi qua Bash (lệnh grep/find được tính tương đương).");
+  }
+  lines.push("", "Chuỗi tool:");
+  for (const s of st) lines.push(`  ${String(s.n).padStart(2)}. ${s.tool.padEnd(5)} ${(s.file ?? s.summary).slice(0, 90)}${s.isError ? "  ✗ " + s.resultText.slice(0, 70) : ""}`);
+  const count = st.reduce&lt;Record&lt;string, number&gt;&gt;((a, s) =&gt; ((a[s.tool] = (a[s.tool] ?? 0) + 1), a), {});
+  lines.push("", `Đếm: ${Object.entries(count).map(([k, v]) =&gt; `${k}×${v}`).join(", ") || "(không có tool nào)"}`);
+  const criteria = grade(st, totalFiles);
+  lines.push("", "Tiêu chí:");
+  for (const c of criteria) lines.push(`  ${c.ok === null ? "--  " : c.ok ? "OK  " : "FAIL"} ${c.id} ${c.label}\n         ${c.detail}`);
+  const res = resultEvent(events);
+  if (res) lines.push("", `Kết thúc: subtype=${res.subtype}, turns=${res.num_turns}, cost=$${Number(res.total_cost_usd ?? 0).toFixed(4)}`);
+  return { text: lines.join("\n"), criteria };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const [jsonl, dir = join(import.meta.dirname, ".work")] = process.argv.slice(2);
+  if (!jsonl) {
+    console.error("Dùng: analyze_tools.ts &lt;run.jsonl&gt; [thư-mục-làm-việc]");
+    process.exit(2);
+  }
+  const { text, criteria } = report(readStream(jsonl), dir, countFiles(join(import.meta.dirname, "sample")));
+  console.log(text);
+  process.exitCode = criteria.every((c) =&gt; c.ok !== false) ? 0 : 1;
+}
+</code></pre></details>
+<details><summary><code>verify.ts</code></summary><pre><code>// Kiểm kết quả refactor trong một thư mục (mặc định .work/): test của codebase còn đạt,
+// không còn lời gọi/import hàm deprecated ngoài chính nó, mọi caller đã dùng processOrder(…, { validate: true }).
+//   node --experimental-strip-types verify.ts [thư-mục]
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { CALLER_GROUPS } from "./refactor_reference.ts";
+
+export interface VerifyResult {
+  testsOk: boolean;
+  testsOutput: string;
+  violations: string[]; // "file:dòng: nội dung"
+  callersMigrated: { group: string[]; ok: boolean }[];
+  notes: string[];
+}
+
+const ALLOWED = new Set(["src/orders/legacy.ts", "src/orders/legacy.test.ts"]);
+const CALL = /\b(processLegacyOrder|submitLegacyOrder)\s*\(/;
+const IMPORT = /^\s*import\b.*\b(processLegacyOrder|submitLegacyOrder)\b/;
+
+export function verify(dir: string): VerifyResult {
+  const t = spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", "run_tests.ts"], { cwd: dir, encoding: "utf8" });
+  const files = (readdirSync(join(dir, "src"), { recursive: true }) as string[])
+    .filter((f) =&gt; f.endsWith(".ts"))
+    .map((f) =&gt; `src/${f}`);
+  const violations: string[] = [];
+  const notes: string[] = [];
+  for (const f of files) {
+    if (ALLOWED.has(f)) continue;
+    readFileSync(join(dir, f), "utf8")
+      .split("\n")
+      .forEach((line, i) =&gt; {
+        if (/^\s*(\/\/|\*)/.test(line)) return; // comment
+        if (CALL.test(line) || IMPORT.test(line)) violations.push(`${f}:${i + 1}: ${line.trim()}`);
+        else if (/processLegacyOrder as submitLegacyOrder/.test(line)) notes.push(`${f}:${i + 1}: barrel vẫn re-export tên cũ (không còn ai dùng thì nên xoá)`);
+      });
+  }
+  const migrated = (f: string) =&gt;
+    existsSync(join(dir, f)) &amp;&amp; /processOrder\([^)]*\{\s*validate:\s*true\s*\}\)/.test(readFileSync(join(dir, f), "utf8"));
+  const callersMigrated = CALLER_GROUPS.map((group) =&gt; ({ group, ok: group.some(migrated) }));
+  if (existsSync(join(dir, "src/orders/apply.ts")) &amp;&amp; /applyLegacyOrder/.test(readFileSync(join(dir, "src/orders/apply.ts"), "utf8")))
+    notes.push("wrapper applyLegacyOrder vẫn còn (chấp nhận được nếu thân đã gọi processOrder)");
+  return { testsOk: t.status === 0, testsOutput: (t.stdout + t.stderr).trim(), violations, callersMigrated, notes };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const dir = process.argv[2] ?? join(import.meta.dirname, ".work");
+  const r = verify(dir);
+  const mark = (ok: boolean) =&gt; (ok ? "OK  " : "FAIL");
+  console.log(`${mark(r.testsOk)} Test của codebase: ${r.testsOutput.split("\n").pop()}`);
+  console.log(`${mark(r.violations.length === 0)} Không còn lời gọi/import hàm deprecated (${r.violations.length} chỗ)`);
+  for (const v of r.violations) console.log(`       ${v}`);
+  for (const c of r.callersMigrated) console.log(`${mark(c.ok)} Đã chuyển sang processOrder(…, { validate: true }): ${c.group.join(" hoặc ")}`);
+  for (const n of r.notes) console.log(`note ${n}`);
+  const ok = r.testsOk &amp;&amp; r.violations.length === 0 &amp;&amp; r.callersMigrated.every((c) =&gt; c.ok);
+  console.log(ok ? "\nKẾT LUẬN: refactor đạt" : "\nKẾT LUẬN: refactor CHƯA đạt");
+  process.exitCode = ok ? 0 : 1;
+}
+</code></pre></details>
+<details><summary><code>refactor_reference.ts</code></summary><pre><code>// "Refactor chuẩn" cho codebase mẫu: danh sách lệnh Edit theo đúng thứ tự một agent làm tốt sẽ làm,
+// kèm mô phỏng ngữ nghĩa tool Edit của Claude Code (old_string phải khớp DUY NHẤT, trừ khi replace_all).
+// Dùng trong test (áp lên bản sao để verify) và trong claude giả (phát stream-json kịch bản "good").
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+export interface EditCall {
+  file_path: string; // tương đối so với thư mục làm việc
+  old_string: string;
+  new_string: string;
+  replace_all?: boolean;
+}
+
+// Thông báo thật của Claude Code 2.1.299 khi old_string khớp nhiều chỗ (lấy từ binary, ${n} = số chỗ khớp).
+export const nonUniqueMessage = (n: number) =&gt;
+  `Found ${n} matches of the string to replace, but replace_all is false. To replace all occurrences, ` +
+  `set replace_all to true. To replace only one occurrence, please provide more context to uniquely identify the instance.`;
+
+export function applyEdit(root: string, e: EditCall): { ok: boolean; message: string } {
+  const path = join(root, e.file_path);
+  const text = readFileSync(path, "utf8");
+  const n = text.split(e.old_string).length - 1;
+  if (n === 0) return { ok: false, message: "String to replace not found in file." };
+  if (n &gt; 1 &amp;&amp; !e.replace_all) return { ok: false, message: nonUniqueMessage(n) };
+  writeFileSync(path, e.replace_all ? text.split(e.old_string).join(e.new_string) : text.replace(e.old_string, () =&gt; e.new_string));
+  return { ok: true, message: `The file ${e.file_path} has been updated.` };
+}
+
+const NEW_IMPORT = 'import { processOrder } from "../orders/process.ts";';
+
+export const REFERENCE_EDITS: EditCall[] = [
+  // Gọi trực tiếp
+  { file_path: "src/checkout/checkout_service.ts", old_string: 'import { processLegacyOrder } from "../orders/legacy.ts";', new_string: NEW_IMPORT },
+  { file_path: "src/checkout/checkout_service.ts", old_string: "processLegacyOrder(cart.orderId)", new_string: "processOrder(cart.orderId, { validate: true })" },
+  { file_path: "src/crm/customer_reorder.ts", old_string: 'import { processLegacyOrder } from "../orders/legacy.ts";', new_string: NEW_IMPORT },
+  { file_path: "src/crm/customer_reorder.ts", old_string: "processLegacyOrder(previousOrderId)", new_string: "processOrder(previousOrderId, { validate: true })" },
+  { file_path: "src/admin/bulk_reprocess.ts", old_string: 'import { processLegacyOrder } from "../orders/legacy.ts";', new_string: NEW_IMPORT },
+  // Bẫy: 2 dòng giống hệt nhau → lần đầu lỗi non-unique, lần sau dùng replace_all
+  { file_path: "src/admin/bulk_reprocess.ts", old_string: "results.push(processLegacyOrder(id));", new_string: "results.push(processOrder(id, { validate: true }));" },
+  { file_path: "src/admin/bulk_reprocess.ts", old_string: "results.push(processLegacyOrder(id));", new_string: "results.push(processOrder(id, { validate: true }));", replace_all: true },
+  // Qua wrapper: sửa thân wrapper (job nightly_sync gọi wrapper nên tự động dùng API mới)
+  { file_path: "src/orders/apply.ts", old_string: 'import { processLegacyOrder } from "./legacy.ts";', new_string: 'import { processOrder } from "./process.ts";' },
+  { file_path: "src/orders/apply.ts", old_string: "return processLegacyOrder(order.id);", new_string: "return processOrder(order.id, { validate: true });" },
+  // Qua barrel đổi tên: consumer chỉ biết tên submitLegacyOrder
+  {
+    file_path: "src/api/order_routes.ts",
+    old_string: 'import { submitLegacyOrder, formatCurrency } from "../utils/index.ts";',
+    new_string: 'import { formatCurrency } from "../utils/index.ts";\n' + NEW_IMPORT,
+  },
+  { file_path: "src/api/order_routes.ts", old_string: "submitLegacyOrder(req.orderId)", new_string: "processOrder(req.orderId, { validate: true })" },
+  { file_path: "src/utils/index.ts", old_string: '\nexport { processLegacyOrder as submitLegacyOrder } from "../orders/legacy.ts";', new_string: "" },
+];
+
+// File gọi hàm deprecated (trực tiếp, qua wrapper, qua barrel). nightly_sync.ts chỉ gọi wrapper:
+// sửa wrapper (apply.ts) HOẶC sửa nightly_sync.ts đều được tính.
+export const CALLER_GROUPS: string[][] = [
+  ["src/checkout/checkout_service.ts"],
+  ["src/crm/customer_reorder.ts"],
+  ["src/admin/bulk_reprocess.ts"],
+  ["src/api/order_routes.ts"],
+  ["src/orders/apply.ts", "src/jobs/nightly_sync.ts"],
+];
+
+export const RELATED_TESTS = [
+  "src/checkout/checkout_service.test.ts",
+  "src/crm/customer_reorder.test.ts",
+  "src/admin/bulk_reprocess.test.ts",
+  "src/api/order_routes.test.ts",
+  "src/jobs/nightly_sync.test.ts",
+];
+</code></pre></details>
+<details><summary><code>test/fake_claude.ts</code></summary><pre><code>// CLAUDE GIẢ cho test bài 2.5. KHÔNG gọi model. Chạy trong thư mục làm việc (cwd), phát stream-json
+// theo kịch bản cố định và THỰC SỰ áp thay đổi lên file (Edit mô phỏng đúng luật old_string duy nhất):
+//   FAKE_SCENARIO=good (mặc định): Grep → Read → Grep tên mới → Glob test → Read caller → Edit (có 1 lần non-unique)
+//   FAKE_SCENARIO=bad:             Glob tìm caller theo tên file → Read toàn bộ → Write cả file, bỏ sót barrel/wrapper
+// Nếu --tools không có Grep/Glob mà có Bash: tìm kiếm phát dưới dạng lệnh Bash grep/find.
+import { appendFileSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { applyEdit, REFERENCE_EDITS } from "../refactor_reference.ts";
+
+const args = process.argv.slice(2);
+if (process.env.FAKE_ARGV_LOG) appendFileSync(process.env.FAKE_ARGV_LOG, JSON.stringify(args) + "\n");
+const cwd = process.cwd();
+const opt = (name: string) =&gt; {
+  const i = args.indexOf(name);
+  return i &gt;= 0 ? args[i + 1] : undefined;
+};
+const tools = (opt("--tools") ?? "Read,Grep,Glob,Edit").split(/[,\s]+/).filter(Boolean);
+const bashSearch = !tools.includes("Grep") &amp;&amp; tools.includes("Bash");
+const scenario = process.env.FAKE_SCENARIO ?? "good";
+
+const out = (o: unknown) =&gt; console.log(JSON.stringify(o));
+const allFiles = (readdirSync(cwd, { recursive: true, withFileTypes: true }) as any[])
+  .filter((d) =&gt; d.isFile())
+  .map((d) =&gt; join(d.parentPath ?? d.path, d.name).slice(cwd.length + 1))
+  .sort();
+
+let n = 0;
+const use = (name: string, input: Record&lt;string, unknown&gt;, run: () =&gt; { text: string; isError?: boolean }) =&gt; {
+  const id = `toolu_${++n}`;
+  out({ type: "assistant", message: { id: `msg_${n}`, content: [{ type: "tool_use", id, name, input }] } });
+  const r = run();
+  out({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, content: r.text, ...(r.isError ? { is_error: true } : {}) }] } });
+};
+const grepText = (pat: string) =&gt;
+  allFiles
+    .flatMap((f) =&gt;
+      readFileSync(join(cwd, f), "utf8")
+        .split("\n")
+        .flatMap((l, i) =&gt; (l.includes(pat) ? [`${f}:${i + 1}:${l}`] : [])),
+    )
+    .join("\n") || "No matches found";
+const grep = (pat: string) =&gt;
+  bashSearch
+    ? use("Bash", { command: `grep -rn "${pat}" src docs` }, () =&gt; ({ text: grepText(pat) }))
+    : use("Grep", { pattern: pat, output_mode: "content", "-n": true }, () =&gt; ({ text: grepText(pat) }));
+const glob = (pat: RegExp, shown: string) =&gt;
+  bashSearch
+    ? use("Bash", { command: `find src -name '${shown}'` }, () =&gt; ({ text: allFiles.filter((f) =&gt; pat.test(f)).join("\n") }))
+    : use("Glob", { pattern: `**/${shown}` }, () =&gt; ({ text: allFiles.filter((f) =&gt; pat.test(f)).join("\n") || "No files found" }));
+const read = (f: string) =&gt; use("Read", { file_path: join(cwd, f) }, () =&gt; ({ text: readFileSync(join(cwd, f), "utf8") }));
+
+out({ type: "system", subtype: "init", session_id: "fake-session", tools, model: opt("--model") ?? "sonnet" });
+
+if (scenario === "good") {
+  grep("processLegacyOrder");
+  read("src/orders/legacy.ts");
+  read("src/utils/index.ts");
+  grep("submitLegacyOrder");
+  read("src/orders/apply.ts");
+  grep("applyLegacyOrder");
+  glob(/\.test\.ts$/, "*.test.ts");
+  for (const f of ["src/checkout/checkout_service.ts", "src/crm/customer_reorder.ts", "src/admin/bulk_reprocess.ts", "src/api/order_routes.ts"]) read(f);
+  for (const e of REFERENCE_EDITS) {
+    use("Edit", { ...e, file_path: join(cwd, e.file_path) }, () =&gt; {
+      const r = applyEdit(cwd, e);
+      return { text: r.message, isError: !r.ok };
+    });
+  }
+} else {
+  // Sai: Glob theo tên file chứa "legacy" để tìm caller (Glob không nhìn nội dung) rồi đọc hết mọi file.
+  glob(/legacy/i, "*legacy*");
+  for (const f of allFiles) read(f);
+  // Write lại cả file cho 3 caller trực tiếp; bỏ sót consumer qua barrel và wrapper.
+  for (const f of ["src/checkout/checkout_service.ts", "src/crm/customer_reorder.ts", "src/admin/bulk_reprocess.ts"]) {
+    const copy = join(cwd, f);
+    let text = readFileSync(copy, "utf8");
+    for (const e of REFERENCE_EDITS.filter((x) =&gt; x.file_path === f)) text = text.split(e.old_string).join(e.new_string);
+    use("Write", { file_path: copy, content: text }, () =&gt; (writeFileSync(copy, text), { text: `File created successfully at: ${copy}` }));
+  }
+}
+
+out({ type: "assistant", message: { id: `msg_${++n}`, content: [{ type: "text", text: "(GIẢ) Đã chuyển các lời gọi sang processOrder." }], stop_reason: "end_turn" } });
+out({ type: "result", subtype: "success", session_id: "fake-session", num_turns: n, total_cost_usd: 0, result: "(GIẢ) xong" });
+</code></pre></details>
+<p class="meta">Lệnh: <code>./run_cli.sh reset | run | analyze | verify | all | clean</code>. Biến: <code>MODEL</code> (mặc định sonnet), <code>BUDGET</code> (1 USD), <code>ALLOW_WRITE=1</code> (cho thêm Write), <code>SEARCH=bash</code> (khi bản Claude Code không có Grep/Glob riêng: dùng Bash nhưng chỉ cho <code>grep/rg/find/ls</code>).</p>
+
+<h2>7. Kiểm thử</h2>
+<p><span class="tag">chạy thật</span> codebase mẫu, mô phỏng Edit, <code>verify.ts</code>, bộ chấm trên sự kiện dựng tay, cờ dòng lệnh của <code>run_cli.sh</code>. <span class="tag">giả</span> chuỗi tool đầu-cuối: <code>claude</code> giả phát stream-json theo kịch bản cố định và <b>thực sự áp thay đổi</b> lên file, với luật Edit giống tool thật.</p>
+<pre><code>== Codebase mẫu
+PASS  test của codebase mẫu đạt trước refactor
+PASS  verify phát hiện 11 lời gọi/import deprecated ban đầu
+PASS  ban đầu chưa caller nào dùng processOrder
+PASS  bẫy barrel: grep tên gốc KHÔNG thấy consumer order_routes.ts
+PASS  bẫy Glob: có file tên chứa 'legacy' mà không gọi hàm
+PASS  bẫy false positive: CHANGELOG/docs/i18n nhắc tên hàm nhưng không phải lời gọi trong src
+PASS  test liên quan tồn tại cạnh caller
+PASS  có test chỉ gọi qua module nguồn, không nhắc tên hàm
+
+== Mô phỏng Edit + refactor chuẩn
+PASS  Edit old_string khớp 2 chỗ → lỗi non-unique
+PASS  Edit không khớp → lỗi not found
+PASS  refactor chuẩn: đúng 1 Edit lỗi (non-unique) rồi replace_all
+PASS  sau refactor chuẩn: test vẫn đạt
+PASS  sau refactor chuẩn: 0 lời gọi deprecated
+PASS  sau refactor chuẩn: mọi caller dùng processOrder(…, { validate: true })
+PASS  legacy.ts và test của nó giữ nguyên
+
+== Bộ chấm chuỗi tool (sự kiện dựng tay)
+PASS  đường dẫn tuyệt đối → tương đối theo thư mục làm việc
+PASS  Edit non-unique rồi Read + Write → O1 ghi nhận 'Read + Write'
+PASS  có Write → C7 FAIL
+PASS  Bash grep → tìm nội dung, Bash find → tìm đường dẫn
+PASS  Bash khác (cat) → không tính là tìm kiếm
+
+== run_cli.sh đầu-cuối với claude GIẢ
+PASS  kịch bản đúng: run_cli.sh all thoát 0
+PASS  kịch bản đúng: C1–C7 đều OK
+PASS  kịch bản đúng: O1 thấy non-unique → replace_all
+PASS  kịch bản đúng: output có 'KẾT LUẬN: refactor đạt'
+PASS  sample/ không bị sửa sau khi chạy
+PASS  cờ: --tools Read,Grep,Glob,Edit (không Bash/Write)
+PASS  cờ: --allowedTools chỉ Read Grep Glob Edit
+PASS  cờ: dontAsk + safe-mode + max-budget + stream-json + model sonnet
+PASS  prompt không gợi ý tên tool nào
+PASS  kịch bản sai: bắt đủ C1–C7 FAIL
+PASS  kịch bản sai: verify báo CHƯA đạt (sót barrel + wrapper)
+PASS  ALLOW_WRITE=1 thêm Write vào --tools và --allowedTools
+PASS  SEARCH=bash: --tools Read,Edit,Bash
+PASS  SEARCH=bash: Bash chỉ được grep/rg/find/ls
+PASS  SEARCH=bash: cảnh báo không có Grep/Glob riêng
+PASS  SEARCH=bash: grep/find qua Bash vẫn đạt C1–C6
+
+36 PASS, 0 FAIL</code></pre>
+<h3>Kịch bản đúng (claude GIẢ)</h3>
+<pre><code>Đã tạo ~/Downloads/claude-cert/2.5/.work từ sample/ (33 file)
+▶ claude -p (model=sonnet, tools=Read,Grep,Glob,Edit) trong ~/Downloads/claude-cert/2.5/.work
+  → ~/Downloads/claude-cert/2.5/results/run.jsonl (49 event)
+Tool có trong phiên: Read, Grep, Glob, Edit
+
+Chuỗi tool:
+   1. Grep  processLegacyOrder
+   2. Read  src/orders/legacy.ts
+   3. Read  src/utils/index.ts
+   4. Grep  submitLegacyOrder
+   5. Read  src/orders/apply.ts
+   6. Grep  applyLegacyOrder
+   7. Glob  **/*.test.ts
+   8. Read  src/checkout/checkout_service.ts
+   9. Read  src/crm/customer_reorder.ts
+  10. Read  src/admin/bulk_reprocess.ts
+  11. Read  src/api/order_routes.ts
+  12. Edit  src/checkout/checkout_service.ts
+  13. Edit  src/checkout/checkout_service.ts
+  14. Edit  src/crm/customer_reorder.ts
+  15. Edit  src/crm/customer_reorder.ts
+  16. Edit  src/admin/bulk_reprocess.ts
+  17. Edit  src/admin/bulk_reprocess.ts  ✗ Found 2 matches of the string to replace, but replace_all is false. To
+  18. Edit  src/admin/bulk_reprocess.ts
+  19. Edit  src/orders/apply.ts
+  20. Edit  src/orders/apply.ts
+  21. Edit  src/api/order_routes.ts
+  22. Edit  src/api/order_routes.ts
+  23. Edit  src/utils/index.ts
+
+Đếm: Grep×3, Read×7, Glob×1, Edit×12
+
+Tiêu chí:
+  OK   C1 Tìm kiếm đầu tiên là tìm NỘI DUNG (Grep), không mở đầu bằng Glob hay đọc hàng loạt
+         bước 1: Grep processLegacyOrder; 0 lần Read trước đó
+  OK   C2 Khám phá tăng dần: số file đã Read ≤ 50% tổng số file
+         7/33 file
+  OK   C3 Lần theo barrel đổi tên: có tìm nội dung 'submitLegacyOrder'
+         bước 4
+  OK   C4 Lần theo wrapper: có tìm nội dung 'applyLegacyOrder'
+         bước 6
+  OK   C5 Tìm file test theo ĐƯỜNG DẪN (Glob *.test.*)
+         bước 7: **/*.test.ts
+  OK   C6 Edit thành công ở mọi caller (trực tiếp, wrapper, barrel)
+         6 file đã Edit
+  OK   C7 Không dùng Write (Edit là tool sửa mặc định)
+         0 lần Write
+  OK   O1 Quan sát: Edit báo non-unique match rồi xử lý
+         bước 17 lỗi ở src/admin/bulk_reprocess.ts → bước 18: thử lại bằng replace_all: true
+
+Kết thúc: subtype=success, turns=24, cost=$0.0000
+
+OK   Test của codebase: 6/6 test đạt
+OK   Không còn lời gọi/import hàm deprecated (0 chỗ)
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/checkout/checkout_service.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/crm/customer_reorder.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/admin/bulk_reprocess.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/api/order_routes.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/orders/apply.ts hoặc src/jobs/nightly_sync.ts
+note wrapper applyLegacyOrder vẫn còn (chấp nhận được nếu thân đã gọi processOrder)
+
+KẾT LUẬN: refactor đạt</code></pre>
+<h3>Kịch bản sai (claude GIẢ): Glob tìm caller, đọc hết, Write cả file</h3>
+<pre><code>Đã tạo ~/Downloads/claude-cert/2.5/.work từ sample/ (33 file)
+▶ claude -p (model=sonnet, tools=Read,Grep,Glob,Edit) trong ~/Downloads/claude-cert/2.5/.work
+  → ~/Downloads/claude-cert/2.5/results/run.jsonl (77 event)
+Tool có trong phiên: Read, Grep, Glob, Edit
+
+Chuỗi tool:
+   1. Glob  **/*legacy*
+   2. Read  CHANGELOG.md
+   3. Read  docs/migration.md
+   4. Read  run_tests.ts
+   5. Read  src/admin/bulk_reprocess.test.ts
+   6. Read  src/admin/bulk_reprocess.ts
+   7. Read  src/api/order_routes.test.ts
+   8. Read  src/api/order_routes.ts
+   9. Read  src/catalog/products.ts
+  10. Read  src/catalog/search.ts
+  11. Read  src/checkout/checkout_service.test.ts
+  12. Read  src/checkout/checkout_service.ts
+  13. Read  src/config.ts
+  14. Read  src/crm/customer.ts
+  15. Read  src/crm/customer_reorder.test.ts
+  16. Read  src/crm/customer_reorder.ts
+  17. Read  src/crm/segments.ts
+  18. Read  src/i18n/messages.ts
+  19. Read  src/inventory/stock.ts
+  20. Read  src/jobs/nightly_sync.test.ts
+  21. Read  src/jobs/nightly_sync.ts
+  22. Read  src/legacy/legacy_pricing.ts
+  23. Read  src/notifications/mailer.ts
+  24. Read  src/orders/apply.ts
+  25. Read  src/orders/legacy.test.ts
+  26. Read  src/orders/legacy.ts
+  27. Read  src/orders/process.ts
+  28. Read  src/orders/types.ts
+  29. Read  src/pricing/discounts.ts
+  30. Read  src/utils/currency.ts
+  31. Read  src/utils/dates.ts
+  32. Read  src/utils/index.ts
+  33. Read  src/utils/legacy_dates.ts
+  34. Read  test_harness.ts
+  35. Write src/checkout/checkout_service.ts
+  36. Write src/crm/customer_reorder.ts
+  37. Write src/admin/bulk_reprocess.ts
+
+Đếm: Glob×1, Read×33, Write×3
+
+Tiêu chí:
+  FAIL C1 Tìm kiếm đầu tiên là tìm NỘI DUNG (Grep), không mở đầu bằng Glob hay đọc hàng loạt
+         bước 1: Glob **/*legacy*; 0 lần Read trước đó
+  FAIL C2 Khám phá tăng dần: số file đã Read ≤ 50% tổng số file
+         33/33 file
+  FAIL C3 Lần theo barrel đổi tên: có tìm nội dung 'submitLegacyOrder'
+         không thấy
+  FAIL C4 Lần theo wrapper: có tìm nội dung 'applyLegacyOrder'
+         không thấy
+  FAIL C5 Tìm file test theo ĐƯỜNG DẪN (Glob *.test.*)
+         bước 1: **/*legacy*
+  FAIL C6 Edit thành công ở mọi caller (trực tiếp, wrapper, barrel)
+         thiếu: src/checkout/checkout_service.ts, src/crm/customer_reorder.ts, src/admin/bulk_reprocess.ts, src/api/order_routes.ts, src/orders/apply.ts | src/jobs/nightly_sync.ts
+  FAIL C7 Không dùng Write (Edit là tool sửa mặc định)
+         bước 35: src/checkout/checkout_service.ts, bước 36: src/crm/customer_reorder.ts, bước 37: src/admin/bulk_reprocess.ts
+  --   O1 Quan sát: Edit báo non-unique match rồi xử lý
+         không xảy ra (Claude chọn old_string đủ dài ngay từ đầu, hoặc không đụng tới chỗ trùng)
+
+Kết thúc: subtype=success, turns=38, cost=$0.0000
+
+OK   Test của codebase: 6/6 test đạt
+FAIL Không còn lời gọi/import hàm deprecated (4 chỗ)
+       src/api/order_routes.ts:2: import { submitLegacyOrder, formatCurrency } from "../utils/index.ts";
+       src/api/order_routes.ts:5: const result = submitLegacyOrder(req.orderId);
+       src/orders/apply.ts:2: import { processLegacyOrder } from "./legacy.ts";
+       src/orders/apply.ts:9: return processLegacyOrder(order.id);
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/checkout/checkout_service.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/crm/customer_reorder.ts
+OK   Đã chuyển sang processOrder(…, { validate: true }): src/admin/bulk_reprocess.ts
+FAIL Đã chuyển sang processOrder(…, { validate: true }): src/api/order_routes.ts
+FAIL Đã chuyển sang processOrder(…, { validate: true }): src/orders/apply.ts hoặc src/jobs/nightly_sync.ts
+note src/utils/index.ts:5: barrel vẫn re-export tên cũ (không còn ai dùng thì nên xoá)
+note wrapper applyLegacyOrder vẫn còn (chấp nhận được nếu thân đã gọi processOrder)
+
+KẾT LUẬN: refactor CHƯA đạt</code></pre>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> Lệnh: <code>cd ~/Downloads/claude-cert/2.5 &amp;&amp; ./run_cli.sh all</code>. Dùng sonnet, khoảng 15–25 lượt tool, ước tính 0,1–0,5 USD, chặn trần 1 USD (<code>--max-budget-usd</code>). Chạy với <code>--safe-mode</code> (tắt CLAUDE.md, plugin, hook, MCP) để quan sát hành vi gốc.
+<br><b>Chưa chắc:</b> bản Claude Code trên máy có tool <code>Grep</code>/<code>Glob</code> riêng hay không. Trong binary có chuỗi mô tả Glob, nhưng cũng có cơ chế “shadow find/grep with embedded bfs/ugrep”. Nếu event <code>system:init</code> không liệt kê Grep/Glob, <code>analyze</code> sẽ cảnh báo; khi đó chạy lại với <code>SEARCH=bash ./run_cli.sh all</code>.</div>
+
+<h2>8. Kết quả quan sát</h2>
+<div class="card"><p class="meta">(Điền sau khi chạy <code>./run_cli.sh all</code> với Claude thật: chuỗi tool, bảng tiêu chí C1–C7, O1 có xảy ra non-unique không và Claude xử lý ra sao, kết quả verify, chi phí.)</p>
+<div class="tw"><table><tr><th>Tiêu chí</th><th>Kết quả</th><th>Ghi chú</th></tr>
+<tr><td>C1 Grep trước</td><td></td><td></td></tr><tr><td>C2 Read ≤ 50%</td><td></td><td></td></tr><tr><td>C3/C4 lần theo barrel, wrapper</td><td></td><td></td></tr>
+<tr><td>C5 Glob test</td><td></td><td></td></tr><tr><td>C6/C7 Edit mọi caller, không Write</td><td></td><td></td></tr><tr><td>O1 non-unique</td><td></td><td></td></tr><tr><td>verify / chi phí</td><td></td><td></td></tr>
+</table></div></div>
+
+<h2>9. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>Grep tìm caller trước, rồi Glob tìm test theo quy ước tên (nội dung trước, đường dẫn sau)</li>
+<li>Chỉ Read file đã được chỉ ra là liên quan (không đọc hết)</li>
+<li>Lần theo được wrapper và barrel đổi tên</li>
+<li>Edit là tool sửa mặc định; có xử lý non-unique match</li>
+<li>Sau refactor: test codebase vẫn đạt, không còn lời gọi deprecated (<code>verify.ts</code>)</li>
+</ul>
+
+<h2>10. Bài học rút ra</h2>
+<ul>
+<li><b>Grep tìm nội dung, Glob tìm đường dẫn.</b> Đây là điểm đề thi kiểm tra nhiều nhất của bài.</li>
+<li><b>Một lần Grep chưa đủ.</b> Wrapper và barrel đổi tên làm caller không còn nhắc tên gốc. Phải Read chỗ định nghĩa/re-export rồi Grep tiếp tên mới.</li>
+<li><b>Grep → Glob → Grep:</b> Grep tìm caller, Glob tìm test cạnh caller (bắt cả test gọi gián tiếp), Grep lại tên wrapper.</li>
+<li><b>Edit trước, Read + Write là fallback</b> (đáp án đề thi). Thực tế nên mở rộng old_string hoặc dùng replace_all trước.</li>
+<li><b>Khám phá tăng dần</b>: đọc hết file từ đầu là lỗi tốn context nhất.</li>
+</ul>
+<h3>5 bẫy đề</h3>
+<ol>
+<li>Dùng Glob để tìm caller.</li>
+<li>Dùng Grep để tìm file theo đuôi hoặc mẫu tên (Glob mới là tool đúng).</li>
+<li>Đọc hết mọi file từ đầu.</li>
+<li>Mặc định Read + Write cho mọi thay đổi.</li>
+<li>Đề hỏi bước tiếp theo sau non-unique mà trả lời “mở rộng old_string / replace_all”. Đáp án theo đề là Read + Write.</li>
+</ol>
+<div class="card"><b>Câu luyện tập:</b> tìm mọi file gọi hàm deprecated <code>processLegacyOrder()</code> và mọi file test của các caller đó. Chuỗi tool nào đúng?
+<ul>
+<li>A. Bash <code>find | xargs grep</code> cho cả hai việc. <span class="red">Sai</span>: bỏ qua tool có sẵn, không theo thứ tự nội dung rồi đường dẫn</li>
+<li>B. Glob <code>**/*processLegacyOrder*</code> tìm caller rồi Grep trong đó. <span class="red">Sai</span>: tên file caller không chứa tên hàm</li>
+<li><b>C. Grep tên hàm tìm caller (thấy luôn test import trực tiếp), rồi Glob test cạnh từng caller.</b> <span class="grn">Đúng</span></li>
+<li>D. Read hết source và test. <span class="red">Sai</span>: cạn context</li>
+</ul></div>
+
+<h2>11. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/2-tool-design-mcp/2-5-built-in-tools">Lesson 2.5 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li>Claude Certified Architect – Foundations Exam Guide, Domain 2, Task 2.5</li>
+<li><a href="https://code.claude.com/docs/en/settings#tools-available-to-claude">Claude Code docs: các tool có sẵn</a></li>
+<li><a href="https://code.claude.com/docs/en/cli-reference">Claude Code docs: CLI reference</a> (<code>--tools</code>, <code>--allowedTools</code>, <code>--permission-mode</code>)</li>
+</ul>
+</main></body></html>

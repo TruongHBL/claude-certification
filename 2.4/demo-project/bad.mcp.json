@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ghp_DEMO_KHONG_PHAI_TOKEN_THAT_0000"
+      }
+    },
+    "crm-db": {
+      "args": ["crm_db_server.ts"],
+      "env": { "CRM_DB_PASSWORD": "sk-test-1234567890abcdefghij" }
+    }
+  }
+}

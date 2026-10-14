@@ -1,5 +1,6 @@
 // MCP server tối giản qua stdio (JSON-RPC 2.0, mỗi message một dòng), không cần thư viện.
-// Đủ cho initialize / notifications/* / ping / tools/list / tools/call.
+// Đủ cho initialize / notifications/* / ping / tools/list / tools/call,
+// và resources/list / resources/read khi truyền `resources` (bài 2.4).
 //
 // Lỗi giao thức (tool không tồn tại, method lạ, JSON hỏng) → JSON-RPC `error`.
 // Lỗi khi chạy tool → `result` bình thường kèm isError: true (xem bài 2.2).
@@ -17,6 +18,16 @@ export interface ToolResult {
   isError?: boolean;
 }
 
+/** Resource: catalogue nội dung cho client đính vào context (application-controlled). */
+export interface ResourceDef {
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+  /** Trả nội dung text của resource (JSON thì tự stringify). */
+  read: () => string;
+}
+
 export type ToolHandler = (args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
 
 export interface ServerOptions {
@@ -26,6 +37,8 @@ export interface ServerOptions {
   handlers: Record<string, ToolHandler>;
   /** Gọi trước mỗi tools/call (vd ghi log), kể cả khi tool không tồn tại. */
   onCall?: (name: string, args: Record<string, unknown>) => void;
+  /** Tuỳ chọn: có thì server khai báo capabilities.resources và trả lời resources/*. */
+  resources?: ResourceDef[];
 }
 
 interface RpcMessage {
@@ -67,7 +80,7 @@ export function runServer(opts: ServerOptions): void {
       case "initialize":
         respond(id, {
           protocolVersion: (params.protocolVersion as string | undefined) ?? "2025-06-18",
-          capabilities: { tools: {} },
+          capabilities: opts.resources ? { tools: {}, resources: {} } : { tools: {} },
           serverInfo: { name: opts.name, version: opts.version ?? "1.0.0" },
         });
         return;
@@ -80,6 +93,24 @@ export function runServer(opts: ServerOptions): void {
       case "tools/list":
         respond(id, { tools: opts.tools });
         return;
+      case "resources/list":
+        if (!opts.resources) break;
+        respond(id, {
+          resources: opts.resources.map(({ uri, name, description, mimeType }) => ({ uri, name, description, mimeType })),
+        });
+        return;
+      case "resources/read": {
+        if (!opts.resources) break;
+        const uri = String(params.uri ?? "");
+        const r = opts.resources.find((x) => x.uri === uri);
+        if (!r) {
+          // MCP spec: resource không tồn tại → lỗi -32002
+          respondError(id, -32002, `Resource not found: ${uri}`);
+          return;
+        }
+        respond(id, { contents: [{ uri: r.uri, mimeType: r.mimeType, text: r.read() }] });
+        return;
+      }
       case "tools/call": {
         const name = String(params.name ?? "");
         const args = (params.arguments as Record<string, unknown> | undefined) ?? {};
@@ -96,8 +127,7 @@ export function runServer(opts: ServerOptions): void {
         }
         return;
       }
-      default:
-        if (id !== undefined && id !== null) respondError(id, -32601, `Method not found: ${method}`);
     }
+    if (id !== undefined && id !== null) respondError(id, -32601, `Method not found: ${method}`);
   }
 }
