@@ -1,6 +1,6 @@
 # Claude Certified Architect – Foundations: bài tập
 
-Build Exercise theo từng mục của đề cương, mỗi mục một folder (`1.1/` … `2.3/`). Mỗi folder có trang nộp `bai-*.html`, mã nguồn TypeScript, dữ liệu mẫu và test.
+Build Exercise theo từng mục của đề cương, mỗi mục một folder (`1.1/` … `3.3/`). Mỗi folder có trang nộp `bai-*.html`, mã nguồn TypeScript, dữ liệu mẫu và test.
 
 ## Cài đặt
 
@@ -27,6 +27,11 @@ Thư viện dùng chung nằm ở `lib/`: MCP server/client stdio, client Messag
 | 2.1 | Mô tả tool chống chọn nhầm | CLI + MCP (đã chạy thật) |
 | 2.2 | Lỗi có cấu trúc | Code tất định (đã chạy thật) · CLI tuỳ chọn |
 | 2.3 | Phân bổ tool & tool_choice | Messages API · CLI + hook |
+| 2.4 | Tích hợp MCP server (.mcp.json, ${VAR}, resource) | CLI (`claude mcp list` đã chạy thật) |
+| 2.5 | Tool có sẵn: Grep/Glob, Edit, khám phá từng bước | CLI |
+| 3.1 | Phân cấp CLAUDE.md, @import, rules | CLI (canary) |
+| 3.2 | Slash command & skill, context: fork | CLI |
+| 3.3 | Rules theo đường dẫn (paths) | CLI (canary) |
 
 - **Bản Messages API** cần `ANTHROPIC_API_KEY`.
 - **Bản CLI** (`run_cli.sh`, `run.sh`) dùng phiên đăng nhập `claude` (claude.ai), không cần API key.

@@ -1,0 +1,13 @@
+Lint ~/Downloads/claude-cert/3.3/demo-repo
+  (không có cảnh báo)
+
+Lint test/fixtures/bad-repo
+  WARN  .claude/rules/broken.md: frontmatter hỏng (dòng YAML không hợp lệ: "  this is not yaml") → Claude Code bỏ frontmatter, rule nạp MỌI phiên
+  INFO  .claude/rules/release.md: 5 dòng dạng "bước 1, 2, 3…": giống quy trình → nên là skill (gọi khi cần), không phải quy ước nền
+  INFO  .claude/rules/typo.md: field "description" bị bỏ qua: rule chỉ đọc `paths`
+  WARN  .claude/rules/typo.md: pattern "**/*.tset.ts" không khớp file nào trong repo (gõ sai glob?)
+  INFO  CLAUDE.md: 3 dòng là quy ước theo loại file (vd "- Mỗi file test (*.test.ts) có ít nhất một ca lỗi.") → nạp cả khi sửa file không liên quan; nên chuyển sang .claude/rules/ có paths
+  WARN  src/a, src/b, src/c: 3 CLAUDE.md thư mục gần như giống nhau → bản sao sẽ lệch nhau theo thời gian; gộp thành 1 rule trong .claude/rules/ với glob
+
+Lint variant-root
+  INFO  CLAUDE.md: 3 dòng là quy ước theo loại file (vd "# Quy ước API") → nạp cả khi sửa file không liên quan; nên chuyển sang .claude/rules/ có paths

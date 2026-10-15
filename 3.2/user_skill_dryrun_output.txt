@@ -1,0 +1,5 @@
+(dry-run) Sẽ copy:
+  ~/Downloads/claude-cert/3.2/personal/brainstorm/  →  ~/.claude/skills/brainstorm/
+    SKILL.md
+  và ghi file đánh dấu ~/.claude/skills/brainstorm/.cca-3.2-demo
+Chạy với --apply để cài thật, --revert để gỡ.

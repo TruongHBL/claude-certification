@@ -1,0 +1,15 @@
+$ claude --version
+2.1.300 (Claude Code)
+
+$ claude --help (trích các cờ liên quan)
+  --add-dir <directories...>            Additional directories to allow tool
+                                        access to
+  --agent <agent>                       Agent for the current session. Overrides
+--
+  --safe-mode                           Start with all customizations
+                                        (CLAUDE.md, skills, installed plugins,
+                                        hooks, MCP servers, custom commands and
+--
+  --setting-sources <sources>           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings <file-or-json>             Path to a settings JSON file or a JSON

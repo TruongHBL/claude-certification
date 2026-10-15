@@ -1,0 +1,84 @@
+
+== Matcher glob (đối chiếu với path.matchesGlob của Node)
+PASS  **/*.test.ts  ~  src/auth/auth.test.ts → true
+PASS  **/*.test.ts  ~  auth.test.ts → true
+PASS  **/*.test.{ts,tsx}  ~  src/components/Button.test.tsx → true
+PASS  **/*.test.{ts,tsx}  ~  src/components/Button.tsx → false
+PASS  **/*.spec.ts  ~  src/api/customers.spec.ts → true
+PASS  src/api/**/*.ts  ~  src/api/customers.ts → true
+PASS  src/api/**/*.ts  ~  src/api/v2/orders.ts → true
+PASS  src/api/**/*.ts  ~  lib/api/customers.ts → false
+PASS  **/routes/**/*.ts  ~  routes/favorites.ts → true
+PASS  **/routes/**/*.ts  ~  src/routes/admin/users.ts → true
+PASS  **/*.controller.ts  ~  src/matching/matching.controller.ts → true
+PASS  terraform/**/*  ~  terraform/main.tf → true
+PASS  terraform/**/*  ~  infra/terraform/main.tf → false
+PASS  **/*.tf  ~  infrastructure/network.tf → true
+PASS  *.md  ~  README.md → true
+PASS  *.md  ~  docs/README.md → false
+PASS  src/?.ts  ~  src/a.ts → true
+PASS  src/?.ts  ~  src/ab.ts → false
+PASS  src/[abc].ts  ~  src/b.ts → true
+PASS  brace lồng nhau mở đúng
+PASS  `[` không đóng → không khớp gì (như tài liệu)
+
+== Frontmatter
+PASS  YAML list
+PASS  chuỗi phân tách dấu phẩy
+PASS  mảng YAML dạng [ ]
+PASS  không có frontmatter → paths null (luôn nạp)
+PASS  frontmatter hỏng → error + paths null (nạp mọi phiên)
+PASS  field khác paths bị ghi nhận là bỏ qua
+
+== Bảng file → rule trên demo-repo
+PASS  src/auth/auth.test.ts → testing.md
+PASS  src/components/Button.test.tsx → testing.md
+PASS  src/dashboard/Dashboard.test.tsx → testing.md
+PASS  src/favorites/favorites.test.ts → testing.md
+PASS  src/matching/matching.test.ts → testing.md
+PASS  src/utils/format.test.ts → testing.md
+PASS  src/api/customers.spec.ts → api-conventions.md,testing.md
+PASS  src/api/customers.ts → api-conventions.md
+PASS  routes/favorites.ts → api-conventions.md
+PASS  src/matching/matching.controller.ts → api-conventions.md
+PASS  terraform/main.tf → terraform.md
+PASS  terraform/variables.tf → terraform.md
+PASS  infrastructure/network.tf → terraform.md
+PASS  infrastructure/README.md → terraform.md
+PASS  src/utils/format.ts → —
+PASS  src/auth/auth.ts → —
+PASS  src/components/Button.tsx → —
+PASS  rule testing phủ test co-located ở ≥ 6 thư mục bằng 1 file
+
+== CANARY theo ca (mô hình)
+PASS  không chạm file nào → chỉ root
+PASS  đọc file test → root + test
+PASS  đọc .spec.ts trong src/api → nạp cả API và test
+PASS  đọc file utils → không rule nào
+PASS  biến thể root: mọi CANARY luôn có
+
+== Token (bước 6)
+PASS  mọi ca: rules theo path ít token hơn gom vào root
+PASS  file utils tiết kiệm nhiều nhất (không rule nào liên quan)
+PASS  variant-root/CLAUDE.md đúng bằng bản sinh từ demo-repo (không lệch tay)
+
+== Lint
+PASS  demo-repo: không cảnh báo
+PASS  bắt frontmatter hỏng
+PASS  bắt glob gõ sai không khớp file nào
+PASS  bắt 3 CLAUDE.md thư mục giống nhau
+PASS  gợi ý chuyển quy ước theo loại file khỏi root
+PASS  gợi ý quy trình nhiều bước nên là skill
+PASS  ghi nhận field bị bỏ qua
+PASS  variant-root: gợi ý tách quy ước khỏi root
+
+== run_cli.sh với claude GIẢ (không gọi model)
+PASS  10 lệnh claude (2 biến thể × 5 ca)
+PASS  mọi lệnh dùng haiku + stream-json + trần chi phí
+PASS  không lệnh nào dùng --safe-mode (sẽ tắt rules)
+PASS  ca none không cho tool; ca đọc file chỉ cho Read
+PASS  report: 10/10 ca khớp mô hình
+PASS  report: biến thể root tốn nhiều input token hơn ở ca utils
+PASS  report in tổng kết
+
+68 PASS, 0 FAIL

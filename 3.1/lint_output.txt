@@ -1,0 +1,11 @@
+Lint ~/Downloads/claude-cert/3.1/demo-repo: 3 file hướng dẫn
+0 lỗi, 0 cảnh báo
+
+Lint test/fixtures/bad-repo: 3 file hướng dẫn
+  ERROR .claude/CLAUDE.md:3  dùng "@import": không có từ khoá này, viết "@đường/dẫn/file.md"
+  ERROR .claude/CLAUDE.md:4  import @./standards/naming.md không tồn tại (tính từ .claude/ → .claude/standards/naming.md)
+  WARN  .claude/CLAUDE.md:7  quy tắc bắt buộc: CLAUDE.md không đảm bảo tuân thủ, nên chặn bằng settings.json (permissions.deny) hoặc hook PreToolUse
+  WARN  .claude/CLAUDE.md:8  quy tắc bắt buộc: CLAUDE.md không đảm bảo tuân thủ, nên chặn bằng settings.json (permissions.deny) hoặc hook PreToolUse
+  ERROR CLAUDE.local.md  .gitignore chưa bỏ qua CLAUDE.local.md: ghi chú cá nhân sẽ bị commit
+  WARN  CLAUDE.md  232 dòng (> 200): tách bằng .claude/rules/ có paths (bài 3.3) để giảm context
+3 lỗi, 3 cảnh báo

@@ -1,0 +1,52 @@
+
+=== Phiên của mình (có user-level CLAUDE.md, mô phỏng)
+
+▶ cwd = .
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = packages/api
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  5. [khởi động] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X
+
+▶ cwd = packages/web
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = ., Claude đọc packages/api/src/routes.ts
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  5. [on-demand] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X
+
+=== Người mới clone (không có user-level, không có CLAUDE.local.md)
+
+▶ cwd = .
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = packages/api
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  4. [khởi động] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X
+
+▶ cwd = packages/web
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = ., Claude đọc packages/api/src/routes.ts
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  4. [on-demand] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X

@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 3.1 – CLAUDE.md Hierarchy</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+<style>details{margin:10px 0}summary{cursor:pointer;font-weight:600;color:var(--accent)}.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}.two>*{min-width:0}.fill{border:1px dashed var(--line);border-radius:6px;min-height:28px;padding:4px 8px;color:var(--muted)}</style>
+</head><body><main>
+<h1>Bài tập 3.1 — CLAUDE.md: phân cấp, phạm vi và tách module</h1>
+<div class="meta">Domain 3 · Claude Code Configuration &amp; Workflows · Mục 3.1 CLAUDE.md Hierarchy<br>Người thực hiện: TruongNQ · Ngày nộp: 15/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Dựng một monorepo mẫu có CLAUDE.md ở <b>3 cấp</b> (user, project, thư mục), tách quy ước bằng <b><code>@</code> import</b> và <code>.claude/rules/</code>, rồi <b>đo được file nào thật sự được nạp</b> ở từng thư mục. Cách đo: mỗi file chứa một mã <b>CANARY</b> riêng (vd <code>CANARY-PROJECT-7Q</code>); Claude chỉ in được mã của file mà nó đã nạp. Cuối cùng tái hiện bẫy hay ra đề: <b>người mới vào team không nhận được quy ước</b> vì quy ước nằm trong <code>~/.claude/CLAUDE.md</code> của người cũ.</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 800 380" role="img" aria-label="Ba cấp CLAUDE.md và thứ tự nạp">
+<rect class="h" x="20" y="20" width="230" height="80" rx="8"/><text x="135" y="46" text-anchor="middle" font-weight="700">User</text><text x="135" y="66" text-anchor="middle">~/.claude/CLAUDE.md</text><text x="135" y="86" text-anchor="middle" class="m">chỉ mình bạn · KHÔNG qua git</text>
+<rect class="c" x="20" y="130" width="230" height="110" rx="8"/><text x="135" y="156" text-anchor="middle" font-weight="700">Project (commit lên git)</text><text x="135" y="176" text-anchor="middle">.claude/CLAUDE.md</text><text x="135" y="196" text-anchor="middle" class="m">+ .claude/rules/testing.md</text><text x="135" y="214" text-anchor="middle" class="m">(không frontmatter → mọi phiên)</text><text x="135" y="232" text-anchor="middle" class="m">CLAUDE.local.md: cá nhân, gitignore</text>
+<rect class="b" x="20" y="270" width="230" height="80" rx="8"/><text x="135" y="296" text-anchor="middle" font-weight="700">Thư mục</text><text x="135" y="316" text-anchor="middle">packages/api/CLAUDE.md</text><text x="135" y="336" text-anchor="middle" class="m">chỉ khi làm việc trong thư mục đó</text>
+<path class="l" d="M135 100 V128"/><polygon points="130,122 135,130 140,122" fill="var(--accent)"/>
+<path class="l" d="M135 240 V268"/><polygon points="130,262 135,270 140,262" fill="var(--accent)"/>
+<text x="20" y="372" class="m">Thứ tự nạp: rộng → hẹp. Nạp sau KHÔNG có nghĩa là thắng.</text>
+<rect class="u" x="300" y="140" width="190" height="90" rx="8"/><text x="395" y="166" text-anchor="middle" font-weight="700">standards/naming.md</text><text x="395" y="186" text-anchor="middle" class="m">nạp NGAY (eager), inline</text><text x="395" y="204" text-anchor="middle" class="m">đường dẫn tính từ file</text><text x="395" y="220" text-anchor="middle" class="m">chứa dòng @import</text>
+<path class="lu" d="M250 185 H298"/><text x="274" y="176" text-anchor="middle" class="m">@../</text>
+<rect class="b" x="540" y="20" width="240" height="330" rx="8"/><text x="660" y="46" text-anchor="middle" font-weight="700">Context của phiên</text>
+<text x="560" y="78">1. user (nếu có)</text><text x="560" y="104">2. .claude/CLAUDE.md</text><text x="560" y="130">3. ↳ standards/naming.md</text><text x="560" y="156">4. .claude/rules/testing.md</text><text x="560" y="182">5. CLAUDE.local.md (nếu có)</text><text x="560" y="208">6. CLAUDE.md của cwd</text>
+<line x1="555" y1="226" x2="765" y2="226" stroke="var(--line)"/>
+<text x="560" y="250" class="m">Thư mục CON của cwd:</text><text x="560" y="270" class="m">nạp on-demand khi Claude đọc/</text><text x="560" y="288" class="m">sửa file trong đó</text>
+<text x="560" y="318" class="m">Tất cả được NỐI vào context,</text><text x="560" y="336" class="m">không file nào ghi đè file nào</text>
+<path class="l" d="M490 185 H538"/><polygon points="532,180 540,185 532,190" fill="var(--accent)"/>
+</svg></div>
+
+<h2>3. Sáu bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>Project-level <code>.claude/CLAUDE.md</code>: naming, error handling, checklist review</td><td><code>demo-repo/.claude/CLAUDE.md</code> (CANARY-PROJECT-7Q). Phần naming tách sang import ở bước 4</td></tr>
+<tr><td>2</td><td>CLAUDE.md cấp thư mục trong <code>packages/api/</code></td><td><code>demo-repo/packages/api/CLAUDE.md</code>: REST kebab-case, body camelCase, ISO 8601 (CANARY-DIR-API-9X). <code>packages/web/</code> cố ý không có</td></tr>
+<tr><td>3</td><td><code>.claude/rules/testing.md</code> ≥ 3 quy ước</td><td>Tên test, một khẳng định chính, dữ liệu từ <code>test/fixtures/</code>. Không frontmatter nên nạp mọi phiên (CANARY-RULES-TESTING-4K)</td></tr>
+<tr><td>4</td><td><code>@</code> import <code>standards/naming.md</code></td><td>Dòng <code>@../standards/naming.md</code>. Đường dẫn tương đối tính từ <b>file chứa import</b> (<code>.claude/</code>), nên viết <code>@./standards/…</code> như đề gợi ý sẽ trỏ nhầm sang <code>.claude/standards/</code>. <code>lint_config.ts</code> bắt lỗi này (mục 9)</td></tr>
+<tr><td>5</td><td><code>/context</code> ở nhiều thư mục</td><td><code>expected_loading.ts</code> in bảng dự kiến (mục 4). <code>run_cli.sh</code> hỏi Claude thật in các CANARY ở <code>.</code>, <code>packages/api</code>, <code>packages/web</code> và một lần on-demand, <code>report_cli.ts</code> so với bảng dự kiến. <code>/context</code> là lệnh tương tác nên không tự động hoá được; mã CANARY thay cho nó</td></tr>
+<tr><td>6</td><td>Đưa một quy ước lên <code>~/.claude/CLAUDE.md</code>, phiên khác không thấy</td><td><code>user_level_demo.sh</code>: mặc định chỉ in, <code>--apply</code> thêm khối CANARY-USER-3H có BEGIN/END (backup trước), <code>--revert</code> gỡ đúng khối đó. Phiên "người mới" chạy trên bản clone không có <code>CLAUDE.local.md</code> và với <code>--setting-sources project,local</code></td></tr>
+</table></div>
+
+<h2>4. Đứng ở đâu thì nạp file nào</h2>
+<p>Bảng do <code>expected_loading.ts</code> tính từ <code>demo-repo/</code>, theo tài liệu <a href="https://code.claude.com/docs/en/memory">How Claude remembers your project</a>:</p>
+<div class="tw"><table><tr><th>Đứng ở</th><th>Người mới clone</th><th>Máy mình (thêm)</th></tr>
+<tr><td><code>.</code></td><td>project → naming (import) → testing (rule)</td><td>user (đầu tiên), CLAUDE.local.md (sau project)</td></tr>
+<tr><td><code>packages/api</code></td><td>như trên + <code>packages/api/CLAUDE.md</code> (cuối cùng)</td><td>user, CLAUDE.local.md</td></tr>
+<tr><td><code>packages/web</code></td><td>chỉ cấp project (không có CLAUDE.md riêng)</td><td>user, CLAUDE.local.md</td></tr>
+<tr><td><code>.</code> rồi Claude đọc <code>packages/api/src/routes.ts</code></td><td>cấp project, sau đó <code>packages/api/CLAUDE.md</code> nạp <b>on-demand</b></td><td>user, CLAUDE.local.md</td></tr>
+</table></div>
+<details><summary>Output đầy đủ của expected_loading.ts</summary><pre><code>
+=== Phiên của mình (có user-level CLAUDE.md, mô phỏng)
+
+▶ cwd = .
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = packages/api
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  5. [khởi động] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X
+
+▶ cwd = packages/web
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = ., Claude đọc packages/api/src/routes.ts
+  1. [khởi động] user      ~/Downloads/claude-cert/3.1/test/fixtures/user_claude.md CANARY-USER-3H
+  2. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  3. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  4. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  5. [on-demand] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X
+
+=== Người mới clone (không có user-level, không có CLAUDE.local.md)
+
+▶ cwd = .
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = packages/api
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  4. [khởi động] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X
+
+▶ cwd = packages/web
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+
+▶ cwd = ., Claude đọc packages/api/src/routes.ts
+  1. [khởi động] project   .claude/CLAUDE.md              CANARY-PROJECT-7Q
+  2. [khởi động] import    standards/naming.md            CANARY-IMPORT-NAMING-2M
+  3. [khởi động] rule      .claude/rules/testing.md       CANARY-RULES-TESTING-4K
+  4. [on-demand] directory packages/api/CLAUDE.md         CANARY-DIR-API-9X</code></pre></details>
+<div class="card warn"><b>Chỗ mô hình còn giả định.</b> Tài liệu nói rõ CLAUDE.md và CLAUDE.local.md ở mọi thư mục <i>phía trên</i> cwd được nạp lúc khởi động. Tài liệu không nói rõ <code>.claude/CLAUDE.md</code> và <code>.claude/rules/</code> ở thư mục tổ tiên (khi đứng ở <code>packages/api</code>) có được nạp không; mô hình giả định là có. Lần chạy thật (mục 10) sẽ trả lời.</div>
+
+<h2>5. Không có "file nào thắng"</h2>
+<div class="two">
+<div class="card"><h3>CLAUDE.md: nối, không ghi đè</h3>
+<ul><li>Mọi file tìm thấy được <b>nối vào context</b>, thứ tự rộng → hẹp (user → project → thư mục cha → cwd; <code>CLAUDE.local.md</code> sau <code>CLAUDE.md</code> cùng cấp).</li>
+<li>Thứ tự nạp <b>không phải độ ưu tiên</b>. Hai quy tắc mâu thuẫn thì Claude có thể theo bất kỳ cái nào.</li>
+<li>CLAUDE.md được gửi như tin nhắn user, không phải system prompt: là <b>hướng dẫn</b>, không đảm bảo tuân thủ.</li></ul></div>
+<div class="card"><h3>Quy tắc bắt buộc → settings.json hoặc hook</h3>
+<ul><li><code>settings.json</code> CÓ thứ tự ưu tiên: <b>managed &gt; local &gt; project &gt; user</b>, client ép thực thi.</li>
+<li>Hook PreToolUse chặn được hành động bất kể Claude quyết định gì (bài 1.5).</li>
+<li><code>lint_config.ts</code> cảnh báo dòng kiểu <i>NEVER</i>, <i>tuyệt đối không</i> trong CLAUDE.md để gợi ý chuyển sang đây.</li></ul></div>
+</div>
+
+<h2>6. <code>/memory</code>, <code>/context</code> và <code>/compact</code></h2>
+<div class="tw"><table><tr><th></th><th>Làm gì</th><th>Ghi chú</th></tr>
+<tr><td><code>/memory</code></td><td>Liệt kê vị trí CLAUDE.md, CLAUDE.local.md, auto memory; mở file trong editor; bật/tắt auto memory</td><td><b>Đề thi trả lời <code>/memory</code></b> khi hỏi lệnh xem file đã nạp</td></tr>
+<tr><td><code>/context</code></td><td>Cho biết phiên này <b>thật sự</b> đã nạp gì, ở mục "Memory files"</td><td>Cách kiểm tra đúng trong Claude Code hiện nay. CLAUDE.md thư mục con (on-demand) không hiện ở đây; khi nạp, terminal in dòng <code>Loaded</code></td></tr>
+<tr><td colspan="3"><b>Cả hai lệnh không nạp gì.</b> File tự nạp theo vị trí. Chọn "chạy /memory để nạp cấu hình" là bẫy.</td></tr>
+<tr><td><code>/compact</code></td><td>CLAUDE.md gốc project được đọc lại từ đĩa và gắn lại</td><td>CLAUDE.md thư mục con và rule có <code>paths:</code> chỉ nạp lại khi Claude chạm vào file khớp. Hướng dẫn chỉ nói trong chat thì bị tóm tắt mất</td></tr>
+</table></div>
+
+<h2>7. Kịch bản đề thi: người mới vào team</h2>
+<div class="card"><p>Developer A dùng Claude Code nhiều tháng, Claude theo đúng quy ước API. Developer B mới vào, clone cùng repo, cùng branch, nhưng Claude đặt tên lung tung.</p>
+<p><b>Nguyên nhân:</b> quy ước nằm trong <code>~/.claude/CLAUDE.md</code> của A, không có trong git. <b>Cách sửa:</b> chuyển sang <code>.claude/CLAUDE.md</code> hoặc <code>CLAUDE.md</code> ở gốc repo.</p>
+<p class="meta">Bài tập tái hiện: <code>./user_level_demo.sh --apply</code> đặt CANARY-USER-3H vào user-level, <code>./run_cli.sh all</code> cho thấy phiên "me" in mã này còn phiên "newcomer" thì không. Xong chạy <code>./user_level_demo.sh --revert</code>.</p></div>
+
+<h2>8. Mã nguồn</h2>
+<p>File trong <code>3.1/</code> (TypeScript, chạy bằng <code>node --experimental-strip-types</code>):</p>
+<div class="tw"><table><tr><th>File</th><th>Vai trò</th></tr>
+<tr><td><code>demo-repo/</code></td><td>Monorepo mẫu: <code>.claude/CLAUDE.md</code>, <code>.claude/rules/testing.md</code>, <code>standards/naming.md</code>, <code>packages/api/CLAUDE.md</code>, <code>packages/web/</code>, <code>CLAUDE.local.md.example</code>, <code>.gitignore</code></td></tr>
+<tr><td><code>expected_loading.ts</code></td><td>Mô hình tĩnh: đứng ở đâu nạp file nào, theo thứ tự nào</td></tr>
+<tr><td><code>lint_config.ts</code></td><td>Kiểm tĩnh: <code>@import</code>, import gãy, file dài, quy tắc cứng, CLAUDE.local.md chưa gitignore</td></tr>
+<tr><td><code>run_cli.sh</code> + <code>report_cli.ts</code></td><td>Hỏi Claude thật in các CANARY, so với mô hình</td></tr>
+<tr><td><code>user_level_demo.sh</code></td><td>Bước 6, mặc định chỉ in</td></tr>
+<tr><td><code>test/run.test.ts</code>, <code>test/fake_claude.ts</code>, <code>test/fixtures/</code></td><td>Kiểm thử, claude giả, repo lỗi mẫu, user-level mô phỏng</td></tr>
+</table></div>
+<details><summary>demo-repo/.claude/CLAUDE.md</summary><pre><code># CRM Matching – quy ước của team
+
+Mã nhận diện file này (dùng cho bài tập 3.1): CANARY-PROJECT-7Q
+
+## Đặt tên
+Quy ước đặt tên chi tiết nằm ở file import bên dưới (đường dẫn tính từ CHÍNH file này, tức `.claude/`):
+
+@../standards/naming.md
+
+## Xử lý lỗi
+- Lỗi nghiệp vụ trả về object `{ errorCategory, isRetryable, description }` (xem bài 2.2), không ném chuỗi trần.
+- Lỗi từ API bên ngoài phải được bọc lại, kèm mã lỗi gốc trong trường `cause`.
+- Log lỗi bằng `logger.error`, không dùng `console.log`.
+
+## Checklist code review
+- Có test cho nhánh lỗi, không chỉ nhánh thành công.
+- Tên hàm/biến theo quy ước ở trên.
+- Không còn TODO không kèm ticket.
+- Thay đổi schema DB có migration đi kèm.</code></pre></details>
+<details><summary>demo-repo/packages/api/CLAUDE.md</summary><pre><code># Package api – quy ước REST
+
+Mã nhận diện file này (CLAUDE.md cấp thư mục): CANARY-DIR-API-9X
+
+- Endpoint dùng danh từ số nhiều, kebab-case: `/matching-projects`, `/favorites`.
+- Request/response body dùng camelCase; ngày giờ theo ISO 8601.
+- Lỗi trả về HTTP status đúng nghĩa kèm body `{ errorCategory, isRetryable, description }`.</code></pre></details>
+<details><summary>demo-repo/.claude/rules/testing.md</summary><pre><code># Quy ước test
+
+Mã nhận diện file này (rule không có frontmatter `paths` nên nạp mọi phiên): CANARY-RULES-TESTING-4K
+
+1. Đặt tên test theo mẫu `&lt;hàm&gt; – &lt;tình huống&gt; – &lt;kết quả mong đợi&gt;`.
+2. Mỗi test chỉ một khẳng định chính, dùng `assert.deepStrictEqual` cho object.
+3. Dữ liệu mẫu lấy từ `test/fixtures/`, không tạo dữ liệu ngẫu nhiên trong test.</code></pre></details>
+<details><summary>expected_loading.ts</summary><pre><code>// Bài 3.1 – mô hình TĨNH: đứng ở thư mục X thì Claude Code nạp những file hướng dẫn nào, theo thứ tự nào.
+// Không gọi model. Dựa trên tài liệu code.claude.com/docs/en/memory (đọc ngày 15/10/2026):
+//   - Thứ tự: managed → user (~/.claude/CLAUDE.md) → project → local. "All discovered files are concatenated
+//     into context rather than overriding each other": nạp sau KHÔNG có nghĩa là thắng.
+//   - Lúc khởi động: CLAUDE.md và CLAUDE.local.md ở cwd và MỌI thư mục phía trên, từ gốc xuống cwd.
+//     CLAUDE.local.md đứng sau CLAUDE.md cùng cấp.
+//   - Thư mục CON của cwd: nạp ON-DEMAND, khi Claude đọc/ghi/sửa một file trong thư mục đó.
+//   - `@path` import: nạp NGAY (eager), đường dẫn tương đối tính từ file chứa dòng import, tối đa 4 bước lồng.
+//   - .claude/rules/*.md không có frontmatter `paths`: nạp lúc khởi động như .claude/CLAUDE.md.
+// Chỗ CHƯA CHẮC (ghi trong trang nộp): `.claude/CLAUDE.md` và `.claude/rules/` ở thư mục TỔ TIÊN của cwd có được nạp
+// không. Tài liệu chỉ nói "CLAUDE.md và CLAUDE.local.md ở mọi thư mục phía trên"; mô hình này giả định có.
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join, relative, resolve, sep } from "node:path";
+
+export const CANARY_RE = /CANARY-[A-Z0-9]+(?:-[A-Z0-9]+)*/g;
+export const USER_CANARY = "CANARY-USER-3H";
+export const MAX_IMPORT_DEPTH = 4;
+
+export interface Loaded {
+  file: string; // đường dẫn tuyệt đối
+  label: string; // hiển thị: tương đối với repo, hoặc ~/… cho user-level
+  kind: "user" | "project" | "local" | "rule" | "import" | "directory";
+  when: "launch" | "on-demand";
+  canary?: string;
+}
+
+export interface LoadOptions {
+  repoRoot: string;
+  cwd: string; // tuyệt đối, nằm trong repoRoot
+  userLevel: boolean; // phiên có nạp ~/.claude/CLAUDE.md (người mới clone: false)
+  userClaudeMd?: string; // mặc định ~/.claude/CLAUDE.md
+  readFiles?: string[]; // file Claude đọc trong phiên (tuyệt đối) → kích hoạt CLAUDE.md on-demand
+}
+
+export function canaryOf(file: string): string | undefined {
+  const m = readFileSync(file, "utf8").match(CANARY_RE);
+  return m?.[0];
+}
+
+/** Các dòng `@path` ngoài code span/code block, theo đúng thứ tự. */
+export function importsOf(file: string): { raw: string; line: number }[] {
+  const out: { raw: string; line: number }[] = [];
+  let fenced = false;
+  readFileSync(file, "utf8").split("\n").forEach((text, i) =&gt; {
+    if (/^\s*```/.test(text)) fenced = !fenced;
+    if (fenced) return;
+    const noSpans = text.replace(/`[^`]*`/g, "");
+    for (const m of noSpans.matchAll(/(?:^|\s)@((?:[^\s\\]|\\ )+)/g)) {
+      if (m[1] === "import") continue; // từ khoá "@import" không tồn tại; lint_config.ts báo lỗi riêng
+      out.push({ raw: m[1].replace(/\\ /g, " "), line: i + 1 });
+    }
+  });
+  return out;
+}
+
+const isFile = (p: string) =&gt; existsSync(p) &amp;&amp; statSync(p).isFile();
+
+function rulesOf(dir: string): string[] {
+  const root = join(dir, ".claude", "rules");
+  if (!existsSync(root)) return [];
+  const walk = (d: string): string[] =&gt;
+    readdirSync(d, { withFileTypes: true })
+      .sort((a, b) =&gt; a.name.localeCompare(b.name))
+      .flatMap((e) =&gt; (e.isDirectory() ? walk(join(d, e.name)) : e.name.endsWith(".md") ? [join(d, e.name)] : []));
+  // Rule có frontmatter `paths:` chỉ nạp khi khớp file (bài 3.3), mô hình này chỉ lấy rule không có `paths`.
+  return walk(root).filter((f) =&gt; !/^---\n[\s\S]*?\bpaths\s*:[\s\S]*?\n---/.test(readFileSync(f, "utf8")));
+}
+
+export function expectedLoading(o: LoadOptions): Loaded[] {
+  const repoRoot = resolve(o.repoRoot);
+  const cwd = resolve(o.cwd);
+  const label = (f: string) =&gt; (f.startsWith(homedir() + sep) &amp;&amp; !f.startsWith(repoRoot) ? "~/" + relative(homedir(), f) : relative(repoRoot, f));
+  const out: Loaded[] = [];
+  const seen = new Set&lt;string&gt;();
+
+  const add = (file: string, kind: Loaded["kind"], when: Loaded["when"], depth = 0) =&gt; {
+    if (seen.has(file) || !isFile(file)) return;
+    seen.add(file);
+    out.push({ file, label: label(file), kind, when, canary: canaryOf(file) });
+    if (depth &gt;= MAX_IMPORT_DEPTH) return;
+    for (const imp of importsOf(file)) {
+      const target = resolve(dirname(file), imp.raw); // tương đối với FILE chứa import, không phải cwd
+      add(target, "import", when, depth + 1);
+    }
+  };
+
+  if (o.userLevel) add(o.userClaudeMd ?? join(homedir(), ".claude", "CLAUDE.md"), "user", "launch");
+
+  // Từ repoRoot xuống cwd (mô hình giới hạn trong repo; thư mục ngoài repo bỏ qua).
+  const chain: string[] = [];
+  for (let d = cwd; ; d = dirname(d)) {
+    chain.unshift(d);
+    if (d === repoRoot || d === dirname(d)) break;
+  }
+  for (const d of chain) {
+    add(join(d, "CLAUDE.md"), d === repoRoot ? "project" : "directory", "launch");
+    add(join(d, ".claude", "CLAUDE.md"), d === repoRoot ? "project" : "directory", "launch");
+    for (const r of rulesOf(d)) add(r, "rule", "launch");
+    add(join(d, "CLAUDE.local.md"), "local", "launch");
+  }
+
+  // On-demand: CLAUDE.md trong thư mục con của cwd, nạp khi Claude chạm vào file trong đó.
+  for (const f of o.readFiles ?? []) {
+    const abs = resolve(cwd, f);
+    if (!abs.startsWith(cwd + sep)) continue;
+    const dirs: string[] = [];
+    for (let d = dirname(abs); d !== cwd &amp;&amp; d.startsWith(cwd + sep); d = dirname(d)) dirs.unshift(d);
+    for (const d of dirs) {
+      add(join(d, "CLAUDE.md"), "directory", "on-demand");
+      add(join(d, "CLAUDE.local.md"), "local", "on-demand");
+    }
+  }
+  return out;
+}
+
+// CLI: in bảng cho 3 vị trí × có/không user-level.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const repo = resolve(process.argv[2] ?? join(import.meta.dirname, "demo-repo"));
+  const fakeUser = join(import.meta.dirname, "test", "fixtures", "user_claude.md"); // file user-level MÔ PHỎNG
+  const cases: [string, string[]][] = [
+    [".", []],
+    ["packages/api", []],
+    ["packages/web", []],
+    [".", ["packages/api/src/routes.ts"]],
+  ];
+  for (const userLevel of [true, false]) {
+    console.log(`\n=== ${userLevel ? "Phiên của mình (có user-level CLAUDE.md, mô phỏng)" : "Người mới clone (không có user-level, không có CLAUDE.local.md)"}`);
+    for (const [cwd, reads] of cases) {
+      const items = expectedLoading({ repoRoot: repo, cwd: join(repo, cwd), userLevel, userClaudeMd: fakeUser, readFiles: reads.map((r) =&gt; join(repo, r)) });
+      console.log(`\n▶ cwd = ${cwd}${reads.length ? `, Claude đọc ${reads.join(", ")}` : ""}`);
+      items.forEach((it, i) =&gt; console.log(`  ${i + 1}. [${it.when === "launch" ? "khởi động" : "on-demand"}] ${it.kind.padEnd(9)} ${it.label.padEnd(30)} ${it.canary ?? ""}`));
+    }
+  }
+}</code></pre></details>
+<details><summary>lint_config.ts</summary><pre><code>// Bài 3.1 – kiểm tĩnh cấu hình CLAUDE.md của một repo. Không gọi model.
+//   ERROR: dùng từ khoá "@import" (không tồn tại, cú pháp đúng là "@đường/dẫn")
+//          import trỏ tới file không tồn tại (đường dẫn tính từ FILE chứa import)
+//          có CLAUDE.local.md nhưng .gitignore không bỏ qua nó (sẽ bị commit)
+//   WARN : file &gt; 200 dòng (tài liệu: tốn context, giảm mức tuân thủ)
+//          import lồng quá 4 bước
+//          quy tắc "cứng" (NEVER, MUST NOT, tuyệt đối không, cấm…): CLAUDE.md chỉ là hướng dẫn, quy tắc
+//          bắt buộc nên chuyển sang settings.json (permissions.deny) hoặc hook PreToolUse
+//          có CLAUDE.local.md.example nhưng .gitignore chưa có CLAUDE.local.md
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { importsOf, MAX_IMPORT_DEPTH } from "./expected_loading.ts";
+
+export interface Finding {
+  level: "ERROR" | "WARN";
+  file: string;
+  line?: number;
+  msg: string;
+}
+
+const MAX_LINES = 200;
+const HARD_RULE = /\b(NEVER|MUST NOT|MUST|ALWAYS)\b|tuyệt đối không|không bao giờ|\bcấm\b/i;
+
+/** Mọi file hướng dẫn trong repo (bỏ node_modules, .git). */
+export function memoryFiles(repo: string): string[] {
+  const out: string[] = [];
+  const walk = (d: string) =&gt; {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name === ".git") continue;
+      const p = join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/^CLAUDE(\.local)?\.md$/.test(e.name) || (p.includes(join(".claude", "rules")) &amp;&amp; e.name.endsWith(".md"))) out.push(p);
+    }
+  };
+  walk(repo);
+  return out.sort();
+}
+
+function gitignored(repo: string, name: string): boolean {
+  const gi = join(repo, ".gitignore");
+  return existsSync(gi) &amp;&amp; readFileSync(gi, "utf8").split("\n").some((l) =&gt; l.trim() === name || l.trim() === `/${name}` || l.trim() === `**/${name}`);
+}
+
+export function lintRepo(repo: string): Finding[] {
+  const root = resolve(repo);
+  const rel = (f: string) =&gt; relative(root, f);
+  const out: Finding[] = [];
+
+  const depthOf = (file: string, seen = new Set&lt;string&gt;()): number =&gt; {
+    if (seen.has(file) || !existsSync(file)) return 0;
+    seen.add(file);
+    return Math.max(0, ...importsOf(file).map((i) =&gt; 1 + depthOf(resolve(dirname(file), i.raw), seen)));
+  };
+
+  for (const f of memoryFiles(root)) {
+    const lines = readFileSync(f, "utf8").split("\n");
+    lines.forEach((text, i) =&gt; {
+      if (/^\s*@import\b/.test(text))
+        out.push({ level: "ERROR", file: rel(f), line: i + 1, msg: 'dùng "@import": không có từ khoá này, viết "@đường/dẫn/file.md"' });
+      if (HARD_RULE.test(text))
+        out.push({ level: "WARN", file: rel(f), line: i + 1, msg: "quy tắc bắt buộc: CLAUDE.md không đảm bảo tuân thủ, nên chặn bằng settings.json (permissions.deny) hoặc hook PreToolUse" });
+    });
+    for (const imp of importsOf(f)) {
+      const target = resolve(dirname(f), imp.raw);
+      if (!existsSync(target))
+        out.push({ level: "ERROR", file: rel(f), line: imp.line, msg: `import @${imp.raw} không tồn tại (tính từ ${rel(dirname(f)) || "."}/ → ${rel(target)})` });
+    }
+    if (lines.length &gt; MAX_LINES) out.push({ level: "WARN", file: rel(f), msg: `${lines.length} dòng (&gt; ${MAX_LINES}): tách bằng .claude/rules/ có paths (bài 3.3) để giảm context` });
+    const depth = depthOf(f);
+    if (depth &gt; MAX_IMPORT_DEPTH) out.push({ level: "WARN", file: rel(f), msg: `import lồng ${depth} bước (tối đa ${MAX_IMPORT_DEPTH})` });
+  }
+
+  if (existsSync(join(root, "CLAUDE.local.md")) &amp;&amp; !gitignored(root, "CLAUDE.local.md"))
+    out.push({ level: "ERROR", file: "CLAUDE.local.md", msg: ".gitignore chưa bỏ qua CLAUDE.local.md: ghi chú cá nhân sẽ bị commit" });
+  else if (existsSync(join(root, "CLAUDE.local.md.example")) &amp;&amp; !gitignored(root, "CLAUDE.local.md"))
+    out.push({ level: "WARN", file: ".gitignore", msg: "nên thêm CLAUDE.local.md vào .gitignore" });
+  return out.sort((a, b) =&gt; a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const repo = process.argv[2] ?? join(import.meta.dirname, "demo-repo");
+  const found = lintRepo(repo);
+  console.log(`Lint ${repo}: ${memoryFiles(repo).length} file hướng dẫn`);
+  for (const f of found) console.log(`  ${f.level.padEnd(5)} ${f.file}${f.line ? `:${f.line}` : ""}  ${f.msg}`);
+  const errors = found.filter((f) =&gt; f.level === "ERROR").length;
+  console.log(`${errors} lỗi, ${found.length - errors} cảnh báo`);
+  process.exitCode = errors ? 1 : 0;
+}</code></pre></details>
+<details><summary>run_cli.sh</summary><pre><code>#!/usr/bin/env bash
+# Bài 3.1 – kiểm chứng bằng Claude THẬT: mỗi file hướng dẫn trong demo-repo chứa một mã CANARY riêng;
+# hỏi Claude in mọi CANARY nó thấy, từ đó biết file nào đã được nạp ở từng thư mục.
+#
+#   ./run_cli.sh prepare     tạo 2 bản clone trong .tmp/ (mỗi bản `git init` riêng để thành project độc lập):
+#                              me/        có CLAUDE.local.md (copy từ .example), như máy của mình
+#                              newcomer/  không có CLAUDE.local.md, như người mới clone (file đó bị gitignore)
+#   ./run_cli.sh run         3 vị trí (., packages/api, packages/web) × 2 phiên + 1 lần on-demand = 7 lệnh claude -p
+#   ./run_cli.sh report      so CANARY thấy được với mô hình expected_loading.ts
+#   ./run_cli.sh all         prepare + run + report
+#   ./run_cli.sh clean
+#
+# Phiên "newcomer" chạy với --setting-sources project,local để BỎ user-level. CHƯA KIỂM CHỨNG cờ này có bỏ
+# ~/.claude/CLAUDE.md hay không (tài liệu chỉ nói nó bỏ settings/rules/CLAUDE.local.md theo nguồn); report_cli.ts
+# sẽ cho biết. USER_CLAUDE_MD (mặc định ~/.claude/CLAUDE.md, chỉ đọc) là file report dùng để biết khối demo có hay không.
+# Muốn thấy CANARY-USER-3H ở phiên "me" thì chạy ./user_level_demo.sh --apply trước (và --revert sau).
+#
+# KHÔNG dùng --safe-mode: cờ đó tắt luôn CLAUDE.md. Phiên "me" nạp ~/.claude/CLAUDE.md THẬT của máy;
+# report chỉ xét các mã CANARY-*, phần còn lại của file đó không ảnh hưởng.
+# Chi phí ước tính: 7 lệnh haiku, mỗi lệnh 1 lượt (on-demand 2–3 lượt) ≈ 0,01–0,05 USD; mỗi lệnh chặn trần BUDGET.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" &amp;&amp; pwd)"
+TMP="${TMP_DIR:-$ROOT/.tmp}"
+RESULTS="${RESULTS_DIR:-$ROOT/results_cli}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+MODEL="${MODEL:-haiku}"
+BUDGET="${BUDGET:-0.05}"
+NODE="node --experimental-strip-types --no-warnings"
+PROMPT='Không dùng tool. Hãy rà toàn bộ hướng dẫn và bộ nhớ dự án (CLAUDE.md, rules, file được import) đã được nạp cho bạn trong phiên này và liệt kê MỌI chuỗi có dạng CANARY-…, mỗi dòng một chuỗi, giữ nguyên chữ. Nếu không thấy chuỗi nào, trả lời đúng một chữ: NONE.'
+ONDEMAND_PROMPT='Đọc file packages/api/src/routes.ts bằng tool Read. Sau đó liệt kê MỌI chuỗi có dạng CANARY-… trong hướng dẫn và bộ nhớ dự án mà bạn đang có (kể cả phần được nạp thêm sau khi đọc file), mỗi dòng một chuỗi. Không thấy thì trả lời NONE.'
+
+prepare() {
+  rm -rf "$TMP"; mkdir -p "$TMP"
+  for who in me newcomer; do
+    cp -r "$ROOT/demo-repo" "$TMP/$who"
+    (cd "$TMP/$who" &amp;&amp; git init -q &amp;&amp; git add -A &amp;&amp; git -c user.email=demo@example.com -c user.name=demo commit -qm init)
+  done
+  cp "$ROOT/demo-repo/CLAUDE.local.md.example" "$TMP/me/CLAUDE.local.md"
+  echo "Đã tạo $TMP/me (có CLAUDE.local.md) và $TMP/newcomer (không có)"
+}
+
+ask() { # ask &lt;who&gt; &lt;cwd tương đối&gt; &lt;tên output&gt; &lt;prompt&gt; [cờ thêm…]
+  local who="$1" rel="$2" name="$3" prompt="$4"; shift 4
+  local extra=()
+  [[ "$who" == newcomer ]] &amp;&amp; extra+=(--setting-sources project,local)
+  mkdir -p "$RESULTS/$who"
+  echo "▶ $who · cwd=$rel · $name"
+  (cd "$TMP/$who/$rel" &amp;&amp; "$CLAUDE_BIN" -p "$prompt" --model "$MODEL" --max-budget-usd "$BUDGET" \
+     --no-session-persistence --output-format stream-json --verbose "${extra[@]}" "$@" \
+     &gt; "$RESULTS/$who/$name.jsonl" 2&gt; "$RESULTS/$who/$name.err") || echo "  (mã lỗi, xem $RESULTS/$who/$name.err)"
+}
+
+run() {
+  [[ -d "$TMP/me" ]] || prepare
+  for who in me newcomer; do
+    ask "$who" . root "$PROMPT" --tools ""
+    ask "$who" packages/api api "$PROMPT" --tools ""
+    ask "$who" packages/web web "$PROMPT" --tools ""
+  done
+  # On-demand: đứng ở gốc, cho Claude đọc một file trong packages/api → CLAUDE.md của thư mục đó mới nạp.
+  ask newcomer . root-ondemand "$ONDEMAND_PROMPT" --tools Read --allowedTools Read --permission-mode dontAsk
+}
+
+case "${1:-}" in
+  prepare) prepare ;;
+  run) run ;;
+  report) $NODE "$ROOT/report_cli.ts" "$RESULTS" "$TMP" "${USER_CLAUDE_MD:-}" ;;
+  all) prepare; run; $NODE "$ROOT/report_cli.ts" "$RESULTS" "$TMP" "${USER_CLAUDE_MD:-}" ;;
+  clean) rm -rf "$TMP" "$RESULTS" ;;
+  *) sed -n '2,20p' "$0"; exit 1 ;;
+esac</code></pre></details>
+<details><summary>report_cli.ts</summary><pre><code>// Bài 3.1 – so CANARY mà Claude in ra (stream-json của run_cli.sh) với mô hình expected_loading.ts.
+// Dùng: node --experimental-strip-types report_cli.ts &lt;results_cli&gt; &lt;.tmp&gt; [user CLAUDE.md]
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { readStream, resultEvent, toolUses } from "../lib/cli_stream.ts";
+import { CANARY_RE, expectedLoading, USER_CANARY } from "./expected_loading.ts";
+
+export interface Row {
+  who: string;
+  name: string;
+  cwd: string;
+  expected: string[];
+  seen: string[];
+  missing: string[]; // mong đợi mà không thấy
+  extra: string[]; // thấy mà không mong đợi
+  reads: string[];
+  ok: boolean;
+  costUsd?: number;
+}
+
+const CASES = [
+  { who: "me", name: "root", cwd: ".", reads: [] as string[] },
+  { who: "me", name: "api", cwd: "packages/api", reads: [] },
+  { who: "me", name: "web", cwd: "packages/web", reads: [] },
+  { who: "newcomer", name: "root", cwd: ".", reads: [] },
+  { who: "newcomer", name: "api", cwd: "packages/api", reads: [] },
+  { who: "newcomer", name: "web", cwd: "packages/web", reads: [] },
+  { who: "newcomer", name: "root-ondemand", cwd: ".", reads: ["packages/api/src/routes.ts"] },
+];
+
+export function compare(resultsDir: string, tmpDir: string, userClaudeMd = join(homedir(), ".claude", "CLAUDE.md")): Row[] {
+  // Khối demo có trong user-level thật không (chỉ đọc, không sửa).
+  const userHasCanary = existsSync(userClaudeMd) &amp;&amp; readFileSync(userClaudeMd, "utf8").includes(USER_CANARY);
+  const rows: Row[] = [];
+  for (const c of CASES) {
+    const file = join(resultsDir, c.who, `${c.name}.jsonl`);
+    if (!existsSync(file)) continue;
+    const repo = join(tmpDir, c.who);
+    const expected = expectedLoading({
+      repoRoot: repo,
+      cwd: join(repo, c.cwd),
+      userLevel: c.who === "me",
+      userClaudeMd,
+      readFiles: c.reads.map((r) =&gt; join(repo, r)),
+    })
+      .map((l) =&gt; l.canary)
+      .filter((x): x is string =&gt; !!x &amp;&amp; (x !== USER_CANARY || userHasCanary));
+    const events = readStream(file);
+    const text =
+      (resultEvent(events)?.result as string | undefined) ??
+      events
+        .filter((e) =&gt; e.type === "assistant" &amp;&amp; Array.isArray(e.message?.content))
+        .flatMap((e) =&gt; e.message!.content.filter((b: any) =&gt; b.type === "text").map((b: any) =&gt; b.text))
+        .join("\n");
+    const seen = [...new Set(text.match(CANARY_RE) ?? [])].sort();
+    const missing = expected.filter((x) =&gt; !seen.includes(x));
+    const extra = seen.filter((x) =&gt; !expected.includes(x));
+    const reads = toolUses(events)
+      .filter((t) =&gt; t.name === "Read")
+      .map((t) =&gt; String(t.input?.file_path ?? ""));
+    rows.push({ ...c, expected, seen, missing, extra, reads, ok: !missing.length &amp;&amp; !extra.length, costUsd: resultEvent(events)?.total_cost_usd });
+  }
+  return rows;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const [resultsDir, tmpDir, user] = process.argv.slice(2);
+  const rows = compare(resultsDir, tmpDir, user || undefined);
+  if (!rows.length) {
+    console.log(`Không có kết quả trong ${resultsDir}: chạy ./run_cli.sh run trước`);
+    process.exit(1);
+  }
+  let cost = 0;
+  for (const r of rows) {
+    cost += r.costUsd ?? 0;
+    console.log(`\n${r.ok ? "OK  " : "KHÁC"} ${r.who.padEnd(8)} cwd=${r.cwd}${r.reads.length ? `  (đã Read: ${r.reads.map((p) =&gt; p.split("/").slice(-3).join("/")).join(", ")})` : ""}`);
+    console.log(`     mong đợi: ${r.expected.join(", ") || "(không)"}`);
+    console.log(`     thấy    : ${r.seen.join(", ") || "(không)"}`);
+    if (r.missing.length) console.log(`     THIẾU   : ${r.missing.join(", ")}`);
+    if (r.extra.length) console.log(`     DƯ      : ${r.extra.join(", ")}`);
+  }
+  const ok = rows.filter((r) =&gt; r.ok).length;
+  console.log(`\n${ok}/${rows.length} khớp mô hình · tổng chi phí ${cost.toFixed(4)} USD`);
+}</code></pre></details>
+<details><summary>user_level_demo.sh</summary><pre><code>#!/usr/bin/env bash
+# Bài 3.1 – bước 6: đặt NHẦM một quy ước team vào user-level CLAUDE.md để tái hiện bẫy "người mới vào team".
+#
+# Mặc định CHỈ IN (dry-run), không sửa gì. File đích: $USER_CLAUDE_MD (mặc định ~/.claude/CLAUDE.md).
+#   ./user_level_demo.sh            in khối sẽ thêm
+#   ./user_level_demo.sh --apply    backup rồi thêm khối giữa 2 dấu BEGIN/END (chạy lại không thêm trùng)
+#   ./user_level_demo.sh --revert   backup rồi gỡ ĐÚNG khối đó, phần còn lại của file giữ nguyên
+#   ./user_level_demo.sh --status   cho biết khối đang có trong file hay không
+#
+# Vì sao phải sửa file thật: Claude Code không có cờ/biến nào trỏ user-level CLAUDE.md sang file khác mà vẫn
+# giữ đăng nhập (CLAUDE_CONFIG_DIR đổi cả thư mục chứa thông tin đăng nhập). Phiên "người mới clone" trong
+# run_cli.sh dùng --setting-sources project,local thay cho việc xoá khối này.
+set -euo pipefail
+
+TARGET="${USER_CLAUDE_MD:-$HOME/.claude/CLAUDE.md}"
+BEGIN="&lt;!-- BEGIN cca-3.1-demo --&gt;"
+END="&lt;!-- END cca-3.1-demo --&gt;"
+BLOCK="$BEGIN
+## Quy ước API (đặt NHẦM ở user-level để tái hiện bẫy \"người mới vào team\", bài tập 3.1)
+Mã nhận diện: CANARY-USER-3H
+- Endpoint REST dùng kebab-case số nhiều.
+$END"
+
+has_block() { [[ -f "$TARGET" ]] &amp;&amp; grep -qF "$BEGIN" "$TARGET"; }
+backup() { [[ -f "$TARGET" ]] &amp;&amp; cp -p "$TARGET" "$TARGET.bak-$(date +%Y%m%d%H%M%S)" &amp;&amp; echo "Đã backup → $TARGET.bak-…"; }
+
+case "${1:-}" in
+  ""|--dry-run)
+    echo "(dry-run) Sẽ thêm vào cuối $TARGET:"
+    echo; echo "$BLOCK"; echo
+    echo "Chạy với --apply để thêm thật, --revert để gỡ." ;;
+  --apply)
+    if has_block; then echo "Khối đã có trong $TARGET, không thêm lần nữa."; exit 0; fi
+    mkdir -p "$(dirname "$TARGET")"; backup || true
+    printf '\n%s\n' "$BLOCK" &gt;&gt; "$TARGET"
+    echo "Đã thêm khối cca-3.1-demo vào $TARGET" ;;
+  --revert)
+    if ! has_block; then echo "Không có khối cca-3.1-demo trong $TARGET."; exit 0; fi
+    backup
+    node -e 'const fs=require("fs");const [f,b,e]=process.argv.slice(1);const s=fs.readFileSync(f,"utf8");
+      const i=s.indexOf(b), j=s.indexOf(e,i);if(i&lt;0||j&lt;0)process.exit(1);
+      let head=s.slice(0,i), tail=s.slice(j+e.length);
+      if(head.endsWith("\n\n"))head=head.slice(0,-1); if(tail.startsWith("\n"))tail=tail.slice(1);
+      fs.writeFileSync(f, head+tail);' "$TARGET" "$BEGIN" "$END"
+    echo "Đã gỡ khối cca-3.1-demo khỏi $TARGET" ;;
+  --status)
+    if has_block; then echo "CÓ khối cca-3.1-demo trong $TARGET"; else echo "KHÔNG có khối cca-3.1-demo trong $TARGET"; fi ;;
+  *) echo "Dùng: $0 [--dry-run|--apply|--revert|--status]"; exit 1 ;;
+esac</code></pre></details>
+
+<h2>9. Kiểm thử</h2>
+<p><code>node --experimental-strip-types test/run.test.ts</code>: <b>38/38 PASS</b>.</p>
+<div class="tw"><table><tr><th>Phần</th><th>Chạy thế nào</th></tr>
+<tr><td>Mô hình nạp file (12 test): thứ tự, import eager và đường dẫn tương đối, on-demand, CLAUDE.local.md, rule có <code>paths</code>, import tối đa 4 bước, <code>@</code> trong code span/email</td><td>Thật</td></tr>
+<tr><td>Lint repo tốt và repo lỗi (9 test)</td><td>Thật</td></tr>
+<tr><td><code>user_level_demo.sh</code>: dry-run, apply 2 lần, status, revert trả về y nguyên, có backup (6 test)</td><td>Thật, trên <code>$HOME</code> tạm. File <code>~/.claude/CLAUDE.md</code> thật không bị đụng</td></tr>
+<tr><td><code>run_cli.sh all</code> đầu-cuối: 7 lệnh, cờ đúng, bản clone đúng, report bắt thiếu/dư (11 test)</td><td><b>claude GIẢ</b>: nó trả lời bằng chính mô hình ở mục 4, nên chỉ kiểm đường ống, không kiểm hành vi thật của Claude Code</td></tr>
+</table></div>
+<details><summary>Output test</summary><pre><code>
+== expected_loading: mô hình nạp file
+PASS  cwd=gốc, người mới: project → import → rule, đúng thứ tự
+PASS  import nằm NGAY sau file chứa nó (nạp eager, inline)
+PASS  @../standards/naming.md tính từ .claude/ (file chứa import), không phải cwd
+PASS  cwd=gốc: packages/api/CLAUDE.md CHƯA nạp lúc khởi động
+PASS  cwd=packages/api: thêm CLAUDE.md của thư mục, đứng CUỐI
+PASS  cwd=packages/web: không có CLAUDE.md riêng, chỉ cấp project
+PASS  cwd=gốc + Claude đọc file trong packages/api → CLAUDE.md thư mục nạp on-demand
+PASS  có user-level: user nạp ĐẦU TIÊN (rộng nhất trước)
+PASS  CLAUDE.local.md nạp SAU CLAUDE.md cùng cấp
+PASS  rule có frontmatter paths KHÔNG nạp lúc khởi động (bài 3.3)
+PASS  import lồng tối đa 4 bước
+PASS  @ trong code span, code block, email: không phải import
+
+== lint_config: repo tốt / repo lỗi
+PASS  demo-repo: 0 lỗi, 0 cảnh báo
+PASS  bắt từ khoá "@import" (ERROR)
+PASS  bắt import không tồn tại, chỉ rõ tính từ .claude/ (ERROR)
+PASS  import đúng (@../docs/review.md) không bị báo
+PASS  CLAUDE.md &gt; 200 dòng (WARN)
+PASS  quy tắc cứng NEVER / tuyệt đối không → gợi ý settings.json/hook (WARN ×2)
+PASS  CLAUDE.local.md không bị gitignore (ERROR)
+PASS  CLI: repo lỗi → exit code 1
+PASS  có .example mà .gitignore thiếu CLAUDE.local.md (WARN)
+
+== user_level_demo.sh trên file TẠM (không đụng ~/.claude thật)
+PASS  mặc định là dry-run: in khối, KHÔNG sửa file
+PASS  đích mặc định là $HOME/.claude/CLAUDE.md
+PASS  --apply thêm khối có BEGIN/END + CANARY-USER-3H, chạy 2 lần không trùng
+PASS  --status báo CÓ
+PASS  --revert trả file về y nguyên ban đầu
+PASS  có file backup trước khi sửa
+
+== run_cli.sh với claude GIẢ
+PASS  run_cli.sh all chạy xong
+PASS  report: 7/7 khớp mô hình
+PASS  bản clone 'me' có CLAUDE.local.md, 'newcomer' không có (bị gitignore)
+PASS  đúng 7 lệnh claude -p
+PASS  không lệnh nào dùng --safe-mode (cờ đó tắt CLAUDE.md)
+PASS  mọi lệnh: --model haiku, có --max-budget-usd, stream-json
+PASS  phiên newcomer có --setting-sources project,local; phiên me không có
+PASS  lần on-demand bật Read, các lần khác --tools rỗng
+PASS  me thấy CANARY-USER-3H và CANARY-LOCAL-5T; newcomer không thấy
+PASS  on-demand: có Read packages/api/src/routes.ts và thấy CANARY-DIR-API-9X
+PASS  report bắt THIẾU (import) và DƯ (user-level ở người mới)
+
+38 PASS, 0 FAIL</code></pre></details>
+<details open><summary>Lint: demo-repo và repo lỗi mẫu</summary><pre><code>Lint ~/Downloads/claude-cert/3.1/demo-repo: 3 file hướng dẫn
+0 lỗi, 0 cảnh báo
+
+Lint test/fixtures/bad-repo: 3 file hướng dẫn
+  ERROR .claude/CLAUDE.md:3  dùng "@import": không có từ khoá này, viết "@đường/dẫn/file.md"
+  ERROR .claude/CLAUDE.md:4  import @./standards/naming.md không tồn tại (tính từ .claude/ → .claude/standards/naming.md)
+  WARN  .claude/CLAUDE.md:7  quy tắc bắt buộc: CLAUDE.md không đảm bảo tuân thủ, nên chặn bằng settings.json (permissions.deny) hoặc hook PreToolUse
+  WARN  .claude/CLAUDE.md:8  quy tắc bắt buộc: CLAUDE.md không đảm bảo tuân thủ, nên chặn bằng settings.json (permissions.deny) hoặc hook PreToolUse
+  ERROR CLAUDE.local.md  .gitignore chưa bỏ qua CLAUDE.local.md: ghi chú cá nhân sẽ bị commit
+  WARN  CLAUDE.md  232 dòng (&gt; 200): tách bằng .claude/rules/ có paths (bài 3.3) để giảm context
+3 lỗi, 3 cảnh báo</code></pre></details>
+<details><summary>Cờ CLI đã kiểm (claude --help)</summary><pre><code>$ claude --version
+2.1.300 (Claude Code)
+
+$ claude --help (trích các cờ liên quan)
+  --add-dir &lt;directories...&gt;            Additional directories to allow tool
+                                        access to
+  --agent &lt;agent&gt;                       Agent for the current session. Overrides
+--
+  --safe-mode                           Start with all customizations
+                                        (CLAUDE.md, skills, installed plugins,
+                                        hooks, MCP servers, custom commands and
+--
+  --setting-sources &lt;sources&gt;           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings &lt;file-or-json&gt;             Path to a settings JSON file or a JSON</code></pre></details>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> <code>./run_cli.sh all</code> gồm 7 lệnh <code>claude -p</code> với haiku, ước tính 0,01–0,05 USD (trần 0,05 USD/lệnh). Hai điểm chỉ kiểm chứng được khi chạy thật:
+<ul><li><code>--setting-sources project,local</code> có bỏ <code>~/.claude/CLAUDE.md</code> không. Tài liệu chỉ nói cờ này bỏ rule/CLAUDE.local.md theo nguồn. Nếu không bỏ, phiên "newcomer" sẽ in thêm CANARY-USER-3H (khi khối demo đang bật) và report báo "DƯ".</li>
+<li><code>.claude/CLAUDE.md</code> và rules ở thư mục tổ tiên có nạp khi đứng ở <code>packages/api</code> không (mục 4).</li></ul>
+Không dùng <code>--safe-mode</code> vì cờ này tắt luôn CLAUDE.md. Phiên "me" nạp <code>~/.claude/CLAUDE.md</code> thật của máy; report chỉ xét mã CANARY-*.</div>
+
+<h2>10. Kết quả quan sát</h2>
+<p class="meta">(Điền sau khi chạy <code>./user_level_demo.sh --apply &amp;&amp; ./run_cli.sh all; ./user_level_demo.sh --revert</code>)</p>
+<div class="tw"><table><tr><th>Phiên · đứng ở</th><th>CANARY thấy được</th><th>Khớp mô hình?</th></tr>
+<tr><td>me · <code>.</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>me · <code>packages/api</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>me · <code>packages/web</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>newcomer · <code>.</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>newcomer · <code>packages/api</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>newcomer · <code>packages/web</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>newcomer · <code>.</code> + Read <code>packages/api/src/routes.ts</code></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+</table></div>
+
+<h2>11. Áp vào máy mình</h2>
+<div class="card"><ul>
+<li><code>~/.claude/CLAUDE.md</code> trên máy mình đang chứa hướng dẫn cá nhân về cách dùng một công cụ chat nội bộ. Đây là <b>đúng chỗ</b>: sở thích và công cụ riêng của mình, team không cần.</li>
+<li>Nếu một quy ước <b>của cả team</b> (cách đặt tên, quy trình review) đang nằm ở đó thì phải chuyển vào <code>CLAUDE.md</code> của repo, không thì đồng nghiệp clone về sẽ không có.</li>
+<li>Ghi chú riêng cho một repo (sandbox URL, dữ liệu test ưa dùng) thì để trong <code>CLAUDE.local.md</code> và thêm vào <code>.gitignore</code>.</li>
+</ul></div>
+
+<h2>12. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>Project-level <code>.claude/CLAUDE.md</code> có naming (qua import), error handling, checklist review</li>
+<li><code>packages/api/CLAUDE.md</code> có quy ước REST và schema</li>
+<li><code>.claude/rules/testing.md</code> có 3 quy ước</li>
+<li>Dòng import bắt đầu bằng <code>@</code>, file đích tồn tại, đường dẫn tính đúng từ file chứa import</li>
+<li>Bảng "đứng ở đâu nạp gì" cho 3 thư mục và trường hợp on-demand (mô hình; chờ đối chiếu thật)</li>
+<li>Bước 6 có script thêm/gỡ khối user-level an toàn, và phiên "người mới" không có user-level (chờ chạy thật)</li>
+</ul>
+
+<h2>13. Bài học rút ra</h2>
+<ul>
+<li><b>3 cấp</b>: user (<code>~/.claude/CLAUDE.md</code>, cá nhân, không qua git) · project (<code>.claude/CLAUDE.md</code> hoặc <code>CLAUDE.md</code> gốc, commit, cả team) · thư mục (<code>packages/api/CLAUDE.md</code>, chỉ khi làm trong thư mục đó). <code>CLAUDE.local.md</code> là bản cá nhân theo repo.</li>
+<li><b>Không có precedence</b> giữa các CLAUDE.md: tất cả được nối vào context. Quy tắc phải luôn đúng → <code>settings.json</code> hoặc hook.</li>
+<li><b><code>@đường/dẫn</code></b> (không có từ khoá <code>@import</code>), tương đối với file chứa nó, nạp <b>ngay</b>: tách file cho dễ sửa chứ không giảm context. Muốn giảm context → rule có <code>paths</code> (bài 3.3).</li>
+<li><b><code>/memory</code> và <code>/context</code> chỉ để xem</b>, không nạp gì.</li>
+</ul>
+<h3>Ba bẫy đề</h3>
+<ol>
+<li>Người mới clone cùng repo, cùng branch mà Claude không theo quy ước → quy ước nằm ở user-level, chuyển vào project.</li>
+<li>"Chạy <code>/memory</code> để nạp cấu hình" → sai, file tự nạp theo vị trí.</li>
+<li>Quy ước áp cho file rải rác nhiều thư mục (vd mọi file test) mà dùng CLAUDE.md cấp thư mục → dùng <code>.claude/rules/</code> với glob <code>paths</code>.</li>
+</ol>
+<h3>Câu luyện tập</h3>
+<div class="card"><p>Claude Code của Developer A theo đúng quy ước đặt tên API. Developer B mới vào tuần trước thì nhận tên lung tung. Cả hai cùng repo, cùng branch. Nguyên nhân khả dĩ nhất?</p>
+<ol type="A"><li>B chưa cài MCP server chứa quy tắc đặt tên. — cơ chế không có trong bài</li>
+<li>Quy ước nằm trong <code>.claude/rules/</code> mà máy B không hỗ trợ. — bịa ra</li>
+<li><b>Quy ước nằm trong <code>~/.claude/CLAUDE.md</code> của A, không phải cấu hình project.</b> ✅</li>
+<li>B chưa chạy <code>/memory</code> để nạp cấu hình. — <code>/memory</code> không nạp gì</li></ol></div>
+
+<h2>14. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/3-claude-code-config/3-1-claude-md-hierarchy">Lesson 3.1 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/memory">Claude Code docs: How Claude remembers your project</a> (thứ tự nạp, <code>@path</code> import tối đa 4 bước, on-demand, <code>/memory</code>, <code>/context</code>, compaction)</li>
+<li><a href="https://code.claude.com/docs/en/settings">Claude Code docs: Settings</a> (thứ tự ưu tiên managed &gt; local &gt; project &gt; user)</li>
+<li>Claude Certified Architect – Foundations Exam Guide, Task Statement 3.1</li>
+</ul>
+</main></body></html>

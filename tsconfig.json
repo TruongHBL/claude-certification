@@ -12,6 +12,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["lib/**/*.ts", "scripts/**/*.ts", "1.*/**/*.ts", "2.*/**/*.ts"],
+  "include": ["lib/**/*.ts", "scripts/**/*.ts", "1.*/**/*.ts", "2.*/**/*.ts", "3.*/**/*.ts"],
   "exclude": ["node_modules", "**/node_modules"]
 }

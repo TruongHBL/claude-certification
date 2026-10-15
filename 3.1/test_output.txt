@@ -1,0 +1,48 @@
+
+== expected_loading: mô hình nạp file
+PASS  cwd=gốc, người mới: project → import → rule, đúng thứ tự
+PASS  import nằm NGAY sau file chứa nó (nạp eager, inline)
+PASS  @../standards/naming.md tính từ .claude/ (file chứa import), không phải cwd
+PASS  cwd=gốc: packages/api/CLAUDE.md CHƯA nạp lúc khởi động
+PASS  cwd=packages/api: thêm CLAUDE.md của thư mục, đứng CUỐI
+PASS  cwd=packages/web: không có CLAUDE.md riêng, chỉ cấp project
+PASS  cwd=gốc + Claude đọc file trong packages/api → CLAUDE.md thư mục nạp on-demand
+PASS  có user-level: user nạp ĐẦU TIÊN (rộng nhất trước)
+PASS  CLAUDE.local.md nạp SAU CLAUDE.md cùng cấp
+PASS  rule có frontmatter paths KHÔNG nạp lúc khởi động (bài 3.3)
+PASS  import lồng tối đa 4 bước
+PASS  @ trong code span, code block, email: không phải import
+
+== lint_config: repo tốt / repo lỗi
+PASS  demo-repo: 0 lỗi, 0 cảnh báo
+PASS  bắt từ khoá "@import" (ERROR)
+PASS  bắt import không tồn tại, chỉ rõ tính từ .claude/ (ERROR)
+PASS  import đúng (@../docs/review.md) không bị báo
+PASS  CLAUDE.md > 200 dòng (WARN)
+PASS  quy tắc cứng NEVER / tuyệt đối không → gợi ý settings.json/hook (WARN ×2)
+PASS  CLAUDE.local.md không bị gitignore (ERROR)
+PASS  CLI: repo lỗi → exit code 1
+PASS  có .example mà .gitignore thiếu CLAUDE.local.md (WARN)
+
+== user_level_demo.sh trên file TẠM (không đụng ~/.claude thật)
+PASS  mặc định là dry-run: in khối, KHÔNG sửa file
+PASS  đích mặc định là $HOME/.claude/CLAUDE.md
+PASS  --apply thêm khối có BEGIN/END + CANARY-USER-3H, chạy 2 lần không trùng
+PASS  --status báo CÓ
+PASS  --revert trả file về y nguyên ban đầu
+PASS  có file backup trước khi sửa
+
+== run_cli.sh với claude GIẢ
+PASS  run_cli.sh all chạy xong
+PASS  report: 7/7 khớp mô hình
+PASS  bản clone 'me' có CLAUDE.local.md, 'newcomer' không có (bị gitignore)
+PASS  đúng 7 lệnh claude -p
+PASS  không lệnh nào dùng --safe-mode (cờ đó tắt CLAUDE.md)
+PASS  mọi lệnh: --model haiku, có --max-budget-usd, stream-json
+PASS  phiên newcomer có --setting-sources project,local; phiên me không có
+PASS  lần on-demand bật Read, các lần khác --tools rỗng
+PASS  me thấy CANARY-USER-3H và CANARY-LOCAL-5T; newcomer không thấy
+PASS  on-demand: có Read packages/api/src/routes.ts và thấy CANARY-DIR-API-9X
+PASS  report bắt THIẾU (import) và DƯ (user-level ở người mới)
+
+38 PASS, 0 FAIL

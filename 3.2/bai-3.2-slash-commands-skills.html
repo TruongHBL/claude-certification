@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 3.2 – Commands và Skills</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+<style>details{margin:10px 0}summary{cursor:pointer;font-weight:600;color:var(--accent)}.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}.two>*{min-width:0}.fill{border:1px dashed var(--line);border-radius:6px;min-height:28px;padding:4px 8px;color:var(--muted)}</style>
+</head><body><main>
+<h1>Bài tập 3.2 — Custom slash command và Skill</h1>
+<div class="meta">Domain 3 · Claude Code Configuration &amp; Workflows · Mục 3.2 Custom Slash Commands and Skills<br>Người thực hiện: TruongNQ · Ngày nộp: 15/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Tạo lệnh <b>dùng chung cho team</b> (<code>/review</code>, đi theo git) và skill <b>cá nhân</b> (<code>/brainstorm</code>, chỉ máy mình), cấu hình frontmatter <code>context: fork</code>, <code>allowed-tools</code>, <code>argument-hint</code>, rồi <b>đo được</b> hai điều đề thi hay hỏi: (1) phiên nào thấy lệnh nào, (2) <code>context: fork</code> có thật sự giữ output dài ngoài hội thoại chính không. Kèm một lint bắt các lỗi đặt file hay gặp, trong đó có bẫy <code>.claude/skills/lint.md</code> (file phẳng, không tạo lệnh).</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 800 400" role="img" aria-label="Command phẳng, skill dạng thư mục, phạm vi project và user, context fork">
+<text x="200" y="24" text-anchor="middle" font-weight="700">Repo (.claude/ → đi theo git)</text>
+<rect class="b" x="20" y="40" width="360" height="200" rx="10"/>
+<rect class="c" x="40" y="60" width="150" height="56" rx="6"/><text x="115" y="84" text-anchor="middle">commands/review.md</text><text x="115" y="104" text-anchor="middle" class="m">file phẳng → /review</text>
+<rect class="c" x="210" y="60" width="150" height="76" rx="6"/><text x="285" y="82" text-anchor="middle">skills/analyse-feature/</text><text x="285" y="100" text-anchor="middle" class="m">SKILL.md + checklist.md</text><text x="285" y="118" text-anchor="middle" class="m">→ /analyse-feature</text>
+<rect class="h" x="40" y="140" width="150" height="56" rx="6"/><text x="115" y="164" text-anchor="middle">skills/lint.md</text><text x="115" y="184" text-anchor="middle" class="m">phẳng → KHÔNG có lệnh</text>
+<text x="285" y="170" text-anchor="middle" class="m">Trùng tên: skill thắng command</text>
+<text x="200" y="226" text-anchor="middle" class="m">Ai clone repo cũng có /review, /analyse-feature</text>
+<text x="600" y="24" text-anchor="middle" font-weight="700">Máy mình (~/.claude/ → không chia sẻ)</text>
+<rect class="b" x="420" y="40" width="360" height="200" rx="10"/>
+<rect class="u" x="500" y="70" width="200" height="76" rx="6"/><text x="600" y="94" text-anchor="middle">skills/brainstorm/SKILL.md</text><text x="600" y="114" text-anchor="middle" class="m">context: fork</text><text x="600" y="132" text-anchor="middle" class="m">→ /brainstorm (chỉ mình)</text>
+<text x="600" y="180" text-anchor="middle" class="m">Trùng tên với project: personal thắng</text>
+<text x="600" y="226" text-anchor="middle" class="m">Người mới clone repo KHÔNG có /brainstorm</text>
+<text x="400" y="276" text-anchor="middle" font-weight="700">context: fork — output khám phá ở lại trong subagent</text>
+<rect class="b" x="40" y="292" width="220" height="90" rx="8"/><text x="150" y="318" text-anchor="middle">Hội thoại chính</text><text x="150" y="340" text-anchor="middle" class="m">gõ /analyse-feature favorites</text><text x="150" y="360" text-anchor="middle" class="m">nhận lại ≤ 10 dòng tóm tắt</text>
+<path class="l" d="M260 320 H400"/><polygon points="400,315 408,320 400,325" fill="var(--accent)"/>
+<path class="lu" d="M408 356 H268"/><polygon points="268,351 260,356 268,361" fill="var(--ok)"/>
+<rect class="c" x="410" y="292" width="350" height="90" rx="8"/><text x="585" y="318" text-anchor="middle">Subagent (forked skill)</text><text x="585" y="340" text-anchor="middle" class="m">Grep, Read 3 file, ghi chú dài…</text><text x="585" y="360" text-anchor="middle" class="m">không thấy lịch sử hội thoại chính</text>
+</svg></div>
+
+<h2>3. Sáu bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>Lệnh <code>/review</code> của team</td><td><code>demo-repo/.claude/commands/review.md</code>: checklist 4 mục (xử lý lỗi, test, đặt tên API, secret), nhận phạm vi qua <code>$ARGUMENTS</code></td></tr>
+<tr><td>2</td><td>Skill cá nhân <code>/brainstorm</code> với <code>context: fork</code></td><td><code>personal/brainstorm/SKILL.md</code>. Cài vào <code>~/.claude/skills/</code> bằng <code>user_skill_demo.sh --apply</code> (mặc định chỉ in, từ chối ghi đè, <code>--revert</code> chỉ xoá thư mục có file đánh dấu)</td></tr>
+<tr><td>3</td><td><code>allowed-tools</code>: Read Grep Glob</td><td>Có trong cả <code>brainstorm</code> và <code>analyse-feature</code>. Lint ghi chú: thực tế chỉ pre-approve, giới hạn thật là <code>disallowed-tools</code></td></tr>
+<tr><td>4</td><td><code>argument-hint</code></td><td><code>"Provide a feature description or codebase area to explore."</code> (hiện khi gõ <code>/brainstorm</code> trong autocomplete)</td></tr>
+<tr><td>5</td><td>Ranh giới chia sẻ</td><td><code>expected_commands.ts</code> (mô hình) + <code>run_cli.sh</code> bước <code>list</code> đọc <code>skills</code>/<code>slash_commands</code> trong <code>system:init</code> của bản clone</td></tr>
+<tr><td>6</td><td>Output được cô lập</td><td><code>run_cli.sh</code>: chạy <code>/analyse-feature favorites</code> trên bản có <code>context: fork</code> và bản đã bỏ dòng đó; <code>report_cli.ts</code> đếm ký tự tool_use/tool_result có <code>parent_tool_use_id = null</code> (hội thoại chính)</td></tr>
+</table></div>
+
+<h2>4. Frontmatter: đề thi và thực tế</h2>
+<div class="tw"><table><tr><th>Field</th><th>Đề thi (exam guide v1.0)</th><th>Claude Code hiện nay (docs skills)</th></tr>
+<tr><td><code>description</code></td><td>—</td><td>Field quan trọng nhất: Claude đọc để tự chọn skill. Luôn nằm trong context (trừ khi <code>disable-model-invocation: true</code>); description + when_to_use bị cắt ở 1.536 ký tự</td></tr>
+<tr><td><code>context: fork</code></td><td>Chạy skill trong sub-agent tách biệt, output dài không vào hội thoại chính</td><td>Giống đề. Subagent loại <code>agent</code> (mặc định general-purpose) nhận nội dung skill làm prompt, <b>không thấy lịch sử hội thoại</b></td></tr>
+<tr><td><code>allowed-tools</code></td><td><b>Giới hạn</b> tool skill được dùng</td><td><b>Chỉ pre-approve</b> trong lượt gọi skill: "It does not restrict which tools are available". Muốn bỏ tool: <code>disallowed-tools</code> hoặc deny</td></tr>
+<tr><td><code>argument-hint</code></td><td>Nhắc người dùng nhập tham số khi gọi thiếu</td><td>Gợi ý hiện trong autocomplete; gọi thiếu tham số không bị chặn lại để hỏi</td></tr>
+<tr><td>Khác</td><td>—</td><td><code>disallowed-tools</code>, <code>disable-model-invocation</code>, <code>user-invocable</code>, <code>model</code>, <code>effort</code>, <code>agent</code>, <code>hooks</code>, <code>paths</code>, <code>arguments</code></td></tr>
+</table></div>
+<p class="meta">Đi thi: trả lời theo cột "Đề thi". Placeholder: <code>$ARGUMENTS</code>, <code>$ARGUMENTS[N]</code>/<code>$N</code>, <code>$name</code>; skill không có placeholder thì tham số được nối vào cuối dạng <code>ARGUMENTS: …</code>.</p>
+
+<h2>5. Skill, CLAUDE.md hay rules? Đặt ở đâu?</h2>
+<div class="two">
+<div class="card"><h3>Khi nào dùng gì</h3><ul>
+<li><b>CLAUDE.md / .claude/rules/</b>: quy ước <b>luôn áp dụng</b> (đặt tên API, format lỗi). Nạp mọi phiên.</li>
+<li><b>Skill / command</b>: <b>quy trình theo việc</b> (review, phân tích, deploy checklist). Chỉ description nằm sẵn trong context, thân bài nạp khi gọi.</li>
+<li><b>rules có <code>paths:</code></b>: quy ước cho một loại file (vd test), nạp khi làm việc với file khớp (bài 3.3).</li></ul></div>
+<div class="card"><h3>Bảng đặt file</h3><div class="tw"><table><tr><th>Nhu cầu</th><th>Vị trí</th></tr>
+<tr><td>Lệnh cả team</td><td><code>.claude/skills/&lt;tên&gt;/SKILL.md</code> (hoặc <code>.claude/commands/&lt;tên&gt;.md</code>)</td></tr>
+<tr><td>Lệnh cá nhân</td><td><code>~/.claude/skills/&lt;tên&gt;/SKILL.md</code></td></tr>
+<tr><td>Chuẩn chung</td><td><code>.claude/CLAUDE.md</code> hoặc <code>CLAUDE.md</code></td></tr>
+<tr><td>Sở thích cá nhân</td><td><code>~/.claude/CLAUDE.md</code></td></tr></table></div></div>
+</div>
+
+<h2>6. Mã nguồn</h2>
+<p>Chạy bằng <code>node --experimental-strip-types</code> (Node ≥ 22.6), không cần cài gem/npm riêng ngoài <code>npm install</code> ở gốc repo.</p>
+<details><summary>demo-repo/.claude/commands/review.md</summary><pre><code>---
+description: Review code theo checklist chung của team (xử lý lỗi, test, đặt tên API, secret). Dùng trước khi mở PR.
+argument-hint: "[file hoặc thư mục cần review, bỏ trống = thay đổi chưa commit]"
+---
+
+# Checklist review của team
+
+Phạm vi review: $ARGUMENTS
+(Nếu phạm vi trống: review các thay đổi chưa commit trong repo.)
+
+Đi lần lượt từng mục, mỗi mục ghi **Đạt / Không đạt / Không áp dụng** kèm file:dòng.
+
+1. **Xử lý lỗi**: mọi lời gọi I/O (DB, HTTP) có bắt lỗi; lỗi trả về theo dạng `{ errorCategory, isRetryable, description }` (bài 2.2), không nuốt lỗi im lặng.
+2. **Test**: hàm mới hoặc hàm đổi hành vi có test tương ứng trong `*.test.ts` cùng thư mục.
+3. **Đặt tên API**: endpoint REST dạng kebab-case số nhiều (`/matching-projects`), field JSON camelCase.
+4. **Secret**: không có token, mật khẩu, khoá API ghi cứng trong code hay config; dùng biến môi trường.
+
+Kết thúc bằng một dòng tổng: số mục Không đạt và mức độ cao nhất.
+
+Mã nhận diện (cho bài tập 3.2): CANARY-CMD-REVIEW-5R</code></pre></details>
+<details><summary>demo-repo/.claude/skills/analyse-feature/SKILL.md</summary><pre><code>---
+description: Phân tích sâu một tính năng hoặc một vùng code (luồng dữ liệu, file liên quan, rủi ro) và trả về bản tóm tắt ngắn. Dùng khi cần hiểu một tính năng trước khi sửa, ví dụ "phân tích tính năng favorites".
+argument-hint: "[tên tính năng hoặc thư mục, ví dụ: favorites]"
+context: fork
+allowed-tools: Read Grep Glob
+---
+
+# Phân tích tính năng: $ARGUMENTS
+
+Bạn chạy trong một subagent riêng. Không thấy lịch sử hội thoại chính, nên chỉ dựa vào hướng dẫn này.
+
+1. Dùng Grep và Glob để tìm mọi file liên quan tới "$ARGUMENTS" trong `src/`.
+2. Read từng file tìm được, lần theo import một bậc.
+3. Ghi chú chi tiết trong lúc đọc (file, hàm, luồng dữ liệu). Phần ghi chú này ở lại trong subagent.
+4. Đối chiếu với các rủi ro thường gặp trong [checklist.md](checklist.md).
+
+**Chỉ trả về phiên chính** một bản tóm tắt tối đa 10 dòng:
+- 1 dòng mô tả tính năng
+- danh sách file chính (tối đa 5)
+- tối đa 3 rủi ro, mỗi rủi ro một dòng có file:dòng
+
+Mã nhận diện (cho bài tập 3.2): CANARY-SKILL-ANALYSE-8F</code></pre></details>
+<details><summary>personal/brainstorm/SKILL.md</summary><pre><code>---
+description: Brainstorm ý tưởng cho một tính năng hoặc một vùng code bằng cách đọc lan rộng codebase, rồi trả về vài hướng làm ngắn gọn. Skill cá nhân, không chia sẻ cho team.
+argument-hint: "Provide a feature description or codebase area to explore."
+context: fork
+allowed-tools: Read Grep Glob
+---
+
+# Brainstorm: $ARGUMENTS
+
+Bạn chạy trong subagent riêng (context: fork), nên được phép đọc nhiều và ghi chú dài: phần đó không quay về hội thoại chính.
+
+1. Glob và Grep để khoanh vùng code liên quan tới "$ARGUMENTS".
+2. Read các file chính, ghi lại điểm mạnh, điểm yếu, chỗ có thể mở rộng.
+3. Nghĩ ra 3–5 hướng làm khác nhau.
+
+**Chỉ trả về** bảng 3–5 dòng: Hướng làm | Lợi ích | Rủi ro | File cần sửa.
+
+Mã nhận diện (cho bài tập 3.2): CANARY-PERSONAL-BRAIN-6B</code></pre></details>
+<details><summary>skill_files.ts</summary><pre><code>// Bài 3.2 – đọc skill và command từ một thư mục .claude (project) hoặc ~/.claude (user). Không gọi model.
+// Quy tắc (theo code.claude.com/docs/en/skills):
+//   - skill = THƯ MỤC có SKILL.md: .claude/skills/&lt;tên&gt;/SKILL.md → /&lt;tên&gt; (field name: đổi được tên)
+//   - command = file .md PHẲNG trong .claude/commands/ → /&lt;tên file&gt;
+//   - file .md phẳng đặt thẳng trong .claude/skills/ KHÔNG tạo lệnh
+//   - skill và command trùng tên: skill thắng
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { basename, join } from "node:path";
+
+export interface Frontmatter {
+  [key: string]: string | undefined;
+}
+
+export interface SkillEntry {
+  name: string; // tên lệnh, không có dấu "/"
+  kind: "skill" | "command";
+  file: string;
+  frontmatter: Frontmatter;
+  body: string;
+}
+
+/** Tách YAML frontmatter đơn giản (key: value một dòng, đủ cho bài tập). */
+export function parseFrontmatter(text: string): { frontmatter: Frontmatter; body: string } {
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!m) return { frontmatter: {}, body: text };
+  const frontmatter: Frontmatter = {};
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = line.match(/^([A-Za-z_-]+):\s*(.*)$/);
+    if (kv) frontmatter[kv[1]] = kv[2].replace(/^["']|["']$/g, "").trim();
+  }
+  return { frontmatter, body: text.slice(m[0].length) };
+}
+
+/** Danh sách tool trong allowed-tools / disallowed-tools (chấp nhận cách nhau bằng dấu cách hoặc dấu phẩy, hoặc [a, b]). */
+export function toolList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .replace(/^\[|\]$/g, "")
+    .split(/[\s,]+/)
+    .map((t) =&gt; t.replace(/^["']|["']$/g, ""))
+    .filter(Boolean);
+}
+
+const isDir = (p: string) =&gt; existsSync(p) &amp;&amp; statSync(p).isDirectory();
+
+/** Đọc mọi lệnh mà một thư mục cấu hình (.claude hoặc ~/.claude) tạo ra, kèm các file "bẫy" không tạo lệnh. */
+export function scanConfigDir(configDir: string): { entries: SkillEntry[]; flatInSkills: string[] } {
+  const entries: SkillEntry[] = [];
+  const flatInSkills: string[] = [];
+  const skillsDir = join(configDir, "skills");
+  if (isDir(skillsDir)) {
+    for (const name of readdirSync(skillsDir).sort()) {
+      const p = join(skillsDir, name);
+      if (isDir(p)) {
+        const f = join(p, "SKILL.md");
+        if (!existsSync(f)) continue; // thư mục không có SKILL.md: không phải skill
+        const { frontmatter, body } = parseFrontmatter(readFileSync(f, "utf8"));
+        entries.push({ name: frontmatter.name || name, kind: "skill", file: f, frontmatter, body });
+      } else if (name.endsWith(".md")) {
+        flatInSkills.push(p);
+      }
+    }
+  }
+  const commandsDir = join(configDir, "commands");
+  if (isDir(commandsDir)) {
+    for (const name of readdirSync(commandsDir).sort()) {
+      if (!name.endsWith(".md")) continue;
+      const f = join(commandsDir, name);
+      const { frontmatter, body } = parseFrontmatter(readFileSync(f, "utf8"));
+      entries.push({ name: basename(name, ".md"), kind: "command", file: f, frontmatter, body });
+    }
+  }
+  return { entries, flatInSkills };
+}
+
+/** Gộp theo tên: skill thắng command cùng tên (cùng một nguồn). */
+export function effectiveCommands(entries: SkillEntry[]): Map&lt;string, SkillEntry&gt; {
+  const out = new Map&lt;string, SkillEntry&gt;();
+  for (const e of entries) {
+    const cur = out.get(e.name);
+    if (!cur || (cur.kind === "command" &amp;&amp; e.kind === "skill")) out.set(e.name, e);
+  }
+  return out;
+}</code></pre></details>
+<details><summary>lint_skills.ts</summary><pre><code>// Bài 3.2 – lint thư mục .claude: bắt các lỗi đặt skill/command hay gặp. Chạy thật, không gọi model.
+// Dùng: node --experimental-strip-types lint_skills.ts &lt;repo&gt; [&lt;repo&gt; …]
+//
+// Về allowed-tools (chỗ đề thi và thực tế khác nhau):
+//   - Đề thi (exam guide v1.0): allowed-tools GIỚI HẠN tool skill được dùng.
+//   - Claude Code hiện nay: allowed-tools chỉ PRE-APPROVE (dùng không hỏi quyền) trong lượt gọi skill;
+//     mọi tool khác vẫn gọi được. Giới hạn thật: disallowed-tools hoặc luật deny trong permissions.
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { effectiveCommands, scanConfigDir, toolList } from "./skill_files.ts";
+
+export interface Finding {
+  level: "lỗi" | "cảnh báo" | "ghi chú";
+  file: string;
+  message: string;
+}
+
+const WRITE_TOOLS = ["Write", "Edit", "Bash", "NotebookEdit"];
+// Dấu hiệu skill "khám phá / nói nhiều": nên chạy trong subagent (context: fork).
+const EXPLORE_RE = /\b(grep|glob|read)\b|khám phá|phân tích|brainstorm|explore|analy[sz]e|toàn bộ codebase/i;
+// Dấu hiệu skill chỉ đọc.
+const READ_ONLY_RE = /chỉ đọc|read-only|không sửa|không ghi/i;
+
+export function lintRepo(repo: string): Finding[] {
+  const out: Finding[] = [];
+  const rel = (p: string) =&gt; relative(repo, p) || ".";
+  const { entries, flatInSkills } = scanConfigDir(join(repo, ".claude"));
+
+  for (const f of flatInSkills) {
+    out.push({ level: "lỗi", file: rel(f), message: "File .md phẳng trong .claude/skills/ KHÔNG tạo lệnh. Đổi thành thư mục &lt;tên&gt;/SKILL.md, hoặc chuyển sang .claude/commands/." });
+  }
+
+  const byName = new Map&lt;string, string[]&gt;();
+  for (const e of entries) byName.set(e.name, [...(byName.get(e.name) ?? []), e.kind]);
+  for (const [name, kinds] of byName) {
+    if (kinds.includes("skill") &amp;&amp; kinds.includes("command")) {
+      out.push({ level: "cảnh báo", file: `/${name}`, message: "Skill và command trùng tên: skill thắng, file trong .claude/commands/ bị che." });
+    }
+  }
+
+  for (const e of entries) {
+    const fm = e.frontmatter;
+    const f = rel(e.file);
+    if (!fm.description) {
+      out.push({ level: "cảnh báo", file: f, message: "Thiếu description: Claude không tự chọn được skill theo yêu cầu (chỉ chạy khi gõ /lệnh); Claude Code lấy đoạn đầu thân bài thay thế." });
+    }
+    const exploratory = EXPLORE_RE.test(e.body) || EXPLORE_RE.test(fm.description ?? "");
+    if (e.kind === "skill" &amp;&amp; exploratory &amp;&amp; fm.context !== "fork") {
+      out.push({ level: "cảnh báo", file: f, message: "Skill khám phá/nhiều output nhưng thiếu `context: fork`: output dài sẽ đổ vào hội thoại chính." });
+    }
+    const allowed = toolList(fm["allowed-tools"]);
+    const writes = allowed.filter((t) =&gt; WRITE_TOOLS.some((w) =&gt; t === w || t.startsWith(`${w}(`)));
+    if (writes.length &amp;&amp; (READ_ONLY_RE.test(e.body) || exploratory)) {
+      out.push({ level: "cảnh báo", file: f, message: `Skill đọc/khám phá nhưng allowed-tools có ${writes.join(", ")}: chỉ nên Read Grep Glob.` });
+    }
+    if (allowed.length &amp;&amp; !fm["disallowed-tools"]) {
+      out.push({ level: "ghi chú", file: f, message: `allowed-tools (${allowed.join(" ")}) chỉ pre-approve trong Claude Code hiện nay, KHÔNG giới hạn. Muốn chặn thật: disallowed-tools hoặc deny trong permissions. (Đề thi coi allowed-tools là giới hạn.)` });
+    }
+  }
+
+  // Quy trình nhiều bước nằm trong CLAUDE.md: nên là skill/command (nạp khi cần, không nạp mọi phiên).
+  for (const md of [join(repo, "CLAUDE.md"), join(repo, ".claude", "CLAUDE.md")]) {
+    if (!existsSync(md)) continue;
+    const text = readFileSync(md, "utf8");
+    const steps = text.split("\n").filter((l) =&gt; /^\s*\d+\.\s/.test(l)).length;
+    if (steps &gt;= 5) {
+      out.push({ level: "cảnh báo", file: rel(md), message: `CLAUDE.md có quy trình ${steps} bước đánh số: quy trình theo việc nên chuyển thành skill/command (CLAUDE.md nạp mọi phiên).` });
+    }
+  }
+  return out;
+}
+
+export function summarize(repo: string): string[] {
+  const { entries } = scanConfigDir(join(repo, ".claude"));
+  return [...effectiveCommands(entries).values()].map((e) =&gt; `/${e.name} (${e.kind}${e.frontmatter.context === "fork" ? ", context: fork" : ""})`);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const repos = process.argv.slice(2);
+  if (!repos.length) {
+    console.error("Dùng: lint_skills.ts &lt;repo&gt; [&lt;repo&gt; …]");
+    process.exit(2);
+  }
+  let errors = 0;
+  for (const repo of repos) {
+    console.log(`== ${repo}`);
+    console.log(`Lệnh tạo ra: ${summarize(repo).join(", ") || "(không có)"}`);
+    for (const f of lintRepo(repo)) {
+      if (f.level === "lỗi") errors++;
+      console.log(`  [${f.level}] ${f.file}: ${f.message}`);
+    }
+  }
+  process.exitCode = errors ? 1 : 0;
+}</code></pre></details>
+<details><summary>expected_commands.ts</summary><pre><code>// Bài 3.2 – mô hình tĩnh "phiên nào thấy lệnh nào" (bước 5: ranh giới chia sẻ). Không gọi model.
+// Nguồn lệnh của một phiên = project (.claude/ trong repo, đi theo git) + user (~/.claude/, chỉ máy mình).
+// Trùng tên giữa các nguồn: personal thắng project (docs: "Enterprise over personal, and personal over project").
+// Dùng: node --experimental-strip-types expected_commands.ts [repo] [personal-skills-dir]
+import { cpSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { effectiveCommands, scanConfigDir, type SkillEntry } from "./skill_files.ts";
+
+export interface Visible {
+  name: string;
+  source: "project" | "user";
+  kind: SkillEntry["kind"];
+  fork: boolean;
+}
+
+/** userConfigDir: thư mục kiểu ~/.claude của máy đó (có skills/, commands/); undefined = máy người mới clone. */
+export function visibleCommands(repo: string, userConfigDir?: string): Visible[] {
+  const proj = effectiveCommands(scanConfigDir(join(repo, ".claude")).entries);
+  const user = userConfigDir ? effectiveCommands(scanConfigDir(userConfigDir).entries) : new Map&lt;string, SkillEntry&gt;();
+  const merged = new Map&lt;string, Visible&gt;();
+  for (const [n, e] of proj) merged.set(n, { name: n, source: "project", kind: e.kind, fork: e.frontmatter.context === "fork" });
+  for (const [n, e] of user) merged.set(n, { name: n, source: "user", kind: e.kind, fork: e.frontmatter.context === "fork" });
+  return [...merged.values()].sort((a, b) =&gt; a.name.localeCompare(b.name));
+}
+
+/** Bảng so sánh cho các lệnh của bài tập. */
+export function table(repo: string, personalConfigDir: string): { name: string; newcomer: boolean; me: boolean }[] {
+  const names = ["review", "analyse-feature", "lint", "brainstorm"];
+  const fresh = new Set(visibleCommands(repo).map((v) =&gt; v.name));
+  const mine = new Set(visibleCommands(repo, personalConfigDir).map((v) =&gt; v.name));
+  return names.map((name) =&gt; ({ name, newcomer: fresh.has(name), me: mine.has(name) }));
+}
+
+/** Dựng một thư mục giả lập ~/.claude chỉ chứa skills/brainstorm (copy từ personal/). Không đụng ~/.claude thật. */
+export function fakeUserConfig(personalDir: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "cca32-home-"));
+  cpSync(join(personalDir, "brainstorm"), join(dir, "skills", "brainstorm"), { recursive: true });
+  return dir;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const here = import.meta.dirname;
+  const repo = process.argv[2] ?? join(here, "demo-repo");
+  const personal = process.argv[3] ?? fakeUserConfig(join(here, "personal"));
+  console.log("Lệnh          Người mới clone   Máy mình (có skill cá nhân)");
+  for (const r of table(repo, personal)) {
+    console.log(`/${r.name.padEnd(16)} ${(r.newcomer ? "có" : "KHÔNG").padEnd(17)} ${r.me ? "có" : "KHÔNG"}`);
+  }
+  console.log("\n/lint không có ở đâu cả: .claude/skills/lint.md là file phẳng, không tạo lệnh.");
+}</code></pre></details>
+<details><summary>user_skill_demo.sh</summary><pre><code>#!/usr/bin/env bash
+# Bài 3.2 – bước 2: cài skill CÁ NHÂN /brainstorm vào ~/.claude/skills/brainstorm (user-level, không đi theo git).
+#
+# Mặc định CHỈ IN (dry-run), không ghi gì. Thư mục đích: $USER_SKILLS_DIR (mặc định ~/.claude/skills).
+#   ./user_skill_demo.sh            in những gì sẽ làm
+#   ./user_skill_demo.sh --apply    copy personal/brainstorm/ vào &lt;đích&gt;/brainstorm. TỪ CHỐI nếu thư mục đã có
+#                                   (không ghi đè skill thật của bạn). Ghi file đánh dấu .cca-3.2-demo để biết
+#                                   thư mục này do script tạo.
+#   ./user_skill_demo.sh --revert   xoá &lt;đích&gt;/brainstorm CHỈ KHI có file đánh dấu (không bao giờ xoá skill khác)
+#   ./user_skill_demo.sh --status   cho biết skill demo đang được cài hay không
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" &amp;&amp; pwd)"
+SRC="$ROOT/personal/brainstorm"
+DEST_DIR="${USER_SKILLS_DIR:-$HOME/.claude/skills}"
+DEST="$DEST_DIR/brainstorm"
+MARK=".cca-3.2-demo"
+
+case "${1:-}" in
+  ""|--dry-run)
+    echo "(dry-run) Sẽ copy:"
+    echo "  $SRC/  →  $DEST/"
+    for f in "$SRC"/*; do echo "    $(basename "$f")"; done
+    echo "  và ghi file đánh dấu $DEST/$MARK"
+    if [[ -e "$DEST" ]]; then echo "Lưu ý: $DEST đã tồn tại, --apply sẽ từ chối."; fi
+    echo "Chạy với --apply để cài thật, --revert để gỡ." ;;
+  --apply)
+    if [[ -e "$DEST" ]]; then
+      if [[ -f "$DEST/$MARK" ]]; then echo "Skill demo đã được cài ở $DEST."; exit 0; fi
+      echo "TỪ CHỐI: $DEST đã tồn tại và không phải do script này tạo. Không ghi đè." &gt;&amp;2; exit 1
+    fi
+    mkdir -p "$DEST_DIR"
+    cp -r "$SRC" "$DEST"
+    echo "Tạo bởi user_skill_demo.sh (bài tập 3.2). Gỡ bằng: $ROOT/user_skill_demo.sh --revert" &gt; "$DEST/$MARK"
+    echo "Đã cài skill cá nhân /brainstorm vào $DEST" ;;
+  --revert)
+    if [[ ! -e "$DEST" ]]; then echo "Không có $DEST."; exit 0; fi
+    if [[ ! -f "$DEST/$MARK" ]]; then echo "TỪ CHỐI: $DEST không có file đánh dấu, không phải do script tạo. Không xoá." &gt;&amp;2; exit 1; fi
+    rm -rf -- "$DEST"
+    echo "Đã gỡ $DEST" ;;
+  --status)
+    if [[ -f "$DEST/$MARK" ]]; then echo "ĐÃ CÀI skill demo /brainstorm ở $DEST"
+    elif [[ -e "$DEST" ]]; then echo "CÓ $DEST nhưng KHÔNG phải skill demo (không có file đánh dấu)"
+    else echo "CHƯA CÀI skill demo /brainstorm ($DEST không tồn tại)"; fi ;;
+  *) echo "Dùng: $0 [--dry-run|--apply|--revert|--status]"; exit 1 ;;
+esac</code></pre></details>
+<details><summary>run_cli.sh</summary><pre><code>#!/usr/bin/env bash
+# Bài 3.2 – kiểm chứng bằng Claude THẬT (chưa chạy; test dùng claude giả test/bin/claude).
+#
+#   ./run_cli.sh prepare   tạo 2 bản clone trong .tmp/ (mỗi bản `git init` riêng):
+#                            clone/         y như demo-repo (analyse-feature có context: fork)
+#                            clone-nofork/  giống hệt, chỉ bỏ dòng `context: fork` khỏi analyse-feature
+#   ./run_cli.sh run       4 lệnh claude -p:
+#                            list    trong clone/: đọc system:init → skills / slash_commands thấy được
+#                                    (bước 1, 5: /review, /analyse-feature có; /lint không; /brainstorm chỉ khi
+#                                    đã ./user_skill_demo.sh --apply)
+#                            fork    trong clone/:        "/analyse-feature favorites"
+#                            nofork  trong clone-nofork/: "/analyse-feature favorites"
+#                            auto    trong clone/: hỏi bằng lời, không gõ /lệnh → Claude có tự chọn skill nhờ
+#                                    description không
+#   ./run_cli.sh report    so sánh: bao nhiêu nội dung tool (Read/Grep/Glob) đổ vào hội thoại CHÍNH
+#                          (parent_tool_use_id = null) ở fork và nofork (bước 6: cô lập output)
+#   ./run_cli.sh all       prepare + run + report
+#   ./run_cli.sh clean
+#
+# Docs (code.claude.com/docs/en/headless): trong -p, "/skill-name" trong prompt được expand; skill có
+# context: fork chạy bằng subagent, message của nó mang parent_tool_use_id bắt đầu bằng "forked-command-".
+# KHÔNG dùng --safe-mode (tắt skills). Phiên nạp cả skill/plugin THẬT của máy; report chỉ xét 4 tên của bài.
+# Chi phí ước tính: 4 lệnh haiku, list 1 lượt, 3 lệnh phân tích mỗi lệnh ~5–10 tool call trên 3 file nhỏ
+#   ≈ 0,02–0,10 USD; mỗi lệnh chặn trần BUDGET.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" &amp;&amp; pwd)"
+TMP="${TMP_DIR:-$ROOT/.tmp}"
+RESULTS="${RESULTS_DIR:-$ROOT/results_cli}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+MODEL="${MODEL:-haiku}"
+BUDGET="${BUDGET:-0.3}"
+NODE="node --experimental-strip-types --no-warnings"
+AUTO_PROMPT='Mình sắp sửa tính năng favorites. Hãy phân tích tính năng favorites giúp mình (luồng dữ liệu, file chính, rủi ro).'
+
+prepare() {
+  rm -rf "$TMP"; mkdir -p "$TMP"
+  for d in clone clone-nofork; do
+    cp -r "$ROOT/demo-repo" "$TMP/$d"
+  done
+  # Bản đối chứng: bỏ context: fork → skill chạy NGAY trong hội thoại chính.
+  sed -i '/^context: fork$/d' "$TMP/clone-nofork/.claude/skills/analyse-feature/SKILL.md"
+  for d in clone clone-nofork; do
+    (cd "$TMP/$d" &amp;&amp; git init -q &amp;&amp; git add -A &amp;&amp; git -c user.email=demo@example.com -c user.name=demo commit -qm init)
+  done
+  echo "Đã tạo $TMP/clone và $TMP/clone-nofork"
+}
+
+ask() { # ask &lt;thư mục clone&gt; &lt;tên output&gt; &lt;prompt&gt; [cờ thêm…]
+  local dir="$1" name="$2" prompt="$3"; shift 3
+  mkdir -p "$RESULTS"
+  echo "▶ $name (cwd=$dir)"
+  (cd "$TMP/$dir" &amp;&amp; "$CLAUDE_BIN" -p "$prompt" --model "$MODEL" --max-budget-usd "$BUDGET" \
+     --no-session-persistence --output-format stream-json --verbose "$@" \
+     &gt; "$RESULTS/$name.jsonl" 2&gt; "$RESULTS/$name.err") || echo "  (mã lỗi, xem $RESULTS/$name.err)"
+}
+
+run() {
+  [[ -d "$TMP/clone" ]] || prepare
+  mkdir -p "$RESULTS"
+  "$ROOT/user_skill_demo.sh" --status &gt; "$RESULTS/personal_status.txt" 2&gt;&amp;1 || true
+  local tools=(--tools "Read,Grep,Glob,Skill,Agent" --allowedTools "Read,Grep,Glob" --permission-mode dontAsk)
+  ask clone list 'Trả lời đúng một chữ: OK' --tools ""
+  ask clone fork '/analyse-feature favorites' "${tools[@]}"
+  ask clone-nofork nofork '/analyse-feature favorites' "${tools[@]}"
+  ask clone auto "$AUTO_PROMPT" "${tools[@]}"
+}
+
+case "${1:-}" in
+  prepare) prepare ;;
+  run) run ;;
+  report) $NODE "$ROOT/report_cli.ts" "$RESULTS" ;;
+  all) prepare; run; $NODE "$ROOT/report_cli.ts" "$RESULTS" ;;
+  clean) rm -rf "$TMP" "$RESULTS" ;;
+  *) sed -n '2,24p' "$0"; exit 1 ;;
+esac</code></pre></details>
+<details><summary>report_cli.ts</summary><pre><code>// Bài 3.2 – đọc stream-json của run_cli.sh, in bảng kết quả. Không gọi model.
+// Dùng: node --experimental-strip-types report_cli.ts &lt;results_cli&gt;
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { readStream, resultEvent, type StreamEvent } from "../lib/cli_stream.ts";
+
+export const DEMO_NAMES = ["review", "analyse-feature", "lint", "brainstorm"];
+
+const text = (c: unknown): string =&gt;
+  typeof c === "string" ? c : Array.isArray(c) ? c.map((b: any) =&gt; (typeof b === "string" ? b : (b?.text ?? JSON.stringify(b)))).join("") : JSON.stringify(c ?? "");
+
+/** Tên lệnh/skill thấy trong system:init (bỏ tiền tố plugin như "superpowers:"; chỉ giữ 4 tên của bài). */
+export function listedNames(events: StreamEvent[]): { skills: string[]; slash: string[] } {
+  const init = events.find((e) =&gt; e.type === "system" &amp;&amp; e.subtype === "init");
+  const pick = (arr: unknown) =&gt;
+    (Array.isArray(arr) ? arr : []).map((x) =&gt; String(typeof x === "string" ? x : ((x as any)?.name ?? ""))).filter((n) =&gt; DEMO_NAMES.includes(n));
+  return { skills: pick(init?.skills), slash: pick(init?.slash_commands) };
+}
+
+export interface Isolation {
+  mainToolCalls: number; // tool_use do hội thoại chính gọi (parent_tool_use_id = null)
+  mainToolChars: number; // ký tự tool_use + tool_result nằm trong hội thoại chính
+  forkToolCalls: number; // tool_use trong subagent / forked skill
+  forkToolChars: number;
+  forkedCommand: boolean; // có message mang parent "forked-command-…"
+  skillToolCalled: boolean; // Claude gọi tool Skill (tự chọn skill nhờ description)
+  resultChars: number; // độ dài câu trả lời cuối
+  costUsd?: number;
+}
+
+export function isolation(events: StreamEvent[]): Isolation {
+  const r: Isolation = { mainToolCalls: 0, mainToolChars: 0, forkToolCalls: 0, forkToolChars: 0, forkedCommand: false, skillToolCalled: false, resultChars: 0 };
+  for (const e of events) {
+    if (e.type !== "assistant" &amp;&amp; e.type !== "user") continue;
+    const parent = e.parent_tool_use_id ?? null;
+    if (typeof parent === "string" &amp;&amp; parent.startsWith("forked-command-")) r.forkedCommand = true;
+    const blocks = Array.isArray(e.message?.content) ? e.message!.content : [];
+    for (const b of blocks) {
+      let chars = 0;
+      if (b.type === "tool_use") {
+        chars = JSON.stringify(b.input ?? {}).length;
+        if (parent === null &amp;&amp; b.name === "Skill") r.skillToolCalled = true;
+        if (parent === null) r.mainToolCalls++;
+        else r.forkToolCalls++;
+      } else if (b.type === "tool_result") {
+        chars = text(b.content).length;
+      } else continue;
+      if (parent === null) r.mainToolChars += chars;
+      else r.forkToolChars += chars;
+    }
+  }
+  const res = resultEvent(events);
+  r.resultChars = String(res?.result ?? "").length;
+  r.costUsd = typeof res?.total_cost_usd === "number" ? res.total_cost_usd : undefined;
+  return r;
+}
+
+export function report(dir: string): string[] {
+  const out: string[] = [];
+  const load = (n: string) =&gt; readStream(join(dir, `${n}.jsonl`));
+  const status = existsSync(join(dir, "personal_status.txt")) ? readFileSync(join(dir, "personal_status.txt"), "utf8").trim() : "(không rõ)";
+  const personal = status.startsWith("ĐÃ CÀI");
+
+  const list = load("list");
+  if (list.length) {
+    const { skills, slash } = listedNames(list);
+    const seen = new Set([...skills, ...slash]);
+    out.push("== Bước 1, 5: lệnh thấy được trong system:init (clone)");
+    out.push(`Skill cá nhân /brainstorm: ${status}`);
+    const want: Record&lt;string, boolean&gt; = { review: true, "analyse-feature": true, lint: false, brainstorm: personal };
+    for (const n of DEMO_NAMES) {
+      const ok = seen.has(n) === want[n];
+      out.push(`  ${ok ? "OK  " : "LỆCH"} /${n.padEnd(16)} thấy=${seen.has(n) ? "có" : "không"}  mong đợi=${want[n] ? "có" : "không"}`);
+    }
+  }
+
+  const rows = ["fork", "nofork", "auto"].map((n) =&gt; [n, load(n)] as const).filter(([, ev]) =&gt; ev.length);
+  if (rows.length) {
+    out.push("", "== Bước 6: output của skill có đổ vào hội thoại chính không");
+    out.push("phiên    tool chính  ký tự chính  tool fork  ký tự fork  forked-command  gọi Skill  câu trả lời  USD");
+    for (const [n, ev] of rows) {
+      const i = isolation(ev);
+      out.push(
+        `${n.padEnd(8)} ${String(i.mainToolCalls).padStart(10)}  ${String(i.mainToolChars).padStart(11)}  ${String(i.forkToolCalls).padStart(9)}  ${String(i.forkToolChars).padStart(10)}  ${(i.forkedCommand ? "có" : "không").padStart(14)}  ${(i.skillToolCalled ? "có" : "không").padStart(9)}  ${String(i.resultChars).padStart(11)}  ${i.costUsd?.toFixed(4) ?? "?"}`,
+      );
+    }
+    const f = rows.find(([n]) =&gt; n === "fork");
+    const nf = rows.find(([n]) =&gt; n === "nofork");
+    if (f &amp;&amp; nf) {
+      const a = isolation(f[1]);
+      const b = isolation(nf[1]);
+      out.push("", `Kết luận: nội dung tool trong hội thoại chính: fork ${a.mainToolChars} ký tự, nofork ${b.mainToolChars} ký tự.`);
+      out.push(a.mainToolChars &lt; b.mainToolChars ? "→ context: fork giữ output khám phá ngoài hội thoại chính." : "→ KHÔNG thấy khác biệt như mong đợi: đọc lại stream-json.");
+    }
+  }
+  return out;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const dir = process.argv[2];
+  if (!dir) {
+    console.error("Dùng: report_cli.ts &lt;results_cli&gt;");
+    process.exit(2);
+  }
+  console.log(report(dir).join("\n"));
+}</code></pre></details>
+
+<h2>7. Kiểm thử</h2>
+<p><b>Chạy thật (không cần model):</b> <code>skill_files</code>, <code>lint_skills</code>, <code>expected_commands</code>, <code>user_skill_demo.sh</code> (với HOME giả trong thư mục tạm, không đụng <code>~/.claude</code> thật). <b>Claude giả:</b> <code>run_cli.sh</code> đầu-cuối, chỉ chứng minh đường ống <code>stream-json → report_cli.ts</code>.</p>
+<p>Lệnh: <code>node --experimental-strip-types test/run.test.ts</code></p>
+<details open><summary>test_output.txt</summary><pre><code>
+== skill_files: đọc skill và command
+PASS  demo-repo tạo đúng 2 lệnh: command /review + skill /analyse-feature
+PASS  file phẳng .claude/skills/lint.md KHÔNG thành lệnh, bị ghi nhận là bẫy
+PASS  analyse-feature có context: fork, allowed-tools Read Grep Glob, argument-hint, description
+PASS  command /review dùng $ARGUMENTS
+PASS  frontmatter: field name đổi tên lệnh; allowed-tools dạng [a, b]
+PASS  skill và command trùng tên: skill thắng
+PASS  thư mục không tồn tại: không lỗi, 0 lệnh
+
+== lint_skills: repo mẫu và repo xấu
+PASS  demo-repo: đúng 1 lỗi (file phẳng lint.md)
+PASS  demo-repo: có ghi chú allowed-tools chỉ pre-approve, không giới hạn
+PASS  demo-repo: không cảnh báo thiếu context: fork (analyse-feature đã có)
+PASS  bắt file .md phẳng trong skills/
+PASS  bắt SKILL.md thiếu description
+PASS  bắt skill khám phá thiếu context: fork
+PASS  bắt skill khám phá có Write/Bash trong allowed-tools
+PASS  bắt skill và command trùng tên
+PASS  bắt quy trình nhiều bước trong CLAUDE.md
+PASS  lint_skills.ts trả mã lỗi ≠ 0 khi có lỗi
+
+== expected_commands: phiên nào thấy lệnh nào (bước 5)
+PASS  /review và /analyse-feature: người mới clone CÓ (đi theo git)
+PASS  /brainstorm: chỉ máy mình có, người mới KHÔNG
+PASS  /lint: không ai có (file phẳng)
+PASS  skill cá nhân có context: fork, nguồn user
+PASS  trùng tên giữa user và project: personal thắng
+
+== user_skill_demo.sh: HOME giả, không đụng ~/.claude thật
+PASS  mặc định dry-run: in kế hoạch, không tạo thư mục
+PASS  --status trước khi cài: CHƯA CÀI
+PASS  --apply: copy SKILL.md + file đánh dấu
+PASS  --apply lần 2: không lỗi, không làm gì thêm
+PASS  --revert: gỡ đúng thư mục demo
+PASS  đã có brainstorm thật: --apply TỪ CHỐI, không ghi đè
+PASS  brainstorm không có file đánh dấu: --revert TỪ CHỐI, không xoá
+
+== run_cli.sh với claude GIẢ (đường ống, không phải hành vi thật)
+PASS  run_cli.sh all chạy xong
+PASS  clone-nofork chỉ khác ở dòng context: fork
+PASS  4 lệnh claude -p
+PASS  lệnh list dùng --tools "" (không tool)
+PASS  fork/nofork gửi đúng prompt /analyse-feature favorites
+PASS  mọi lệnh có --max-budget-usd, stream-json, không --safe-mode
+PASS  init: bỏ tên plugin, chỉ giữ 4 tên của bài
+PASS  fork: 0 ký tự tool trong hội thoại chính, có forked-command
+PASS  nofork: nội dung file đổ vào hội thoại chính
+PASS  auto: Claude gọi tool Skill nhờ description
+PASS  report: 4 dòng OK ở bảng lệnh, kết luận fork giữ output ngoài
+PASS  không tạo gì trong ~/.claude/skills giả khi chưa --apply
+
+41 PASS, 0 FAIL</code></pre></details>
+<details open><summary>lint_skills.ts demo-repo (thật)</summary><pre><code>== demo-repo
+Lệnh tạo ra: /analyse-feature (skill, context: fork), /review (command)
+  [lỗi] .claude/skills/lint.md: File .md phẳng trong .claude/skills/ KHÔNG tạo lệnh. Đổi thành thư mục &lt;tên&gt;/SKILL.md, hoặc chuyển sang .claude/commands/.
+  [ghi chú] .claude/skills/analyse-feature/SKILL.md: allowed-tools (Read Grep Glob) chỉ pre-approve trong Claude Code hiện nay, KHÔNG giới hạn. Muốn chặn thật: disallowed-tools hoặc deny trong permissions. (Đề thi coi allowed-tools là giới hạn.)</code></pre></details>
+<details open><summary>expected_commands.ts (thật)</summary><pre><code>Lệnh          Người mới clone   Máy mình (có skill cá nhân)
+/review           có                có
+/analyse-feature  có                có
+/lint             KHÔNG             KHÔNG
+/brainstorm       KHÔNG             có
+
+/lint không có ở đâu cả: .claude/skills/lint.md là file phẳng, không tạo lệnh.</code></pre></details>
+<details><summary>run_cli.sh all với claude GIẢ</summary><pre><code>Đã tạo &lt;tmp&gt;/tmp/clone và &lt;tmp&gt;/tmp/clone-nofork
+▶ list (cwd=clone)
+▶ fork (cwd=clone)
+▶ nofork (cwd=clone-nofork)
+▶ auto (cwd=clone)
+== Bước 1, 5: lệnh thấy được trong system:init (clone)
+Skill cá nhân /brainstorm: CHƯA CÀI skill demo /brainstorm (&lt;tmp&gt;/.claude/skills/brainstorm không tồn tại)
+  OK   /review           thấy=có  mong đợi=có
+  OK   /analyse-feature  thấy=có  mong đợi=có
+  OK   /lint             thấy=không  mong đợi=không
+  OK   /brainstorm       thấy=không  mong đợi=không
+
+== Bước 6: output của skill có đổ vào hội thoại chính không
+phiên    tool chính  ký tự chính  tool fork  ký tự fork  forked-command  gọi Skill  câu trả lời  USD
+fork              0            0          3        1400              có      không          168  0.0000
+nofork            3         1414          0           0           không      không          168  0.0000
+auto              1          214          3        1400           không         có          168  0.0000
+
+Kết luận: nội dung tool trong hội thoại chính: fork 0 ký tự, nofork 1414 ký tự.
+→ context: fork giữ output khám phá ngoài hội thoại chính.</code></pre></details>
+<div class="card ok"><b>Quan sát thật, ngoài kế hoạch:</b> ngay khi tạo <code>demo-repo/.claude/skills/analyse-feature/SKILL.md</code>, phiên Claude Code đang dựng bài tập báo "New skills discovered … analyse-feature". File phẳng <code>.claude/skills/lint.md</code> tạo cùng lúc <b>không</b> được báo. Khớp với quy tắc "skill phải là thư mục có SKILL.md".</div>
+
+<h2>8. Đã xác minh / chưa chắc</h2>
+<ul>
+<li><b>Đã xác minh (docs skills, headless; CLI 2.1.300):</b> trong <code>-p</code>, gõ <code>/skill-name</code> trong prompt thì Claude Code expand trước khi chạy; forked skill gọi từ prompt có message mang <code>parent_tool_use_id</code> bắt đầu bằng <code>forked-command-</code>; <code>system:init</code> có mảng <code>skills</code> và <code>slash_commands</code> (đã thấy trong stream-json thật của bài 2.1); <code>--safe-mode</code> tắt skills; <code>--disable-slash-commands</code> tắt mọi skill.</li>
+<li><b>Chưa chắc:</b> forked skill gọi từ prompt có trả tool_use/tool_result của subagent ra stream hay chỉ trả kết quả cuối (docs: messages "arrive after it finishes"); nếu không trả, cột "ký tự fork" sẽ là 0 nhưng kết luận vẫn đúng vì cột "ký tự chính" mới là thước đo. Lệnh <code>list</code> chạy trên máy có skill/plugin thật; report chỉ xét 4 tên của bài.</li>
+</ul>
+
+<h2>9. Kết quả quan sát</h2>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> Lệnh: <code>./run_cli.sh all</code> (4 lệnh haiku, ước tính 0,02–0,10 USD, mỗi lệnh chặn trần 0,3 USD). Muốn thấy <code>/brainstorm</code> ở bước 5: <code>./user_skill_demo.sh --apply</code> trước, <code>--revert</code> sau.</div>
+<div class="tw"><table><tr><th>Kiểm tra</th><th>Kết quả</th></tr>
+<tr><td><code>/review</code>, <code>/analyse-feature</code> có trong init của bản clone</td><td><div class="fill">…</div></td></tr>
+<tr><td><code>/lint</code> không có</td><td><div class="fill">…</div></td></tr>
+<tr><td><code>/brainstorm</code> chỉ có khi đã cài cá nhân</td><td><div class="fill">…</div></td></tr>
+<tr><td>Ký tự tool trong hội thoại chính: fork vs nofork</td><td><div class="fill">…</div></td></tr>
+<tr><td>Hỏi bằng lời: Claude có tự gọi skill nhờ description</td><td><div class="fill">…</div></td></tr>
+<tr><td>Chi phí (USD)</td><td><div class="fill">…</div></td></tr>
+</table></div>
+
+<h2>10. Áp vào máy mình</h2>
+<p>Máy đang có skill từ <b>plugin</b> (ví dụ bộ superpowers: lệnh có tiền tố <code>tên-plugin:</code>, không đụng tên với skill riêng) và skill <b>đồng bộ từ claude.ai</b> nằm trong <code>~/.claude/skills/synced/</code>. Cả hai đều là cấp cá nhân: người khác clone repo không có. Lệnh nào cả team cần thì phải đặt vào <code>.claude/skills/</code> của repo.</p>
+
+<h2>11. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li><code>/review</code> nằm trong <code>.claude/commands/</code> của repo, mọi bản clone đều có</li>
+<li><code>/brainstorm</code> là thư mục có <code>SKILL.md</code>, frontmatter có <code>context: fork</code>, <code>allowed-tools: Read Grep Glob</code>, <code>argument-hint</code></li>
+<li>Mô hình và test cho thấy người mới clone thấy <code>/review</code> mà không thấy <code>/brainstorm</code>; <code>/lint</code> (file phẳng) không ai thấy</li>
+<li>Có cách đo output của skill đổ vào hội thoại chính (fork vs nofork); chờ chạy thật để điền mục 9</li>
+</ul>
+
+<h2>12. Bài học rút ra</h2>
+<ul>
+<li><b>Skill là quy trình nạp khi cần, CLAUDE.md là quy ước luôn nạp.</b> Không nhét quy trình nhiều bước vào CLAUDE.md, không dùng skill cho quy ước phải áp dụng mọi lần sửa.</li>
+<li><b><code>.claude/</code> = project, đi theo git; <code>~/.claude/</code> = cá nhân.</b> Mẫu này lặp lại cho CLAUDE.md, commands, skills, rules.</li>
+<li><b>Bẫy đề thi:</b>
+<ol><li>File phẳng trong <code>.claude/skills/</code> không tạo lệnh (phải là <code>&lt;tên&gt;/SKILL.md</code>; file phẳng chỉ chạy trong <code>.claude/commands/</code>).</li>
+<li>Lệnh của team đặt ở <code>~/.claude/</code>: người khác không có.</li>
+<li>Dùng skill cho quy ước luôn áp dụng: phải là CLAUDE.md hoặc <code>.claude/rules/</code>.</li>
+<li>Output khám phá dài làm loãng hội thoại chính: thêm <code>context: fork</code>.</li>
+<li>Quy trình review/phân tích viết trong CLAUDE.md: chuyển thành skill.</li></ol></li>
+<li><b>Câu luyện tập:</b> <code>/review</code> cho cả team, <code>/brainstorm</code> cá nhân, output dài. Đáp án <b>C</b>: <code>/review</code> ở <code>.claude/commands/</code>, <code>/brainstorm</code> ở <code>~/.claude/skills/brainstorm/SKILL.md</code> với <code>context: fork</code>. A: thư mục cá nhân không chia sẻ. B: skill cá nhân thành của chung. D: quy trình không đặt trong CLAUDE.md, và <code>allowed-tools</code> không cô lập output.</li>
+</ul>
+
+<h2>13. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/3-claude-code-config/3-2-slash-commands-skills">Lesson 3.2 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/skills">Claude Code docs: Skills</a> (frontmatter, placeholder, nơi đặt, thứ tự ưu tiên, context: fork)</li>
+<li><a href="https://code.claude.com/docs/en/headless">Claude Code docs: Run Claude Code programmatically</a> (/skill-name trong -p, forked-command-, system:init)</li>
+<li>Anthropic, Claude Certified Architect – Foundations Exam Guide, Task Statement 3.2</li>
+</ul>
+</main></body></html>

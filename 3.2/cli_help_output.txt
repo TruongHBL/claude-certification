@@ -1,0 +1,16 @@
+2.1.300 (Claude Code)
+  --bare                                Minimal mode: skip hooks (those defined
+                                        in settings and by installed plugins;
+                                        features built into Claude Code are
+--
+  --disable-slash-commands              Disable all skills
+  --disallowedTools, --disallowed-tools <tools...>
+      Comma or space-separated list of tool names to deny (e.g. "Bash(git *)
+--
+  --safe-mode                           Start with all customizations
+                                        (CLAUDE.md, skills, installed plugins,
+                                        hooks, MCP servers, custom commands and
+--
+  --setting-sources <sources>           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings <file-or-json>             Path to a settings JSON file or a JSON

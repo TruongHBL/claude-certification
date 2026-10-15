@@ -1,0 +1,4 @@
+== demo-repo
+Lệnh tạo ra: /analyse-feature (skill, context: fork), /review (command)
+  [lỗi] .claude/skills/lint.md: File .md phẳng trong .claude/skills/ KHÔNG tạo lệnh. Đổi thành thư mục <tên>/SKILL.md, hoặc chuyển sang .claude/commands/.
+  [ghi chú] .claude/skills/analyse-feature/SKILL.md: allowed-tools (Read Grep Glob) chỉ pre-approve trong Claude Code hiện nay, KHÔNG giới hạn. Muốn chặn thật: disallowed-tools hoặc deny trong permissions. (Đề thi coi allowed-tools là giới hạn.)

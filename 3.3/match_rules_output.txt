@@ -1,0 +1,34 @@
+Rule trong .claude/rules/:
+  .claude/rules/api-conventions.md   paths=["src/api/**/*.ts","**/routes/**/*.ts","**/*.controller.ts"]
+  .claude/rules/terraform.md         paths=["terraform/**/*","**/*.tf","infrastructure/**/*"]
+  .claude/rules/testing.md           paths=["**/*.test.{ts,tsx}","**/*.spec.ts"]
+
+File → rule được nạp khi Claude đọc/sửa file đó:
+  CLAUDE.md                            —
+  infrastructure/README.md             terraform.md
+  infrastructure/network.tf            terraform.md
+  routes/favorites.ts                  api-conventions.md
+  src/api/customers.spec.ts            api-conventions.md, testing.md
+  src/api/customers.ts                 api-conventions.md
+  src/auth/auth.test.ts                testing.md
+  src/auth/auth.ts                     —
+  src/components/Button.test.tsx       testing.md
+  src/components/Button.tsx            —
+  src/dashboard/Dashboard.test.tsx     testing.md
+  src/dashboard/Dashboard.tsx          —
+  src/favorites/favorites.test.ts      testing.md
+  src/favorites/favorites.ts           —
+  src/matching/matching.controller.ts  api-conventions.md
+  src/matching/matching.test.ts        testing.md
+  src/test-kit.ts                      —
+  src/utils/format.test.ts             testing.md
+  src/utils/format.ts                  —
+  terraform/main.tf                    terraform.md
+  terraform/variables.tf               terraform.md
+
+Token quy ước trong context (ước lượng ký tự/4), khi sửa một file:
+  loại       file                        rules theo path  gom vào root  tiết kiệm
+  test       src/auth/auth.test.ts                   191           425        55%
+  api        src/api/customers.ts                    153           425        64%
+  terraform  terraform/main.tf                       156           425        63%
+  utils      src/utils/format.ts                      84           425        80%

@@ -1,0 +1,20 @@
+Đã tạo <tmp>/tmp/clone và <tmp>/tmp/clone-nofork
+▶ list (cwd=clone)
+▶ fork (cwd=clone)
+▶ nofork (cwd=clone-nofork)
+▶ auto (cwd=clone)
+== Bước 1, 5: lệnh thấy được trong system:init (clone)
+Skill cá nhân /brainstorm: CHƯA CÀI skill demo /brainstorm (<tmp>/.claude/skills/brainstorm không tồn tại)
+  OK   /review           thấy=có  mong đợi=có
+  OK   /analyse-feature  thấy=có  mong đợi=có
+  OK   /lint             thấy=không  mong đợi=không
+  OK   /brainstorm       thấy=không  mong đợi=không
+
+== Bước 6: output của skill có đổ vào hội thoại chính không
+phiên    tool chính  ký tự chính  tool fork  ký tự fork  forked-command  gọi Skill  câu trả lời  USD
+fork              0            0          3        1400              có      không          168  0.0000
+nofork            3         1414          0           0           không      không          168  0.0000
+auto              1          214          3        1400           không         có          168  0.0000
+
+Kết luận: nội dung tool trong hội thoại chính: fork 0 ký tự, nofork 1414 ký tự.
+→ context: fork giữ output khám phá ngoài hội thoại chính.

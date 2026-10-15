@@ -1,0 +1,9 @@
+(dry-run) Sẽ thêm vào cuối ~/.claude/CLAUDE.md:
+
+<!-- BEGIN cca-3.1-demo -->
+## Quy ước API (đặt NHẦM ở user-level để tái hiện bẫy "người mới vào team", bài tập 3.1)
+Mã nhận diện: CANARY-USER-3H
+- Endpoint REST dùng kebab-case số nhiều.
+<!-- END cca-3.1-demo -->
+
+Chạy với --apply để thêm thật, --revert để gỡ.

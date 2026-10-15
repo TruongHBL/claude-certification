@@ -1,0 +1,41 @@
+Đã tạo …/tmp/rules (rules theo path) và …/tmp/root (gom vào root CLAUDE.md)
+▶ rules · none 
+▶ rules · test src/auth/auth.test.ts
+▶ rules · api src/api/customers.ts
+▶ rules · terraform terraform/main.tf
+▶ rules · utils src/utils/format.ts
+▶ root · none 
+▶ root · test src/auth/auth.test.ts
+▶ root · api src/api/customers.ts
+▶ root · terraform terraform/main.tf
+▶ root · utils src/utils/format.ts
+biến thể ca         đã Read                  input tok  kết quả
+rules    none       —                            15084  OK
+                    thấy: CANARY-ROOT-2K
+rules    test       src/auth/auth.test.ts        15191  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-TEST-5M
+rules    api        src/api/customers.ts         15153  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T
+rules    terraform  terraform/main.tf            15156  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-TF-3W
+rules    utils      src/utils/format.ts          15084  OK
+                    thấy: CANARY-ROOT-2K
+root     none       —                            15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     test       src/auth/auth.test.ts        15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     api        src/api/customers.ts         15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     terraform  terraform/main.tf            15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     utils      src/utils/format.ts          15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+
+Chênh input token (root − rules) cùng một ca — phần quy ước KHÔNG liên quan bị nạp thừa ở biến thể root:
+  none       rules=15084  root=15425  chênh=341
+  test       rules=15191  root=15425  chênh=234
+  api        rules=15153  root=15425  chênh=272
+  terraform  rules=15156  root=15425  chênh=269
+  utils      rules=15084  root=15425  chênh=341
+
+10/10 ca khớp mô hình · tổng chi phí 0.0000 USD

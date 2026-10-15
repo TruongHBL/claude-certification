@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bài tập 3.3 – Path-Specific Rules</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1d2433;--muted:#5d6678;--line:#dfe2e8;--accent:#1f4e79;--accent-soft:#e3ecf6;--ok:#2f6b3a;--ok-soft:#e3f1e4;--warn:#8a5a00;--warn-soft:#fbf0d9;--red:#b03a2e;--code:#f1f2f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1c2029;--ink:#e6e8ee;--muted:#9aa3b5;--line:#2c3240;--accent:#8db8e8;--accent-soft:#1f2c3d;--ok:#8fd19a;--ok-soft:#1d2e21;--warn:#f0c46a;--warn-soft:#33291a;--red:#ff8a7a;--code:#11141a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 64px}h1{font-size:26px;margin:0 0 4px;color:var(--accent)}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}h3{font-size:16px;margin:18px 0 6px}.meta{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);color:var(--accent)}.tw{overflow-x:auto}code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+.ok{background:var(--ok-soft);border-color:transparent}.ok b{color:var(--ok)}.warn{background:var(--warn-soft);border-color:transparent}.warn b{color:var(--warn)}
+svg{width:100%;height:auto;display:block}svg text{fill:var(--ink);font:13px system-ui,sans-serif}svg .m{fill:var(--muted);font-size:12px}
+.b{fill:var(--card);stroke:var(--accent);stroke-width:1.5}.c{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.h{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.5;stroke-dasharray:5 3}.u{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+.l{stroke:var(--accent);stroke-width:1.6;fill:none}.lu{stroke:var(--ok);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.red{color:var(--red);font-weight:600}.grn{color:var(--ok);font-weight:600}ol li,ul li{margin:4px 0}
+</style>
+<style>pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;max-width:100%}pre code{background:none;padding:0}.chk{list-style:none;padding-left:0}.chk li::before{content:"✓ ";color:var(--ok);font-weight:700}</style>
+<style>details{margin:10px 0}summary{cursor:pointer;font-weight:600;color:var(--accent)}.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}.two>*{min-width:0}.fill{border:1px dashed var(--line);border-radius:6px;min-height:28px;padding:4px 8px;color:var(--muted)}</style>
+</head><body><main>
+
+<h1>Bài tập 3.3 — Path-specific rules: nạp quy ước theo loại file</h1>
+<div class="meta">Domain 3 · Claude Code Configuration &amp; Workflows · Mục 3.3 Path-Specific Rules<br>Người thực hiện: TruongNQ · Ngày nộp: 15/10/2026</div>
+
+<h2>1. Mục tiêu</h2>
+<p>Đặt quy ước cho <b>một loại file nằm rải rác nhiều thư mục</b> (test co-located, file API, Terraform) vào <code>.claude/rules/</code> với frontmatter <code>paths</code>, rồi <b>đo được</b> rule nào thật sự được nạp khi Claude chạm vào từng loại file và <b>tiết kiệm bao nhiêu token</b> so với gom hết vào root <code>CLAUDE.md</code>. Cách đo giống bài 3.1: mỗi rule chứa một mã <b>CANARY</b> riêng; Claude chỉ in được mã của rule đã vào context.</p>
+
+<h2>2. Sơ đồ</h2>
+<div class="card"><svg viewBox="0 0 800 330" role="img" aria-label="50 bản CLAUDE.md so với 1 rule có glob">
+<text x="190" y="24" text-anchor="middle" font-weight="700">Cách cũ: CLAUDE.md ở mỗi thư mục test</text>
+<rect class="h" x="20" y="44" width="64" height="36" rx="5"/><text x="52" y="67" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="92" y="44" width="64" height="36" rx="5"/><text x="124" y="67" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="164" y="44" width="64" height="36" rx="5"/><text x="196" y="67" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="236" y="44" width="64" height="36" rx="5"/><text x="268" y="67" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="308" y="44" width="64" height="36" rx="5"/><text x="340" y="67" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="20" y="90" width="64" height="36" rx="5"/><text x="52" y="113" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="92" y="90" width="64" height="36" rx="5"/><text x="124" y="113" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="164" y="90" width="64" height="36" rx="5"/><text x="196" y="113" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="236" y="90" width="64" height="36" rx="5"/><text x="268" y="113" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="308" y="90" width="64" height="36" rx="5"/><text x="340" y="113" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="20" y="136" width="64" height="36" rx="5"/><text x="52" y="159" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="92" y="136" width="64" height="36" rx="5"/><text x="124" y="159" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="164" y="136" width="64" height="36" rx="5"/><text x="196" y="159" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="236" y="136" width="64" height="36" rx="5"/><text x="268" y="159" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="308" y="136" width="64" height="36" rx="5"/><text x="340" y="159" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="20" y="182" width="64" height="36" rx="5"/><text x="52" y="205" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="92" y="182" width="64" height="36" rx="5"/><text x="124" y="205" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="164" y="182" width="64" height="36" rx="5"/><text x="196" y="205" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="236" y="182" width="64" height="36" rx="5"/><text x="268" y="205" text-anchor="middle" class="m">CLAUDE.md</text><rect class="h" x="308" y="182" width="64" height="36" rx="5"/><text x="340" y="205" text-anchor="middle" class="m">CLAUDE.md</text>
+<text x="190" y="290" text-anchor="middle" class="m">50+ bản sao · thêm thư mục là thêm bản · sửa 1 quy ước = sửa 50 chỗ</text>
+<text x="190" y="310" text-anchor="middle" class="m">→ các bản lệch nhau dần (drift)</text>
+<line x1="400" y1="16" x2="400" y2="318" stroke="var(--line)" stroke-width="1.5"/>
+<text x="600" y="24" text-anchor="middle" font-weight="700">Cách đúng: 1 rule + glob</text>
+<rect class="c" x="470" y="44" width="260" height="62" rx="8"/><text x="600" y="68" text-anchor="middle" font-weight="600">.claude/rules/testing.md</text><text x="600" y="90" text-anchor="middle" class="m">paths: **/*.test.{ts,tsx}, **/*.spec.ts</text>
+<path class="l" d="M600 106 V130"/><polygon points="595,128 600,136 605,128" fill="var(--accent)"/>
+<rect class="b" x="430" y="140" width="160" height="34" rx="6"/><text x="510" y="162" text-anchor="middle">Claude đọc auth.test.ts</text>
+<rect class="u" x="610" y="140" width="170" height="34" rx="6"/><text x="695" y="162" text-anchor="middle">→ rule được NẠP</text>
+<rect class="b" x="430" y="186" width="160" height="34" rx="6"/><text x="510" y="208" text-anchor="middle">Claude đọc format.ts</text>
+<rect class="h" x="610" y="186" width="170" height="34" rx="6"/><text x="695" y="208" text-anchor="middle">→ KHÔNG nạp</text>
+<text x="600" y="250" text-anchor="middle" class="m">Nạp khi Claude Read / Write / Edit file khớp</text>
+<text x="600" y="270" text-anchor="middle" class="m">(hoặc cat / head một file); sau /compact nạp lại khi chạm file khớp</text>
+<text x="600" y="300" text-anchor="middle" class="m">1 file · 1 chỗ sửa · không tốn token khi làm việc khác</text>
+</svg></div>
+
+<h2>3. Sáu bước ↔ cách hiện thực</h2>
+<div class="tw"><table><tr><th>#</th><th>Yêu cầu</th><th>Hiện thực</th></tr>
+<tr><td>1</td><td>Rule test với <code>paths</code> cho <code>.test.ts</code>, <code>.test.tsx</code>, <code>.spec.ts</code></td><td><code>demo-repo/.claude/rules/testing.md</code>: <code>**/*.test.{ts,tsx}</code> + <code>**/*.spec.ts</code>, 5 quy ước (đặt tên, happy-path + ca lỗi, factory, mock ở ranh giới, assert hành vi). Phủ test ở <b>7 thư mục</b> bằng 1 file</td></tr>
+<tr><td>2</td><td>Rule API cho <code>src/api/</code> và <code>routes/</code></td><td><code>api-conventions.md</code>: <code>src/api/**/*.ts</code>, <code>**/routes/**/*.ts</code>, <code>**/*.controller.ts</code>; envelope, Zod, requestId, rate limit</td></tr>
+<tr><td>3</td><td>Rule Terraform</td><td><code>terraform.md</code>: <code>terraform/**/*</code>, <code>**/*.tf</code>, <code>infrastructure/**/*</code>; remote state, workspace, module có version, tag</td></tr>
+<tr><td>4</td><td>Sửa file test → chỉ rule test được nạp</td><td>Mô hình: <code>match_rules.ts</code> (bảng mục 4). Thật: <code>run_cli.sh</code> ca <code>test</code> bắt Claude Read <code>src/auth/auth.test.ts</code> rồi in CANARY</td></tr>
+<tr><td>5</td><td>Sửa file API → chỉ rule API được nạp</td><td>Như trên, ca <code>api</code> đọc <code>src/api/customers.ts</code></td></tr>
+<tr><td>6</td><td>So token: gom vào root vs tách rules</td><td><code>make_variant.ts</code> sinh <code>variant-root/</code> (mọi quy ước nằm trong root CLAUDE.md). Ước lượng ở mục 5; số token thật lấy từ <code>result.usage</code> khi chạy <code>run_cli.sh</code></td></tr>
+</table></div>
+<div class="card"><b>Thay cho <code>/context</code>.</b> Đề yêu cầu kiểm bằng <code>/context</code> trong phiên tương tác. Bài dùng <code>claude -p</code> + CANARY để chạy tự động và lặp lại được; trong phiên tương tác vẫn có thể gõ <code>/context</code> sau khi mở một file test để thấy <code>testing.md</code> xuất hiện dưới <i>Memory files</i>.</div>
+
+<h2>4. File nào kéo theo rule nào</h2>
+<p>Do <code>match_rules.ts</code> tính trên <code>demo-repo/</code>. Glob tính từ <b>gốc project</b>.</p>
+<div class="tw"><table><tr><th>File Claude đọc/sửa</th><th>Rule được nạp thêm</th></tr>
+<tr><td><code>CLAUDE.md</code></td><td>—</td></tr><tr><td><code>infrastructure/README.md</code></td><td>terraform.md</td></tr><tr><td><code>infrastructure/network.tf</code></td><td>terraform.md</td></tr><tr><td><code>routes/favorites.ts</code></td><td>api-conventions.md</td></tr><tr><td><code>src/api/customers.spec.ts</code></td><td>api-conventions.md, testing.md</td></tr><tr><td><code>src/api/customers.ts</code></td><td>api-conventions.md</td></tr><tr><td><code>src/auth/auth.test.ts</code></td><td>testing.md</td></tr><tr><td><code>src/auth/auth.ts</code></td><td>—</td></tr><tr><td><code>src/components/Button.test.tsx</code></td><td>testing.md</td></tr><tr><td><code>src/components/Button.tsx</code></td><td>—</td></tr><tr><td><code>src/dashboard/Dashboard.test.tsx</code></td><td>testing.md</td></tr><tr><td><code>src/dashboard/Dashboard.tsx</code></td><td>—</td></tr><tr><td><code>src/favorites/favorites.test.ts</code></td><td>testing.md</td></tr><tr><td><code>src/favorites/favorites.ts</code></td><td>—</td></tr><tr><td><code>src/matching/matching.controller.ts</code></td><td>api-conventions.md</td></tr><tr><td><code>src/matching/matching.test.ts</code></td><td>testing.md</td></tr><tr><td><code>src/test-kit.ts</code></td><td>—</td></tr><tr><td><code>src/utils/format.test.ts</code></td><td>testing.md</td></tr><tr><td><code>src/utils/format.ts</code></td><td>—</td></tr><tr><td><code>terraform/main.tf</code></td><td>terraform.md</td></tr><tr><td><code>terraform/variables.tf</code></td><td>terraform.md</td></tr>
+</table></div>
+<p>Chú ý <code>src/api/customers.spec.ts</code> khớp <b>cả hai</b> rule (API và test): các rule cộng dồn, không rule nào “thắng”.</p>
+
+<h2>5. Tiết kiệm token (bước 6, ước lượng)</h2>
+<p>Token của phần quy ước trong context (ký tự/4) khi sửa một file:</p>
+<div class="tw"><table><tr><th>Loại</th><th>File</th><th>Rules theo path</th><th>Gom vào root</th><th>Tiết kiệm</th></tr>
+<tr><td>test</td><td><code>src/auth/auth.test.ts</code></td><td>191</td><td>425</td><td>55%</td></tr><tr><td>api</td><td><code>src/api/customers.ts</code></td><td>153</td><td>425</td><td>64%</td></tr><tr><td>terraform</td><td><code>terraform/main.tf</code></td><td>156</td><td>425</td><td>63%</td></tr><tr><td>utils</td><td><code>src/utils/format.ts</code></td><td>84</td><td>425</td><td>80%</td></tr>
+</table></div>
+<p>Demo chỉ có 3 nhóm quy ước nên con số tuyệt đối nhỏ (vài trăm token, so với system prompt của Claude Code cỡ hàng chục nghìn). Tỉ lệ mới là điều đáng nhìn: dự án thật có hàng chục nhóm quy ước thì phần nạp thừa ở cách “gom vào root” tăng theo, còn cách rules chỉ nạp nhóm liên quan.</p>
+
+<h2>6. Chọn cơ chế nào</h2>
+<div class="tw"><table><tr><th>Tình huống</th><th>Cơ chế</th><th>Nạp khi</th></tr>
+<tr><td>Chuẩn chung cho mọi code</td><td>Root <code>CLAUDE.md</code></td><td>Mọi phiên</td></tr>
+<tr><td>Quy ước riêng của <b>một</b> package/thư mục</td><td><code>CLAUDE.md</code> trong thư mục đó</td><td>Khi làm việc trong thư mục</td></tr>
+<tr><td>Một <b>loại file</b> rải nhiều thư mục (test co-located…)</td><td><b><code>.claude/rules/</code> + <code>paths</code></b></td><td>Khi Claude Read/Write/Edit file khớp</td></tr>
+<tr><td>Quy trình nhiều bước, thỉnh thoảng chạy</td><td>Skill (<code>.claude/skills/</code>, bài 3.2)</td><td>Khi gọi <code>/tên</code> hoặc Claude thấy khớp mô tả</td></tr>
+</table></div>
+<h3>Rules và skills đều có <code>paths</code>, khác nhau thế nào?</h3>
+<ul><li><b>Rule</b>: quy ước <b>nền</b>, nằm trong context và định hướng mọi lần sửa file khớp. Muốn quy ước tự áp dụng theo loại file → rule.</li>
+<li><b>Skill</b>: <b>quy trình</b> gọi khi cần; <code>paths</code> chỉ giúp Claude tự gợi ý dùng skill. Đặt quy ước test vào skill thì phụ thuộc vào việc có ai gọi nó (đáp án D của câu luyện tập).</li></ul>
+
+<h2>7. Đã xác minh từ tài liệu</h2>
+<p>Nguồn: <a href="https://code.claude.com/docs/en/memory">How Claude remembers your project</a>, mục <i>Organize rules with .claude/rules/</i> (đọc ngày 15/10/2026).</p>
+<ul>
+<li><code>paths</code> nhận <b>YAML list</b> hoặc <b>chuỗi phân tách dấu phẩy</b>; hỗ trợ <b>brace</b> <code>{ts,tsx}</code> (ngân sách 1.000 pattern sau khi mở, vượt thì pattern được dùng nguyên văn và không khớp gì).</li>
+<li>Rule có <code>paths</code> nạp khi Claude dùng <b>Read, Write hoặc Edit</b> trên file khớp, hoặc xem file bằng lệnh Bash được tính là đọc (<code>cat</code>, <code>head</code> một file).</li>
+<li>Rule <b>không có</b> <code>paths</code> nạp lúc khởi động, cùng mức với <code>.claude/CLAUDE.md</code>.</li>
+<li><b>Frontmatter không parse được</b> → bị bỏ, rule nạp <b>như không có paths</b> (tức mọi phiên). <code>paths</code> là field duy nhất được đọc.</li>
+<li>Sau <code>/compact</code>: root CLAUDE.md được đọc lại ngay; rule có <code>paths</code> chỉ nạp lại khi Claude chạm lại file khớp.</li>
+<li>Bỏ <code>project</code> khỏi <code>--setting-sources</code> thì rule của project bị bỏ.</li>
+</ul>
+<div class="card warn"><b>Chưa chắc.</b> Khi rule được nạp giữa chừng (sau một lần Read), nó đi vào context theo dạng nào (nhắc kèm tool_result hay khối riêng) và có hiện trong <code>stream-json</code> không. Bài không dựa vào điều đó: Claude tự in CANARY sau khi đọc.</div>
+
+<h2>8. Mã nguồn</h2>
+<p>Chạy bằng <code>node --experimental-strip-types</code> (Node ≥ 22.6), không cần cài gói.</p>
+<details><summary>match_rules.ts — matcher glob, frontmatter, bảng file → rule, token</summary><pre><code>// Bài 3.3 – mô hình tĩnh: sửa/đọc file nào thì rule nào trong .claude/rules/ được nạp, và tốn bao nhiêu token.
+//
+// Theo tài liệu memory của Claude Code (code.claude.com/docs/en/memory, mục &quot;Path-specific rules&quot;):
+//   - rule KHÔNG có `paths` → nạp lúc khởi động, mọi phiên;
+//   - rule có `paths` → nạp khi Claude dùng Read/Write/Edit (hoặc `cat`/`head` một file) trên file khớp glob;
+//   - `paths` nhận YAML list hoặc chuỗi phân tách bằng dấu phẩy; hỗ trợ brace `{ts,tsx}`;
+//   - frontmatter không parse được → bỏ frontmatter, rule nạp như KHÔNG có `paths` (tức là mọi phiên);
+//   - `paths` là field DUY NHẤT được đọc, field khác bị bỏ qua.
+// Glob tính từ gốc project (vd `*.md` chỉ khớp file ở gốc).
+//
+// Dùng: node --experimental-strip-types match_rules.ts [demo-repo] [variant-root]
+import { existsSync, readdirSync, readFileSync, statSync } from &quot;node:fs&quot;;
+import { join, relative, sep } from &quot;node:path&quot;;
+
+export const CANARY_RE = /CANARY-[A-Z0-9-]+/g;
+
+// ---------- glob ----------
+
+/** Mở brace `{a,b}` thành nhiều pattern (lồng nhau được). */
+export function expandBraces(pattern: string): string[] {
+  const open = pattern.indexOf(&quot;{&quot;);
+  if (open &lt; 0) return [pattern];
+  let depth = 0;
+  for (let i = open; i &lt; pattern.length; i++) {
+    if (pattern[i] === &quot;{&quot;) depth++;
+    else if (pattern[i] === &quot;}&quot; &amp;&amp; --depth === 0) {
+      const inner = pattern.slice(open + 1, i);
+      const parts: string[] = [];
+      let d = 0;
+      let start = 0;
+      for (let j = 0; j &lt; inner.length; j++) {
+        if (inner[j] === &quot;{&quot;) d++;
+        else if (inner[j] === &quot;}&quot;) d--;
+        else if (inner[j] === &quot;,&quot; &amp;&amp; d === 0) {
+          parts.push(inner.slice(start, j));
+          start = j + 1;
+        }
+      }
+      parts.push(inner.slice(start));
+      const head = pattern.slice(0, open);
+      const tail = pattern.slice(i + 1);
+      return parts.flatMap((p) =&gt; expandBraces(head + p + tail));
+    }
+  }
+  return [pattern]; // brace không đóng: giữ nguyên, khớp chữ
+}
+
+/** Chuyển một glob (đã mở brace) thành RegExp. Hỗ trợ `**`, `*`, `?`, `[abc]`. */
+export function globToRegExp(glob: string): RegExp {
+  let re = &quot;&quot;;
+  for (let i = 0; i &lt; glob.length; i++) {
+    const c = glob[i];
+    if (c === &quot;*&quot;) {
+      if (glob[i + 1] === &quot;*&quot;) {
+        const atStart = i === 0 || glob[i - 1] === &quot;/&quot;;
+        const atEnd = i + 2 === glob.length || glob[i + 2] === &quot;/&quot;;
+        if (atStart &amp;&amp; atEnd) {
+          // `**/` = 0 hoặc nhiều thư mục; `**` ở cuối = mọi thứ còn lại
+          if (glob[i + 2] === &quot;/&quot;) {
+            re += &quot;(?:[^/]+/)*&quot;;
+            i += 2;
+          } else {
+            re += &quot;.*&quot;;
+            i += 1;
+          }
+          continue;
+        }
+        re += &quot;[^/]*&quot;;
+        i += 1;
+        continue;
+      }
+      re += &quot;[^/]*&quot;;
+    } else if (c === &quot;?&quot;) re += &quot;[^/]&quot;;
+    else if (c === &quot;[&quot;) {
+      const close = glob.indexOf(&quot;]&quot;, i + 1);
+      if (close &lt; 0) return /(?!)/; // `[` không đóng: pattern không hợp lệ, không khớp gì (như tài liệu)
+      re += &quot;[&quot; + glob.slice(i + 1, close).replace(/\\/g, &quot;\\\\&quot;) + &quot;]&quot;;
+      i = close;
+    } else if (c === &quot;\\&quot; &amp;&amp; i + 1 &lt; glob.length) {
+      re += &quot;\\&quot; + glob[++i];
+    } else re += c.replace(/[.+^${}()|]/g, &quot;\\$&amp;&quot;);
+  }
+  return new RegExp(`^${re}$`);
+}
+
+export function matchGlob(file: string, pattern: string): boolean {
+  const f = file.split(sep).join(&quot;/&quot;);
+  return expandBraces(pattern).some((p) =&gt; globToRegExp(p).test(f));
+}
+
+// ---------- frontmatter ----------
+
+export interface Frontmatter {
+  paths: string[] | null; // null = không có paths → nạp mọi phiên
+  body: string;
+  error?: string; // frontmatter hỏng → bị bỏ, rule nạp mọi phiên
+  ignoredFields: string[];
+}
+
+const unquote = (s: string) =&gt; s.trim().replace(/^[&quot;&#x27;]|[&quot;&#x27;]$/g, &quot;&quot;);
+
+export function parseFrontmatter(text: string): Frontmatter {
+  if (!text.startsWith(&quot;---\n&quot;)) return { paths: null, body: text, ignoredFields: [] };
+  const end = text.indexOf(&quot;\n---&quot;, 4);
+  if (end &lt; 0) return { paths: null, body: text, error: &quot;thiếu dòng `---` đóng frontmatter&quot;, ignoredFields: [] };
+  const yaml = text.slice(4, end).split(&quot;\n&quot;);
+  const body = text.slice(text.indexOf(&quot;\n&quot;, end + 1) + 1);
+  let paths: string[] | null = null;
+  const ignored: string[] = [];
+  for (let i = 0; i &lt; yaml.length; i++) {
+    const line = yaml[i];
+    if (!line.trim() || line.trim().startsWith(&quot;#&quot;)) continue;
+    const m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+    if (!m) return { paths: null, body, error: `dòng YAML không hợp lệ: &quot;${line}&quot;`, ignoredFields: [] };
+    const [, key, rest] = m;
+    if (key !== &quot;paths&quot;) {
+      ignored.push(key);
+      continue;
+    }
+    if (rest.startsWith(&quot;[&quot;)) {
+      if (!rest.endsWith(&quot;]&quot;)) return { paths: null, body, error: &quot;mảng `paths: [...]` không đóng&quot;, ignoredFields: [] };
+      paths = rest.slice(1, -1).split(&quot;,&quot;).map(unquote).filter(Boolean);
+    } else if (rest.trim()) {
+      paths = rest.split(&quot;,&quot;).map(unquote).filter(Boolean); // chuỗi phân tách bằng dấu phẩy
+    } else {
+      paths = [];
+      while (i + 1 &lt; yaml.length &amp;&amp; /^\s+-\s/.test(yaml[i + 1])) paths.push(unquote(yaml[++i].replace(/^\s+-\s/, &quot;&quot;)));
+      if (!paths.length) return { paths: null, body, error: &quot;`paths:` không có giá trị&quot;, ignoredFields: [] };
+    }
+  }
+  return { paths, body, ignoredFields: ignored };
+}
+
+// ---------- repo ----------
+
+export interface Rule {
+  file: string; // đường dẫn tương đối từ gốc repo
+  fm: Frontmatter;
+  chars: number; // độ dài phần được đưa vào context (đã bỏ frontmatter)
+  canaries: string[];
+}
+
+export function listFiles(root: string, dir = root): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir).sort()) {
+    if (name === &quot;.git&quot; || name === &quot;node_modules&quot; || name === &quot;.claude&quot;) continue;
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) out.push(...listFiles(root, p));
+    else out.push(relative(root, p).split(sep).join(&quot;/&quot;));
+  }
+  return out;
+}
+
+export function loadRules(repo: string): Rule[] {
+  const dir = join(repo, &quot;.claude&quot;, &quot;rules&quot;);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) =&gt; f.endsWith(&quot;.md&quot;))
+    .sort()
+    .map((f) =&gt; {
+      const fm = parseFrontmatter(readFileSync(join(dir, f), &quot;utf8&quot;));
+      return { file: `.claude/rules/${f}`, fm, chars: fm.body.length, canaries: fm.body.match(CANARY_RE) ?? [] };
+    });
+}
+
+export interface Loaded {
+  source: string;
+  reason: &quot;luôn nạp&quot; | &quot;khớp paths&quot;;
+  chars: number;
+  canaries: string[];
+}
+
+/** Những gì nằm trong context khi Claude đã Read/Edit các file `touched` (đường dẫn tương đối). */
+export function loadedFor(repo: string, touched: string[]): Loaded[] {
+  const out: Loaded[] = [];
+  const claudeMd = join(repo, &quot;CLAUDE.md&quot;);
+  if (existsSync(claudeMd)) {
+    const t = readFileSync(claudeMd, &quot;utf8&quot;);
+    out.push({ source: &quot;CLAUDE.md&quot;, reason: &quot;luôn nạp&quot;, chars: t.length, canaries: t.match(CANARY_RE) ?? [] });
+  }
+  for (const r of loadRules(repo)) {
+    if (r.fm.paths === null) out.push({ source: r.file, reason: &quot;luôn nạp&quot;, chars: r.chars, canaries: r.canaries });
+    else if (touched.some((f) =&gt; r.fm.paths!.some((p) =&gt; matchGlob(f, p))))
+      out.push({ source: r.file, reason: &quot;khớp paths&quot;, chars: r.chars, canaries: r.canaries });
+  }
+  return out;
+}
+
+/** Mọi mã CANARY có trong context khi đã chạm các file `touched`. */
+export const canariesFor = (repo: string, touched: string[]): string[] =&gt;
+  [...new Set(loadedFor(repo, touched).flatMap((l) =&gt; l.canaries))].sort();
+
+/** Ước lượng token thô: ~4 ký tự / token (tiếng Việt có dấu thường tốn hơn; chỉ dùng để so tương đối). */
+export const tokens = (chars: number) =&gt; Math.round(chars / 4);
+
+export function ruleTable(repo: string): { file: string; rules: string[] }[] {
+  return listFiles(repo).map((f) =&gt; ({
+    file: f,
+    rules: loadRules(repo)
+      .filter((r) =&gt; r.fm.paths !== null &amp;&amp; r.fm.paths.some((p) =&gt; matchGlob(f, p)))
+      .map((r) =&gt; r.file.replace(&quot;.claude/rules/&quot;, &quot;&quot;)),
+  }));
+}
+
+export const SAMPLE_FILES = [
+  { kind: &quot;test&quot;, file: &quot;src/auth/auth.test.ts&quot; },
+  { kind: &quot;api&quot;, file: &quot;src/api/customers.ts&quot; },
+  { kind: &quot;terraform&quot;, file: &quot;terraform/main.tf&quot; },
+  { kind: &quot;utils&quot;, file: &quot;src/utils/format.ts&quot; },
+];
+
+export function tokenTable(repo: string, variantRoot: string) {
+  return SAMPLE_FILES.map(({ kind, file }) =&gt; {
+    const rules = loadedFor(repo, [file]).reduce((s, l) =&gt; s + l.chars, 0);
+    const root = loadedFor(variantRoot, [file]).reduce((s, l) =&gt; s + l.chars, 0);
+    return { kind, file, rulesTokens: tokens(rules), rootTokens: tokens(root), saved: 1 - rules / root };
+  });
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const here = new URL(&quot;.&quot;, import.meta.url).pathname;
+  const repo = process.argv[2] ?? join(here, &quot;demo-repo&quot;);
+  const variant = process.argv[3] ?? join(here, &quot;variant-root&quot;);
+  console.log(&quot;Rule trong .claude/rules/:&quot;);
+  for (const r of loadRules(repo))
+    console.log(`  ${r.file.padEnd(34)} paths=${r.fm.paths ? JSON.stringify(r.fm.paths) : &quot;(không có → luôn nạp)&quot;}`);
+  console.log(&quot;\nFile → rule được nạp khi Claude đọc/sửa file đó:&quot;);
+  for (const row of ruleTable(repo)) console.log(`  ${row.file.padEnd(36)} ${row.rules.join(&quot;, &quot;) || &quot;—&quot;}`);
+  console.log(&quot;\nToken quy ước trong context (ước lượng ký tự/4), khi sửa một file:&quot;);
+  console.log(`  ${&quot;loại&quot;.padEnd(10)} ${&quot;file&quot;.padEnd(26)} ${&quot;rules theo path&quot;.padStart(16)} ${&quot;gom vào root&quot;.padStart(13)} ${&quot;tiết kiệm&quot;.padStart(10)}`);
+  for (const t of tokenTable(repo, variant))
+    console.log(
+      `  ${t.kind.padEnd(10)} ${t.file.padEnd(26)} ${String(t.rulesTokens).padStart(16)} ${String(t.rootTokens).padStart(13)} ${(t.saved * 100).toFixed(0).padStart(9)}%`,
+    );
+}
+</code></pre></details>
+<details><summary>lint_rules.ts — bắt anti-pattern</summary><pre><code>// Bài 3.3 – lint cấu hình quy ước: bắt các anti-pattern của bài path-specific rules.
+//
+//   WARN  frontmatter hỏng → tài liệu: bị bỏ qua, rule nạp MỌI phiên (mất tác dụng giới hạn theo path)
+//   WARN  `paths` không khớp file nào (glob gõ sai, vd *.tset.ts) → rule không bao giờ được nạp
+//   WARN  nhiều CLAUDE.md thư mục có nội dung gần giống nhau → nên gộp thành 1 rule + glob
+//   WARN  pattern có brace vượt ngân sách 1.000 pattern sau khi mở → Claude Code dùng nguyên văn, không khớp gì
+//   INFO  root CLAUDE.md có quy ước theo LOẠI FILE (test, terraform, controller…) → nên chuyển sang rule có paths
+//   INFO  rule trông như QUY TRÌNH nhiều bước → nên là skill (bài 3.2), không phải quy ước nền
+//   INFO  field frontmatter khác `paths` → bị bỏ qua (paths là field duy nhất Claude Code đọc)
+//
+// Dùng: node --experimental-strip-types lint_rules.ts [repo]
+import { existsSync, readFileSync } from &quot;node:fs&quot;;
+import { dirname, join } from &quot;node:path&quot;;
+import { expandBraces, listFiles, loadRules, matchGlob } from &quot;./match_rules.ts&quot;;
+
+export interface Finding {
+  level: &quot;WARN&quot; | &quot;INFO&quot;;
+  file: string;
+  message: string;
+}
+
+const FILE_TYPE_HINT = /\.test\.|\.spec\.|\*\.tf\b|terraform|\.controller\.|file test|test file|migration file|quy ước (test|api)|hạ tầng/i;
+const STEP_LINE = /^\s*(\d+[.)]|bước\s*\d+|step\s*\d+)/i;
+
+function normalize(s: string): string[] {
+  return s
+    .split(&quot;\n&quot;)
+    .map((l) =&gt; l.trim().toLowerCase())
+    .filter((l) =&gt; l &amp;&amp; !l.startsWith(&quot;#&quot;) &amp;&amp; !/canary-/i.test(l));
+}
+
+function similarity(a: string[], b: string[]): number {
+  const sa = new Set(a);
+  const sb = new Set(b);
+  const inter = [...sa].filter((x) =&gt; sb.has(x)).length;
+  return inter / Math.max(1, Math.min(sa.size, sb.size));
+}
+
+export function lint(repo: string): Finding[] {
+  const out: Finding[] = [];
+  const files = listFiles(repo);
+  const codeFiles = files.filter((f) =&gt; !f.endsWith(&quot;CLAUDE.md&quot;));
+
+  for (const r of loadRules(repo)) {
+    if (r.fm.error)
+      out.push({ level: &quot;WARN&quot;, file: r.file, message: `frontmatter hỏng (${r.fm.error}) → Claude Code bỏ frontmatter, rule nạp MỌI phiên` });
+    for (const k of r.fm.ignoredFields)
+      out.push({ level: &quot;INFO&quot;, file: r.file, message: `field &quot;${k}&quot; bị bỏ qua: rule chỉ đọc \`paths\`` });
+    if (r.fm.paths) {
+      const expanded = r.fm.paths.reduce((s, p) =&gt; s + (p.includes(&quot;{&quot;) ? expandBraces(p).length : 0), 0);
+      if (expanded &gt; 1000)
+        out.push({ level: &quot;WARN&quot;, file: r.file, message: `brace mở ra ${expanded} pattern (&gt; 1.000): pattern vượt ngân sách được dùng nguyên văn và không khớp gì` });
+      for (const p of r.fm.paths)
+        if (!codeFiles.some((f) =&gt; matchGlob(f, p)))
+          out.push({ level: &quot;WARN&quot;, file: r.file, message: `pattern &quot;${p}&quot; không khớp file nào trong repo (gõ sai glob?)` });
+    }
+    const steps = r.fm.body.split(&quot;\n&quot;).filter((l) =&gt; STEP_LINE.test(l)).length;
+    if (steps &gt;= 4)
+      out.push({ level: &quot;INFO&quot;, file: r.file, message: `${steps} dòng dạng &quot;bước 1, 2, 3…&quot;: giống quy trình → nên là skill (gọi khi cần), không phải quy ước nền` });
+  }
+
+  const root = join(repo, &quot;CLAUDE.md&quot;);
+  if (existsSync(root)) {
+    const hits = readFileSync(root, &quot;utf8&quot;)
+      .split(&quot;\n&quot;)
+      .filter((l) =&gt; FILE_TYPE_HINT.test(l) &amp;&amp; !l.includes(&quot;.claude/rules&quot;));
+    if (hits.length &gt;= 2)
+      out.push({
+        level: &quot;INFO&quot;,
+        file: &quot;CLAUDE.md&quot;,
+        message: `${hits.length} dòng là quy ước theo loại file (vd &quot;${hits[0].trim().slice(0, 60)}&quot;) → nạp cả khi sửa file không liên quan; nên chuyển sang .claude/rules/ có paths`,
+      });
+  }
+
+  const nested = files.filter((f) =&gt; f.endsWith(&quot;/CLAUDE.md&quot;));
+  const bodies = nested.map((f) =&gt; ({ f, lines: normalize(readFileSync(join(repo, f), &quot;utf8&quot;)) }));
+  const groups: string[][] = [];
+  const used = new Set&lt;string&gt;();
+  for (const a of bodies) {
+    if (used.has(a.f)) continue;
+    const g = [a.f, ...bodies.filter((b) =&gt; b.f !== a.f &amp;&amp; !used.has(b.f) &amp;&amp; similarity(a.lines, b.lines) &gt;= 0.8).map((b) =&gt; b.f)];
+    if (g.length &gt;= 2) {
+      g.forEach((f) =&gt; used.add(f));
+      groups.push(g);
+    }
+  }
+  for (const g of groups)
+    out.push({
+      level: &quot;WARN&quot;,
+      file: g.map((f) =&gt; dirname(f)).join(&quot;, &quot;),
+      message: `${g.length} CLAUDE.md thư mục gần như giống nhau → bản sao sẽ lệch nhau theo thời gian; gộp thành 1 rule trong .claude/rules/ với glob`,
+    });
+  return out;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const repo = process.argv[2] ?? join(new URL(&quot;.&quot;, import.meta.url).pathname, &quot;demo-repo&quot;);
+  const findings = lint(repo);
+  console.log(`Lint ${repo}`);
+  if (!findings.length) console.log(&quot;  (không có cảnh báo)&quot;);
+  for (const f of findings) console.log(`  ${f.level}  ${f.file}: ${f.message}`);
+  process.exitCode = findings.some((f) =&gt; f.level === &quot;WARN&quot;) ? 1 : 0;
+}
+</code></pre></details>
+<details><summary>make_variant.ts — sinh biến thể gom vào root</summary><pre><code>// Bài 3.3 – sinh biến thể &quot;gom hết vào root CLAUDE.md&quot; từ demo-repo (bước 6: so token).
+// variant-root/ = demo-repo nhưng KHÔNG có .claude/rules/; nội dung mọi rule (bỏ frontmatter) được nối vào
+// cuối CLAUDE.md. Mã CANARY giữ nguyên, nên ở biến thể này mọi CANARY đều thấy được trong mọi phiên.
+//
+// Dùng: node --experimental-strip-types make_variant.ts [demo-repo] [variant-root]
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from &quot;node:fs&quot;;
+import { join } from &quot;node:path&quot;;
+import { loadRules } from &quot;./match_rules.ts&quot;;
+
+export function buildVariantClaudeMd(repo: string): string {
+  const base = readFileSync(join(repo, &quot;CLAUDE.md&quot;), &quot;utf8&quot;).trimEnd();
+  const sections = loadRules(repo).map(
+    (r) =&gt; `&lt;!-- gộp từ ${r.file}${r.fm.paths ? ` (paths: ${r.fm.paths.join(&quot;, &quot;)})` : &quot;&quot;} --&gt;\n${r.fm.body.trim()}`,
+  );
+  return [
+    &quot;&lt;!-- FILE SINH TỰ ĐỘNG bởi make_variant.ts từ demo-repo. Đừng sửa tay. --&gt;&quot;,
+    base,
+    ...sections,
+  ].join(&quot;\n\n&quot;) + &quot;\n&quot;;
+}
+
+export function makeVariant(repo: string, out: string): void {
+  if (existsSync(out)) rmSync(out, { recursive: true });
+  cpSync(repo, out, { recursive: true, filter: (src) =&gt; !src.includes(`${join(repo, &quot;.claude&quot;)}`) });
+  writeFileSync(join(out, &quot;CLAUDE.md&quot;), buildVariantClaudeMd(repo));
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const here = new URL(&quot;.&quot;, import.meta.url).pathname;
+  const repo = process.argv[2] ?? join(here, &quot;demo-repo&quot;);
+  const out = process.argv[3] ?? join(here, &quot;variant-root&quot;);
+  makeVariant(repo, out);
+  console.log(`Đã sinh ${out} (CLAUDE.md ${readFileSync(join(out, &quot;CLAUDE.md&quot;), &quot;utf8&quot;).length} ký tự, không có .claude/rules/)`);
+}
+</code></pre></details>
+<details><summary>run_cli.sh — kiểm chứng bằng Claude thật</summary><pre><code>#!/usr/bin/env bash
+# Bài 3.3 – kiểm chứng bằng Claude THẬT: rule có `paths` chỉ được nạp khi Claude đọc một file khớp.
+# Mỗi rule trong demo-repo chứa một mã CANARY riêng; mỗi lệnh bắt Claude Read đúng MỘT file rồi in mọi CANARY
+# nó thấy → biết rule nào đã vào context. Chạy trên 2 biến thể để so (bước 6):
+#   rules/  = demo-repo (quy ước tách thành .claude/rules/ có paths)
+#   root/   = variant-root (mọi quy ước gom vào root CLAUDE.md, sinh bởi make_variant.ts)
+#
+#   ./run_cli.sh prepare   tạo .tmp/rules và .tmp/root (mỗi bản `git init` riêng để thành project độc lập)
+#   ./run_cli.sh run       2 biến thể × 5 ca (none, test, api, terraform, utils) = 10 lệnh claude -p
+#   ./run_cli.sh report    so CANARY thấy được với match_rules.ts, in input token của từng lệnh
+#   ./run_cli.sh all       prepare + run + report
+#   ./run_cli.sh clean
+#
+# Ca &quot;none&quot; không cho tool nào: chỉ thấy phần nạp lúc khởi động (root CLAUDE.md + rule không có paths).
+# Cờ: --tools Read (chỉ Read), --allowedTools Read, --permission-mode dontAsk, --no-session-persistence.
+# KHÔNG dùng --safe-mode (nó tắt CLAUDE.md và rules). ~/.claude/CLAUDE.md thật của máy vẫn được nạp;
+# report chỉ xét các mã CANARY-*.
+# Chi phí ước tính: 10 lệnh haiku, mỗi lệnh 1–2 lượt ≈ 0,01–0,05 USD; mỗi lệnh chặn trần BUDGET.
+set -euo pipefail
+
+ROOT=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+TMP=&quot;${TMP_DIR:-$ROOT/.tmp}&quot;
+RESULTS=&quot;${RESULTS_DIR:-$ROOT/results_cli}&quot;
+CLAUDE_BIN=&quot;${CLAUDE_BIN:-claude}&quot;
+MODEL=&quot;${MODEL:-haiku}&quot;
+BUDGET=&quot;${BUDGET:-0.05}&quot;
+NODE=&quot;node --experimental-strip-types --no-warnings&quot;
+
+CASES=(none:- test:src/auth/auth.test.ts api:src/api/customers.ts terraform:terraform/main.tf utils:src/utils/format.ts)
+LIST=&#x27;liệt kê MỌI chuỗi có dạng CANARY-… nằm trong hướng dẫn dự án (CLAUDE.md, rules) mà bạn đang có trong phiên này, kể cả phần được nạp thêm sau khi đọc file, mỗi dòng một chuỗi, giữ nguyên chữ. Không thấy chuỗi nào thì trả lời đúng một chữ: NONE.&#x27;
+
+prepare() {
+  rm -rf &quot;$TMP&quot;; mkdir -p &quot;$TMP&quot;
+  cp -r &quot;$ROOT/demo-repo&quot; &quot;$TMP/rules&quot;
+  $NODE &quot;$ROOT/make_variant.ts&quot; &quot;$ROOT/demo-repo&quot; &quot;$TMP/root&quot; &gt; /dev/null
+  for v in rules root; do
+    (cd &quot;$TMP/$v&quot; &amp;&amp; git init -q &amp;&amp; git add -A &amp;&amp; git -c user.email=demo@example.com -c user.name=demo commit -qm init)
+  done
+  echo &quot;Đã tạo $TMP/rules (rules theo path) và $TMP/root (gom vào root CLAUDE.md)&quot;
+}
+
+run() {
+  [[ -d &quot;$TMP/rules&quot; ]] || prepare
+  for v in rules root; do
+    mkdir -p &quot;$RESULTS/$v&quot;
+    for c in &quot;${CASES[@]}&quot;; do
+      local name=&quot;${c%%:*}&quot; file=&quot;${c#*:}&quot; prompt tools=()
+      if [[ &quot;$file&quot; == &quot;-&quot; ]]; then
+        prompt=&quot;Không dùng tool. Hãy $LIST&quot;; tools=(--tools &quot;&quot;)
+      else
+        prompt=&quot;Dùng tool Read đọc file $file (chỉ file này). Sau đó $LIST&quot;; tools=(--tools Read --allowedTools Read)
+      fi
+      echo &quot;▶ $v · $name ${file/-/}&quot;
+      (cd &quot;$TMP/$v&quot; &amp;&amp; &quot;$CLAUDE_BIN&quot; -p &quot;$prompt&quot; --model &quot;$MODEL&quot; --max-budget-usd &quot;$BUDGET&quot; \
+         --permission-mode dontAsk --no-session-persistence --output-format stream-json --verbose &quot;${tools[@]}&quot; \
+         &gt; &quot;$RESULTS/$v/$name.jsonl&quot; 2&gt; &quot;$RESULTS/$v/$name.err&quot;) || echo &quot;  (mã lỗi, xem $RESULTS/$v/$name.err)&quot;
+    done
+  done
+}
+
+report() { $NODE &quot;$ROOT/report_cli.ts&quot; &quot;$RESULTS&quot; &quot;$TMP&quot;; }
+
+case &quot;${1:-}&quot; in
+  prepare) prepare ;;
+  run) run ;;
+  report) report ;;
+  all) prepare; run; report ;;
+  clean) rm -rf &quot;$TMP&quot; &quot;$RESULTS&quot; ;;
+  *) sed -n &#x27;2,19p&#x27; &quot;$0&quot;; exit 1 ;;
+esac
+</code></pre></details>
+<details><summary>report_cli.ts — so CANARY và token</summary><pre><code>// Bài 3.3 – so CANARY mà Claude in ra (stream-json của run_cli.sh) với mô hình match_rules.ts,
+// và so input token thật giữa hai biến thể (rules theo path vs gom vào root CLAUDE.md).
+// Dùng: node --experimental-strip-types report_cli.ts &lt;results_cli&gt; &lt;.tmp&gt;
+import { existsSync } from &quot;node:fs&quot;;
+import { join } from &quot;node:path&quot;;
+import { readStream, resultEvent, toolUses } from &quot;../lib/cli_stream.ts&quot;;
+import { CANARY_RE, canariesFor, SAMPLE_FILES } from &quot;./match_rules.ts&quot;;
+
+export const CASES = [{ kind: &quot;none&quot;, file: &quot;&quot; }, ...SAMPLE_FILES];
+
+export interface Row {
+  variant: string;
+  kind: string;
+  file: string;
+  expected: string[];
+  seen: string[];
+  missing: string[];
+  extra: string[];
+  reads: string[];
+  inputTokens?: number;
+  costUsd?: number;
+  ok: boolean;
+}
+
+/** Tổng token đầu vào của lệnh (kể cả phần ghi/đọc cache), lấy từ result.usage nếu có. */
+function inputTokensOf(usage: any): number | undefined {
+  if (!usage) return undefined;
+  return (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
+}
+
+export function compare(resultsDir: string, tmpDir: string): Row[] {
+  const rows: Row[] = [];
+  for (const variant of [&quot;rules&quot;, &quot;root&quot;]) {
+    for (const c of CASES) {
+      const path = join(resultsDir, variant, `${c.kind}.jsonl`);
+      if (!existsSync(path)) continue;
+      const events = readStream(path);
+      const expected = canariesFor(join(tmpDir, variant), c.file ? [c.file] : []);
+      const res = resultEvent(events);
+      const text =
+        (res?.result as string | undefined) ??
+        events
+          .filter((e) =&gt; e.type === &quot;assistant&quot; &amp;&amp; Array.isArray(e.message?.content))
+          .flatMap((e) =&gt; e.message!.content.filter((b: any) =&gt; b.type === &quot;text&quot;).map((b: any) =&gt; b.text))
+          .join(&quot;\n&quot;);
+      const seen = [...new Set(text.match(CANARY_RE) ?? [])].sort();
+      const reads = toolUses(events)
+        .filter((t) =&gt; t.name === &quot;Read&quot;)
+        .map((t) =&gt; String(t.input?.file_path ?? &quot;&quot;).replace(/^.*?\/(?=src\/|terraform\/|routes\/|infrastructure\/)/, &quot;&quot;));
+      const missing = expected.filter((x) =&gt; !seen.includes(x));
+      const extra = seen.filter((x) =&gt; !expected.includes(x));
+      rows.push({
+        variant,
+        kind: c.kind,
+        file: c.file,
+        expected,
+        seen,
+        missing,
+        extra,
+        reads,
+        inputTokens: inputTokensOf(res?.usage),
+        costUsd: res?.total_cost_usd,
+        ok: !missing.length &amp;&amp; !extra.length,
+      });
+    }
+  }
+  return rows;
+}
+
+export function render(rows: Row[]): string {
+  const out: string[] = [];
+  out.push(`${&quot;biến thể&quot;.padEnd(8)} ${&quot;ca&quot;.padEnd(10)} ${&quot;đã Read&quot;.padEnd(24)} ${&quot;input tok&quot;.padStart(9)}  kết quả`);
+  for (const r of rows) {
+    const verdict = r.ok ? &quot;OK&quot; : `KHÁC  thiếu=[${r.missing.join(&quot; &quot;)}] dư=[${r.extra.join(&quot; &quot;)}]`;
+    out.push(
+      `${r.variant.padEnd(8)} ${r.kind.padEnd(10)} ${(r.reads.join(&quot;,&quot;) || &quot;—&quot;).padEnd(24)} ${String(r.inputTokens ?? &quot;?&quot;).padStart(9)}  ${verdict}`,
+    );
+    out.push(`${&quot;&quot;.padEnd(20)}thấy: ${r.seen.join(&quot; &quot;) || &quot;NONE&quot;}`);
+  }
+  const by = (v: string, k: string) =&gt; rows.find((r) =&gt; r.variant === v &amp;&amp; r.kind === k)?.inputTokens;
+  out.push(&quot;\nChênh input token (root − rules) cùng một ca — phần quy ước KHÔNG liên quan bị nạp thừa ở biến thể root:&quot;);
+  for (const k of CASES.map((c) =&gt; c.kind)) {
+    const a = by(&quot;rules&quot;, k);
+    const b = by(&quot;root&quot;, k);
+    if (a !== undefined &amp;&amp; b !== undefined) out.push(`  ${k.padEnd(10)} rules=${a}  root=${b}  chênh=${b - a}`);
+  }
+  const cost = rows.reduce((s, r) =&gt; s + (r.costUsd ?? 0), 0);
+  out.push(`\n${rows.filter((r) =&gt; r.ok).length}/${rows.length} ca khớp mô hình · tổng chi phí ${cost.toFixed(4)} USD`);
+  return out.join(&quot;\n&quot;);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const [resultsDir, tmpDir] = process.argv.slice(2);
+  if (!resultsDir || !tmpDir) {
+    console.error(&quot;Dùng: report_cli.ts &lt;results_cli&gt; &lt;.tmp&gt;&quot;);
+    process.exit(2);
+  }
+  console.log(render(compare(resultsDir, tmpDir)));
+}
+</code></pre></details>
+<details><summary>demo-repo/.claude/rules/testing.md</summary><pre><code>---
+paths:
+  - &quot;**/*.test.{ts,tsx}&quot;
+  - &quot;**/*.spec.ts&quot;
+---
+
+# Quy ước test
+
+CANARY-RULE-TEST-5M
+
+- Đặt tên theo hành vi: `describe(&quot;&lt;đơn vị&gt;&quot;)` + `it(&quot;&lt;làm gì&gt; khi &lt;điều kiện&gt;&quot;)`.
+- Mỗi file có ít nhất một ca happy-path và một ca lỗi.
+- Dữ liệu test tạo bằng hàm factory (`makeCustomer()`), không viết object literal lặp lại.
+- Chỉ mock ở ranh giới module (API client, DB); không mock hàm nội bộ.
+- Assert hành vi quan sát được (giá trị trả về, lỗi ném ra), không assert chi tiết cài đặt.
+</code></pre></details>
+<details><summary>demo-repo/.claude/rules/api-conventions.md</summary><pre><code>---
+paths:
+  - &quot;src/api/**/*.ts&quot;
+  - &quot;**/routes/**/*.ts&quot;
+  - &quot;**/*.controller.ts&quot;
+---
+
+# Quy ước API
+
+CANARY-RULE-API-8T
+
+- Mọi response theo envelope `{ data, error, meta }`.
+- Validate input bằng Zod ngay tại handler, trước khi gọi service.
+- Response lỗi luôn kèm `requestId` để tra log.
+- Cấu hình rate limit tường minh cho từng route, không dựa vào mặc định.
+</code></pre></details>
+<details><summary>demo-repo/.claude/rules/terraform.md</summary><pre><code>---
+paths:
+  - &quot;terraform/**/*&quot;
+  - &quot;**/*.tf&quot;
+  - &quot;infrastructure/**/*&quot;
+---
+
+# Quy ước hạ tầng (Terraform)
+
+CANARY-RULE-TF-3W
+
+- State luôn ở remote backend (S3 + DynamoDB lock), không bao giờ để local.
+- Tách môi trường bằng workspace (`dev`, `stg`, `prod`).
+- Module có version cố định và CHANGELOG.
+- Tên resource dạng snake_case, bắt buộc tag `env` và `team`.
+</code></pre></details>
+
+<h2>9. Kiểm thử</h2>
+<div class="two"><div class="card ok"><b>Chạy thật (không cần model)</b><ul><li>Matcher glob 19 ca, đối chiếu với <code>path.matchesGlob</code> của Node</li><li>Frontmatter: list, chuỗi phẩy, mảng, không có, hỏng</li><li>Bảng file → rule trên demo-repo, CANARY theo ca</li><li>Token: rules &lt; root ở mọi ca; <code>variant-root</code> khớp bản sinh</li><li>Lint: demo sạch; <code>test/fixtures/bad-repo</code> bắt đủ 6 loại lỗi</li></ul></div>
+<div class="card warn"><b>Với claude GIẢ</b><ul><li><code>run_cli.sh</code> chạy đủ 10 lệnh, đúng cờ (haiku, stream-json, trần chi phí, không <code>--safe-mode</code>)</li><li>Report 10/10 khớp — nhưng claude giả trả lời bằng chính mô hình, nên chỉ chứng minh <b>đường ống</b> chạy đúng</li></ul></div></div>
+<details><summary>Output test (test/run.test.ts)</summary><pre><code>
+== Matcher glob (đối chiếu với path.matchesGlob của Node)
+PASS  **/*.test.ts  ~  src/auth/auth.test.ts → true
+PASS  **/*.test.ts  ~  auth.test.ts → true
+PASS  **/*.test.{ts,tsx}  ~  src/components/Button.test.tsx → true
+PASS  **/*.test.{ts,tsx}  ~  src/components/Button.tsx → false
+PASS  **/*.spec.ts  ~  src/api/customers.spec.ts → true
+PASS  src/api/**/*.ts  ~  src/api/customers.ts → true
+PASS  src/api/**/*.ts  ~  src/api/v2/orders.ts → true
+PASS  src/api/**/*.ts  ~  lib/api/customers.ts → false
+PASS  **/routes/**/*.ts  ~  routes/favorites.ts → true
+PASS  **/routes/**/*.ts  ~  src/routes/admin/users.ts → true
+PASS  **/*.controller.ts  ~  src/matching/matching.controller.ts → true
+PASS  terraform/**/*  ~  terraform/main.tf → true
+PASS  terraform/**/*  ~  infra/terraform/main.tf → false
+PASS  **/*.tf  ~  infrastructure/network.tf → true
+PASS  *.md  ~  README.md → true
+PASS  *.md  ~  docs/README.md → false
+PASS  src/?.ts  ~  src/a.ts → true
+PASS  src/?.ts  ~  src/ab.ts → false
+PASS  src/[abc].ts  ~  src/b.ts → true
+PASS  brace lồng nhau mở đúng
+PASS  `[` không đóng → không khớp gì (như tài liệu)
+
+== Frontmatter
+PASS  YAML list
+PASS  chuỗi phân tách dấu phẩy
+PASS  mảng YAML dạng [ ]
+PASS  không có frontmatter → paths null (luôn nạp)
+PASS  frontmatter hỏng → error + paths null (nạp mọi phiên)
+PASS  field khác paths bị ghi nhận là bỏ qua
+
+== Bảng file → rule trên demo-repo
+PASS  src/auth/auth.test.ts → testing.md
+PASS  src/components/Button.test.tsx → testing.md
+PASS  src/dashboard/Dashboard.test.tsx → testing.md
+PASS  src/favorites/favorites.test.ts → testing.md
+PASS  src/matching/matching.test.ts → testing.md
+PASS  src/utils/format.test.ts → testing.md
+PASS  src/api/customers.spec.ts → api-conventions.md,testing.md
+PASS  src/api/customers.ts → api-conventions.md
+PASS  routes/favorites.ts → api-conventions.md
+PASS  src/matching/matching.controller.ts → api-conventions.md
+PASS  terraform/main.tf → terraform.md
+PASS  terraform/variables.tf → terraform.md
+PASS  infrastructure/network.tf → terraform.md
+PASS  infrastructure/README.md → terraform.md
+PASS  src/utils/format.ts → —
+PASS  src/auth/auth.ts → —
+PASS  src/components/Button.tsx → —
+PASS  rule testing phủ test co-located ở ≥ 6 thư mục bằng 1 file
+
+== CANARY theo ca (mô hình)
+PASS  không chạm file nào → chỉ root
+PASS  đọc file test → root + test
+PASS  đọc .spec.ts trong src/api → nạp cả API và test
+PASS  đọc file utils → không rule nào
+PASS  biến thể root: mọi CANARY luôn có
+
+== Token (bước 6)
+PASS  mọi ca: rules theo path ít token hơn gom vào root
+PASS  file utils tiết kiệm nhiều nhất (không rule nào liên quan)
+PASS  variant-root/CLAUDE.md đúng bằng bản sinh từ demo-repo (không lệch tay)
+
+== Lint
+PASS  demo-repo: không cảnh báo
+PASS  bắt frontmatter hỏng
+PASS  bắt glob gõ sai không khớp file nào
+PASS  bắt 3 CLAUDE.md thư mục giống nhau
+PASS  gợi ý chuyển quy ước theo loại file khỏi root
+PASS  gợi ý quy trình nhiều bước nên là skill
+PASS  ghi nhận field bị bỏ qua
+PASS  variant-root: gợi ý tách quy ước khỏi root
+
+== run_cli.sh với claude GIẢ (không gọi model)
+PASS  10 lệnh claude (2 biến thể × 5 ca)
+PASS  mọi lệnh dùng haiku + stream-json + trần chi phí
+PASS  không lệnh nào dùng --safe-mode (sẽ tắt rules)
+PASS  ca none không cho tool; ca đọc file chỉ cho Read
+PASS  report: 10/10 ca khớp mô hình
+PASS  report: biến thể root tốn nhiều input token hơn ở ca utils
+PASS  report in tổng kết
+
+68 PASS, 0 FAIL
+</code></pre></details>
+<details><summary>Output lint (demo-repo, bad-repo, variant-root)</summary><pre><code>Lint ~/Downloads/claude-cert/3.3/demo-repo
+  (không có cảnh báo)
+
+Lint test/fixtures/bad-repo
+  WARN  .claude/rules/broken.md: frontmatter hỏng (dòng YAML không hợp lệ: &quot;  this is not yaml&quot;) → Claude Code bỏ frontmatter, rule nạp MỌI phiên
+  INFO  .claude/rules/release.md: 5 dòng dạng &quot;bước 1, 2, 3…&quot;: giống quy trình → nên là skill (gọi khi cần), không phải quy ước nền
+  INFO  .claude/rules/typo.md: field &quot;description&quot; bị bỏ qua: rule chỉ đọc `paths`
+  WARN  .claude/rules/typo.md: pattern &quot;**/*.tset.ts&quot; không khớp file nào trong repo (gõ sai glob?)
+  INFO  CLAUDE.md: 3 dòng là quy ước theo loại file (vd &quot;- Mỗi file test (*.test.ts) có ít nhất một ca lỗi.&quot;) → nạp cả khi sửa file không liên quan; nên chuyển sang .claude/rules/ có paths
+  WARN  src/a, src/b, src/c: 3 CLAUDE.md thư mục gần như giống nhau → bản sao sẽ lệch nhau theo thời gian; gộp thành 1 rule trong .claude/rules/ với glob
+
+Lint variant-root
+  INFO  CLAUDE.md: 3 dòng là quy ước theo loại file (vd &quot;# Quy ước API&quot;) → nạp cả khi sửa file không liên quan; nên chuyển sang .claude/rules/ có paths
+</code></pre></details>
+<details><summary>Output run_cli.sh all với claude giả</summary><pre><code>Đã tạo …/tmp/rules (rules theo path) và …/tmp/root (gom vào root CLAUDE.md)
+▶ rules · none 
+▶ rules · test src/auth/auth.test.ts
+▶ rules · api src/api/customers.ts
+▶ rules · terraform terraform/main.tf
+▶ rules · utils src/utils/format.ts
+▶ root · none 
+▶ root · test src/auth/auth.test.ts
+▶ root · api src/api/customers.ts
+▶ root · terraform terraform/main.tf
+▶ root · utils src/utils/format.ts
+biến thể ca         đã Read                  input tok  kết quả
+rules    none       —                            15084  OK
+                    thấy: CANARY-ROOT-2K
+rules    test       src/auth/auth.test.ts        15191  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-TEST-5M
+rules    api        src/api/customers.ts         15153  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T
+rules    terraform  terraform/main.tf            15156  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-TF-3W
+rules    utils      src/utils/format.ts          15084  OK
+                    thấy: CANARY-ROOT-2K
+root     none       —                            15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     test       src/auth/auth.test.ts        15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     api        src/api/customers.ts         15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     terraform  terraform/main.tf            15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+root     utils      src/utils/format.ts          15425  OK
+                    thấy: CANARY-ROOT-2K CANARY-RULE-API-8T CANARY-RULE-TEST-5M CANARY-RULE-TF-3W
+
+Chênh input token (root − rules) cùng một ca — phần quy ước KHÔNG liên quan bị nạp thừa ở biến thể root:
+  none       rules=15084  root=15425  chênh=341
+  test       rules=15191  root=15425  chênh=234
+  api        rules=15153  root=15425  chênh=272
+  terraform  rules=15156  root=15425  chênh=269
+  utils      rules=15084  root=15425  chênh=341
+
+10/10 ca khớp mô hình · tổng chi phí 0.0000 USD
+</code></pre></details>
+<div class="card warn"><b>Chưa chạy với Claude thật.</b> <code>./run_cli.sh all</code> gồm 10 lệnh <code>claude -p</code> với haiku, ước tính 0,01–0,05 USD (trần 0,05 USD/lệnh). Câu trả lời cần chờ lần chạy thật: rule có thật sự chỉ xuất hiện sau khi Read file khớp, và chênh input token thật giữa hai biến thể là bao nhiêu.</div>
+
+<h2>10. Kết quả quan sát</h2>
+<div class="card"><p class="meta">(Điền sau khi chạy <code>./run_cli.sh all</code> với Claude thật.)</p>
+<div class="tw"><table><tr><th>Ca</th><th>CANARY thấy (rules)</th><th>CANARY thấy (root)</th><th>Input token rules / root</th></tr>
+<tr><td>none</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>test</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>api</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>terraform</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+<tr><td>utils</td><td><div class="fill">…</div></td><td><div class="fill">…</div></td><td><div class="fill">…</div></td></tr>
+</table></div><p>Ghi chú:</p><div class="fill" style="min-height:60px">…</div></div>
+
+<h2>11. Tiêu chí hoàn thành</h2>
+<ul class="chk">
+<li>3 rule có <code>paths</code> dạng glob, mỗi rule ≥ 3 quy ước (test 5, API 4, Terraform 4)</li>
+<li>1 rule test phủ file test co-located ở 7 thư mục, không cần CLAUDE.md nào trong các thư mục đó</li>
+<li>Bảng file → rule chứng minh file test chỉ kéo <code>testing.md</code>, file API chỉ kéo <code>api-conventions.md</code>, file utils không kéo rule nào</li>
+<li>So sánh token: tách rules ít hơn gom vào root ở mọi loại file (ước lượng); số thật chờ lần chạy Claude</li>
+</ul>
+
+<h2>12. Bài học rút ra</h2>
+<ul>
+<li><b>Loại file rải nhiều thư mục → rule + glob.</b> Một file, một chỗ sửa; thêm thư mục test mới không cần làm gì.</li>
+<li><b>Rule chỉ nạp khi chạm file khớp</b> nên không tốn token khi làm việc khác, khác root CLAUDE.md nạp mọi phiên.</li>
+<li><b>Frontmatter hỏng là lỗi im lặng</b>: rule vẫn chạy nhưng nạp mọi phiên. Glob gõ sai cũng im lặng theo chiều ngược lại: rule không bao giờ nạp. Vì vậy mới cần lint.</li>
+<li><b>Rule là quy ước nền, skill là quy trình gọi khi cần</b>; cả hai có <code>paths</code> nhưng vai trò khác nhau.</li>
+</ul>
+<h3>3 bẫy đề</h3>
+<ol><li>Chọn CLAUDE.md thư mục cho quy ước trải 50+ thư mục → phải là rule + glob.</li>
+<li>Đặt quy ước theo loại file vào root CLAUDE.md → tốn token khi sửa file không liên quan.</li>
+<li>Nhầm skill với rule cho việc tự nạp quy ước → rule mới là cơ chế nền tự động.</li></ol>
+<h3>Câu luyện tập</h3>
+<div class="card"><p>Test co-located ở 50+ thư mục, team muốn quy ước test giống nhau ở mọi nơi. Cách dễ bảo trì nhất?</p>
+<ul><li>A. Gom vào root CLAUDE.md — <span class="red">nạp cả khi làm việc khác, tốn token</span></li>
+<li><b>B. Một file trong <code>.claude/rules/</code> với <code>paths: **/*.test.tsx, **/*.test.ts</code></b> — <span class="grn">đúng</span></li>
+<li>C. CLAUDE.md ở mọi thư mục có test — <span class="red">50+ bản sao, lệch nhau dần</span></li>
+<li>D. Skill chứa quy ước test, dev gọi trước khi viết test — <span class="red">phụ thuộc người nhớ gọi, không tự động</span></li></ul></div>
+
+<h2>13. Tài liệu tham khảo</h2>
+<ul>
+<li><a href="https://claudecertificationguide.com/learn/3-claude-code-config/3-3-path-specific-rules">Lesson 3.3 – claudecertificationguide.com</a> (trang cộng đồng)</li>
+<li><a href="https://code.claude.com/docs/en/memory">Claude Code docs: How Claude remembers your project</a> (mục Path-specific rules, Troubleshoot after /compact)</li>
+<li><a href="https://code.claude.com/docs/en/skills">Claude Code docs: Skills</a></li>
+<li>Claude Certified Architect – Foundations Exam Guide, Task Statement 3.3</li>
+</ul>
+</main></body></html>

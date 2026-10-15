@@ -1,0 +1,7 @@
+Lệnh          Người mới clone   Máy mình (có skill cá nhân)
+/review           có                có
+/analyse-feature  có                có
+/lint             KHÔNG             KHÔNG
+/brainstorm       KHÔNG             có
+
+/lint không có ở đâu cả: .claude/skills/lint.md là file phẳng, không tạo lệnh.

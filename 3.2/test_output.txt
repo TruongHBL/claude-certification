@@ -1,0 +1,53 @@
+
+== skill_files: đọc skill và command
+PASS  demo-repo tạo đúng 2 lệnh: command /review + skill /analyse-feature
+PASS  file phẳng .claude/skills/lint.md KHÔNG thành lệnh, bị ghi nhận là bẫy
+PASS  analyse-feature có context: fork, allowed-tools Read Grep Glob, argument-hint, description
+PASS  command /review dùng $ARGUMENTS
+PASS  frontmatter: field name đổi tên lệnh; allowed-tools dạng [a, b]
+PASS  skill và command trùng tên: skill thắng
+PASS  thư mục không tồn tại: không lỗi, 0 lệnh
+
+== lint_skills: repo mẫu và repo xấu
+PASS  demo-repo: đúng 1 lỗi (file phẳng lint.md)
+PASS  demo-repo: có ghi chú allowed-tools chỉ pre-approve, không giới hạn
+PASS  demo-repo: không cảnh báo thiếu context: fork (analyse-feature đã có)
+PASS  bắt file .md phẳng trong skills/
+PASS  bắt SKILL.md thiếu description
+PASS  bắt skill khám phá thiếu context: fork
+PASS  bắt skill khám phá có Write/Bash trong allowed-tools
+PASS  bắt skill và command trùng tên
+PASS  bắt quy trình nhiều bước trong CLAUDE.md
+PASS  lint_skills.ts trả mã lỗi ≠ 0 khi có lỗi
+
+== expected_commands: phiên nào thấy lệnh nào (bước 5)
+PASS  /review và /analyse-feature: người mới clone CÓ (đi theo git)
+PASS  /brainstorm: chỉ máy mình có, người mới KHÔNG
+PASS  /lint: không ai có (file phẳng)
+PASS  skill cá nhân có context: fork, nguồn user
+PASS  trùng tên giữa user và project: personal thắng
+
+== user_skill_demo.sh: HOME giả, không đụng ~/.claude thật
+PASS  mặc định dry-run: in kế hoạch, không tạo thư mục
+PASS  --status trước khi cài: CHƯA CÀI
+PASS  --apply: copy SKILL.md + file đánh dấu
+PASS  --apply lần 2: không lỗi, không làm gì thêm
+PASS  --revert: gỡ đúng thư mục demo
+PASS  đã có brainstorm thật: --apply TỪ CHỐI, không ghi đè
+PASS  brainstorm không có file đánh dấu: --revert TỪ CHỐI, không xoá
+
+== run_cli.sh với claude GIẢ (đường ống, không phải hành vi thật)
+PASS  run_cli.sh all chạy xong
+PASS  clone-nofork chỉ khác ở dòng context: fork
+PASS  4 lệnh claude -p
+PASS  lệnh list dùng --tools "" (không tool)
+PASS  fork/nofork gửi đúng prompt /analyse-feature favorites
+PASS  mọi lệnh có --max-budget-usd, stream-json, không --safe-mode
+PASS  init: bỏ tên plugin, chỉ giữ 4 tên của bài
+PASS  fork: 0 ký tự tool trong hội thoại chính, có forked-command
+PASS  nofork: nội dung file đổ vào hội thoại chính
+PASS  auto: Claude gọi tool Skill nhờ description
+PASS  report: 4 dòng OK ở bảng lệnh, kết luận fork giữ output ngoài
+PASS  không tạo gì trong ~/.claude/skills giả khi chưa --apply
+
+41 PASS, 0 FAIL
